@@ -9,8 +9,18 @@ whole: a collapsible sidebar with search, a home page with stats and a revenue c
 settings pages and a notifications panel. Those pages still show the template's sample data, served from
 `/api/_better-auth-admin/demo/*`; **Users** is the real thing, backed by Better Auth.
 
-> **Status: scaffold.** The users list works; user details, roles, bans, sessions and impersonation are next, and the
-> template's pages will be wired to real data as they find uses.
+## User management
+
+- **Users list:** search by email or name, filter (admins, banned, unverified), sort, paginate; select rows to ban or
+  delete several at once.
+- **Add user:** name, email, optional password, role.
+- **Per user** (row menu or the user's page): edit name, email, avatar and verification; change role; set a password
+  or email a reset link; ban with a reason and an expiry, or unban; sign out of one session or everywhere; delete.
+- **User page:** profile, role and status, ban details, and active sessions with device, IP and last activity.
+- You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
+
+> **Status: early.** Next: real numbers on the home page, an audit log of admin actions, custom roles and permissions,
+> then impersonation. The template's other pages still show sample data.
 
 ## Setup
 

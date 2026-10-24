@@ -91,7 +91,8 @@ export default defineNuxtModule<ModuleOptions>({
         addImports([
             { name: 'useBetterAuthAdminConfig', from: resolve('./runtime/app/utils/config') },
             { name: 'useAdminPath', from: resolve('./runtime/app/utils/config') },
-            { name: 'useAdminDashboard', from: resolve('./runtime/app/composables/useDashboard') }
+            { name: 'useAdminDashboard', from: resolve('./runtime/app/composables/useDashboard') },
+            { name: 'useAdminUsers', from: resolve('./runtime/app/composables/useAdminUsers') }
         ]);
         // Prefixed, so they can't clash with the app's own components: <AdminUserMenu>, <AdminHomeStats>, …
         addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });

@@ -134,3 +134,98 @@ describe('the admin pages', () => {
         ]);
     });
 });
+
+describe('user management', () => {
+    const post = (path: string, body: unknown, cookie = adminCookie) =>
+        fetch(`${base}/api/auth/admin/${path}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie },
+            body: JSON.stringify(body)
+        });
+    const signInAs = (email: string, password: string) =>
+        fetch(`${base}/api/auth/sign-in/email`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base },
+            body: JSON.stringify({ email, password })
+        });
+    const getUser = async (id: string) => (await get(`/api/auth/admin/get-user?id=${id}`, adminCookie)).json();
+    const listUsers = async (query: string) => (await get(`/api/auth/admin/list-users?${query}`, adminCookie)).json();
+
+    let carolId: string;
+
+    it('creates a user who can sign in', async () => {
+        const response = await post('create-user', {
+            name: 'carol',
+            email: 'carol@example.com',
+            password: 'password123',
+            role: 'user'
+        });
+        expect(response.status).toBe(200);
+        carolId = (await response.json()).user.id;
+        expect((await signInAs('carol@example.com', 'password123')).status).toBe(200);
+    });
+
+    it('edits a user and changes their role', async () => {
+        expect(
+            (await post('update-user', { userId: carolId, data: { name: 'Carol', emailVerified: true } })).status
+        ).toBe(200);
+        expect((await post('set-role', { userId: carolId, role: 'admin' })).status).toBe(200);
+        const carol = await getUser(carolId);
+        expect(carol).toMatchObject({ name: 'Carol', emailVerified: true, role: 'admin' });
+        expect((await post('set-role', { userId: carolId, role: 'user' })).status).toBe(200);
+    });
+
+    it('filters the list by role, ban and verification', async () => {
+        expect(
+            (await listUsers('filterField=role&filterValue=admin')).users.map((u: { email: string }) => u.email)
+        ).toEqual(['bob@example.com']);
+        const verified = await listUsers('filterField=emailVerified&filterValue=true');
+        expect(verified.users.map((u: { email: string }) => u.email)).toContain('carol@example.com');
+    });
+
+    it('lists and revokes sessions', async () => {
+        const { sessions } = await (await post('list-user-sessions', { userId: carolId })).json();
+        expect(sessions.length).toBeGreaterThan(0);
+        expect((await post('revoke-user-session', { sessionToken: sessions[0].token })).status).toBe(200);
+        expect((await post('revoke-user-sessions', { userId: carolId })).status).toBe(200);
+        expect((await (await post('list-user-sessions', { userId: carolId })).json()).sessions).toEqual([]);
+    });
+
+    it('bans with a reason and expiry, which blocks sign-in, then unbans', async () => {
+        expect((await post('ban-user', { userId: carolId, banReason: 'Spam', banExpiresIn: 3600 })).status).toBe(200);
+        const carol = await getUser(carolId);
+        expect(carol).toMatchObject({ banned: true, banReason: 'Spam' });
+        expect(new Date(carol.banExpires).getTime()).toBeGreaterThan(Date.now());
+        expect((await listUsers('filterField=banned&filterValue=true')).users.map((u: { id: string }) => u.id)).toEqual(
+            [carolId]
+        );
+        expect((await signInAs('carol@example.com', 'password123')).status).toBe(403);
+
+        expect((await post('unban-user', { userId: carolId })).status).toBe(200);
+        expect((await signInAs('carol@example.com', 'password123')).status).toBe(200);
+    });
+
+    it("sets a user's password", async () => {
+        expect((await post('set-user-password', { userId: carolId, newPassword: 'new-password-456' })).status).toBe(
+            200
+        );
+        expect((await signInAs('carol@example.com', 'password123')).status).toBe(401);
+        expect((await signInAs('carol@example.com', 'new-password-456')).status).toBe(200);
+    });
+
+    it("doesn't let admins ban themselves", async () => {
+        const { users } = await listUsers('searchValue=bob@example.com&searchField=email');
+        expect((await post('ban-user', { userId: users[0].id })).status).toBe(400);
+    });
+
+    it("doesn't let other users manage anyone", async () => {
+        expect((await post('ban-user', { userId: carolId }, userCookie)).status).toBe(403);
+        expect((await post('remove-user', { userId: carolId }, userCookie)).status).toBe(403);
+    });
+
+    it('deletes a user', async () => {
+        expect((await post('remove-user', { userId: carolId })).status).toBe(200);
+        expect((await get(`/api/auth/admin/get-user?id=${carolId}`, adminCookie)).status).toBe(404);
+        expect((await signInAs('carol@example.com', 'new-password-456')).status).toBe(401);
+    });
+});

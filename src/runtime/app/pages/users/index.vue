@@ -1,102 +1,442 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui';
-import { useAuthClient } from '@nuxtjs/better-auth/composables';
-import { ref, useAsyncData, useBetterAuthAdminConfig, watch } from '#imports';
+// The table follows the Nuxt UI dashboard template's customers page; the data is Better Auth's.
+import type { DropdownMenuItem, TableColumn } from '@nuxt/ui';
+import { useUserSession } from '@nuxtjs/better-auth/composables';
+import { refDebounced } from '@vueuse/core';
+import { upperFirst } from 'scule';
+import type { Row } from '@tanstack/table-core';
+import {
+    computed,
+    h,
+    navigateTo,
+    ref,
+    resolveComponent,
+    useAdminPath,
+    useAdminUsers,
+    useAsyncData,
+    useBetterAuthAdminConfig,
+    useTemplateRef,
+    useToast,
+    watch
+} from '#imports';
 
-type AdminUser = {
-    id: string;
-    name: string;
-    email: string;
-    role?: string | null;
-    banned?: boolean | null;
-    emailVerified: boolean;
-    createdAt: string | Date;
+import type { AdminUser, AdminUserQuery } from '../../types';
+
+const UAvatar = resolveComponent('UAvatar');
+const UBadge = resolveComponent('UBadge');
+const UButton = resolveComponent('UButton');
+const UCheckbox = resolveComponent('UCheckbox');
+const UDropdownMenu = resolveComponent('UDropdownMenu');
+
+const adminPath = useAdminPath();
+const { role: adminRole } = useBetterAuthAdminConfig();
+const session = useUserSession();
+const admin = useAdminUsers();
+const toast = useToast();
+const table = useTemplateRef('table');
+
+const PAGE_SIZE = 20;
+const page = ref(1);
+const search = ref('');
+const searchField = ref<'email' | 'name'>('email');
+const debouncedSearch = refDebounced(search, 300);
+const filter = ref('all');
+const sorting = ref([{ id: 'createdAt', desc: true }]);
+const rowSelection = ref<Record<string, boolean>>({});
+const columnVisibility = ref<Record<string, boolean>>({});
+
+const filters: Record<string, AdminUserQuery['filter']> = {
+    all: undefined,
+    admins: { field: 'role', value: adminRole },
+    banned: { field: 'banned', value: 'true' },
+    unverified: { field: 'emailVerified', value: 'false' }
 };
 
-const { route } = useBetterAuthAdminConfig();
-const PAGE_SIZE = 20;
-
-const search = ref('');
-const page = ref(1);
-watch(search, () => {
+watch([debouncedSearch, searchField, filter, sorting], () => {
     page.value = 1;
 });
+watch(page, () => {
+    rowSelection.value = {};
+});
 
-// The admin client plugin is added by the module, so the app's typed client doesn't know about it.
-const admin = () => (useAuthClient() as unknown as { admin: { listUsers: Function } }).admin;
-
-const { data, status, error } = await useAsyncData(
+const { data, status, error, refresh } = await useAsyncData(
     'better-auth-admin-users',
-    async () => {
-        const result = await admin().listUsers({
-            query: {
-                limit: PAGE_SIZE,
-                offset: (page.value - 1) * PAGE_SIZE,
-                sortBy: 'createdAt',
-                sortDirection: 'desc',
-                ...(search.value && { searchValue: search.value, searchField: 'email', searchOperator: 'contains' })
-            }
-        });
-        if (result.error) throw new Error(result.error.message);
-        return result.data as { users: AdminUser[]; total: number };
-    },
-    { server: false, watch: [page, search] }
+    () =>
+        admin.list({
+            limit: PAGE_SIZE,
+            offset: (page.value - 1) * PAGE_SIZE,
+            search: debouncedSearch.value.trim() || undefined,
+            searchField: searchField.value,
+            sortBy: sorting.value[0]?.id ?? 'createdAt',
+            sortDirection: sorting.value[0]?.desc === false ? 'asc' : 'desc',
+            filter: filters[filter.value]
+        }),
+    { server: false, watch: [page, debouncedSearch, searchField, filter, sorting] }
 );
 
+const users = computed(() => data.value?.users ?? []);
+const isSelf = (user: AdminUser) => user.id === session.user.value?.id;
+const selected = computed(() => users.value.filter((user) => rowSelection.value[user.id]));
+
+// Which modal is open, and for whom.
+const modal = ref<'role' | 'ban' | 'delete' | 'password' | 'edit' | null>(null);
+const targets = ref<AdminUser[]>([]);
+const openModal = (name: NonNullable<typeof modal.value>, forUsers: AdminUser[]) => {
+    targets.value = forUsers;
+    modal.value = name;
+};
+const modalOpen = (name: NonNullable<typeof modal.value>) =>
+    computed({
+        get: () => modal.value === name,
+        set: (value) => {
+            if (!value) modal.value = null;
+        }
+    });
+const roleOpen = modalOpen('role');
+const banOpen = modalOpen('ban');
+const deleteOpen = modalOpen('delete');
+const passwordOpen = modalOpen('password');
+const editOpen = modalOpen('edit');
+
+const afterChange = async () => {
+    rowSelection.value = {};
+    await refresh();
+};
+
+async function run(action: () => Promise<unknown>, success: string) {
+    try {
+        await action();
+        toast.add({ title: success, color: 'success' });
+        await refresh();
+    } catch (error) {
+        toast.add({ title: 'Something went wrong', description: (error as Error).message, color: 'error' });
+    }
+}
+
+function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
+    const user = row.original;
+    const self = isSelf(user);
+    return [
+        [
+            { type: 'label', label: user.email },
+            {
+                label: 'View details',
+                icon: 'i-lucide-user',
+                onSelect: () => navigateTo(adminPath(`/users/${user.id}`))
+            },
+            {
+                label: 'Copy user ID',
+                icon: 'i-lucide-copy',
+                onSelect: async () => {
+                    await navigator.clipboard.writeText(user.id);
+                    toast.add({ title: 'Copied to clipboard', description: user.id });
+                }
+            }
+        ],
+        [
+            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openModal('edit', [user]) },
+            {
+                label: 'Change role',
+                icon: 'i-lucide-shield',
+                disabled: self,
+                onSelect: () => openModal('role', [user])
+            },
+            { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => openModal('password', [user]) },
+            {
+                label: 'Sign out everywhere',
+                icon: 'i-lucide-log-out',
+                disabled: self,
+                onSelect: () => run(() => admin.revokeSessions(user.id), `${user.name} was signed out everywhere`)
+            }
+        ],
+        [
+            user.banned
+                ? {
+                      label: 'Unban',
+                      icon: 'i-lucide-shield-check',
+                      onSelect: () => run(() => admin.unban(user.id), `${user.name} was unbanned`)
+                  }
+                : {
+                      label: 'Ban',
+                      icon: 'i-lucide-ban',
+                      color: 'error',
+                      disabled: self,
+                      onSelect: () => openModal('ban', [user])
+                  },
+            {
+                label: 'Delete',
+                icon: 'i-lucide-trash',
+                color: 'error',
+                disabled: self,
+                onSelect: () => openModal('delete', [user])
+            }
+        ]
+    ];
+}
+
+const sortHeader =
+    (label: string) =>
+    ({ column }: { column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (desc: boolean) => void } }) => {
+        const sorted = column.getIsSorted();
+        return h(UButton, {
+            color: 'neutral',
+            variant: 'ghost',
+            label,
+            icon: sorted
+                ? sorted === 'asc'
+                    ? 'i-lucide-arrow-up-narrow-wide'
+                    : 'i-lucide-arrow-down-wide-narrow'
+                : 'i-lucide-arrow-up-down',
+            class: '-mx-2.5',
+            onClick: () => column.toggleSorting(sorted === 'asc')
+        });
+    };
+
 const columns: TableColumn<AdminUser>[] = [
-    { accessorKey: 'name', header: 'Name' },
-    { accessorKey: 'email', header: 'Email' },
-    { accessorKey: 'role', header: 'Role' },
-    { accessorKey: 'emailVerified', header: 'Verified' },
-    { accessorKey: 'banned', header: 'Banned' },
-    { accessorKey: 'createdAt', header: 'Joined' }
+    {
+        id: 'select',
+        enableHiding: false,
+        header: ({ table }) =>
+            h(UCheckbox, {
+                modelValue: table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
+                'onUpdate:modelValue': (value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!value),
+                ariaLabel: 'Select all'
+            }),
+        cell: ({ row }) =>
+            h(UCheckbox, {
+                modelValue: row.getIsSelected(),
+                'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
+                ariaLabel: 'Select row'
+            })
+    },
+    {
+        accessorKey: 'name',
+        header: sortHeader('User'),
+        enableHiding: false,
+        cell: ({ row }) =>
+            h('div', { class: 'flex items-center gap-3' }, [
+                h(UAvatar, { src: row.original.image ?? undefined, alt: row.original.name, size: 'lg' }),
+                h('div', undefined, [
+                    h(
+                        'a',
+                        {
+                            href: adminPath(`/users/${row.original.id}`),
+                            class: 'font-medium text-highlighted hover:underline',
+                            onClick: (event: MouseEvent) => {
+                                event.preventDefault();
+                                navigateTo(adminPath(`/users/${row.original.id}`));
+                            }
+                        },
+                        row.original.name
+                    ),
+                    h('p', { class: 'text-muted' }, row.original.email)
+                ])
+            ])
+    },
+    {
+        accessorKey: 'role',
+        header: 'Role',
+        cell: ({ row }) =>
+            h(UBadge, {
+                label: row.original.role ?? 'user',
+                color: row.original.role === adminRole ? 'primary' : 'neutral',
+                variant: 'subtle',
+                class: 'capitalize'
+            })
+    },
+    {
+        accessorKey: 'banned',
+        header: 'Status',
+        cell: ({ row }) =>
+            row.original.banned
+                ? h(UBadge, { label: 'Banned', color: 'error', variant: 'subtle' })
+                : h(UBadge, { label: 'Active', color: 'success', variant: 'subtle' })
+    },
+    {
+        accessorKey: 'emailVerified',
+        header: 'Email',
+        cell: ({ row }) =>
+            row.original.emailVerified
+                ? h(UBadge, { label: 'Verified', color: 'success', variant: 'outline' })
+                : h(UBadge, { label: 'Unverified', color: 'warning', variant: 'outline' })
+    },
+    {
+        accessorKey: 'createdAt',
+        header: sortHeader('Joined'),
+        cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString()
+    },
+    {
+        id: 'actions',
+        enableHiding: false,
+        cell: ({ row }) =>
+            h(
+                'div',
+                { class: 'text-right' },
+                h(UDropdownMenu, { content: { align: 'end' }, items: rowItems(row) }, () =>
+                    h(UButton, {
+                        icon: 'i-lucide-ellipsis-vertical',
+                        color: 'neutral',
+                        variant: 'ghost',
+                        class: 'ml-auto',
+                        ariaLabel: 'Actions'
+                    })
+                )
+            )
+    }
 ];
+
+const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));
 </script>
 
 <template>
     <UDashboardPanel id="better-auth-admin-users">
         <template #header>
-            <UDashboardNavbar title="Users">
+            <UDashboardNavbar title="Users" :badge="data?.total">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
+
+                <template #right>
+                    <AdminUsersCreateModal @created="refresh" />
+                </template>
             </UDashboardNavbar>
-            <UDashboardToolbar>
-                <UInput v-model="search" icon="i-lucide-search" placeholder="Search by email" />
-            </UDashboardToolbar>
         </template>
 
         <template #body>
-            <UAlert v-if="error" color="error" icon="i-lucide-circle-alert" :description="error.message" />
+            <div class="flex flex-wrap items-center justify-between gap-1.5">
+                <UFieldGroup>
+                    <USelect
+                        v-model="searchField"
+                        :items="[
+                            { label: 'Email', value: 'email' },
+                            { label: 'Name', value: 'name' }
+                        ]"
+                        class="w-24"
+                    />
+                    <UInput
+                        v-model="search"
+                        class="max-w-sm"
+                        icon="i-lucide-search"
+                        :placeholder="`Search by ${searchField}…`"
+                    />
+                </UFieldGroup>
 
-            <UTable :data="data?.users ?? []" :columns="columns" :loading="status === 'pending'">
-                <template #name-cell="{ row }">
-                    <ULink :to="`${route}/users/${row.original.id}`" class="font-medium">
-                        {{ row.original.name }}
-                    </ULink>
-                </template>
-                <template #role-cell="{ row }">
-                    <UBadge :label="row.original.role ?? 'user'" color="neutral" variant="subtle" />
-                </template>
-                <template #emailVerified-cell="{ row }">
-                    <UIcon v-if="row.original.emailVerified" name="i-lucide-check" class="text-success" />
-                    <span v-else class="text-dimmed">No</span>
-                </template>
-                <template #banned-cell="{ row }">
-                    <UBadge v-if="row.original.banned" label="Banned" color="error" variant="subtle" />
-                    <span v-else class="text-dimmed">No</span>
-                </template>
-                <template #createdAt-cell="{ row }">
-                    {{ new Date(row.original.createdAt).toLocaleDateString() }}
-                </template>
-            </UTable>
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <template v-if="bulkTargets.length">
+                        <UButton
+                            label="Ban"
+                            color="error"
+                            variant="subtle"
+                            icon="i-lucide-ban"
+                            @click="openModal('ban', bulkTargets)"
+                        >
+                            <template #trailing>
+                                <UKbd>{{ bulkTargets.length }}</UKbd>
+                            </template>
+                        </UButton>
+                        <UButton
+                            label="Delete"
+                            color="error"
+                            variant="subtle"
+                            icon="i-lucide-trash"
+                            @click="openModal('delete', bulkTargets)"
+                        >
+                            <template #trailing>
+                                <UKbd>{{ bulkTargets.length }}</UKbd>
+                            </template>
+                        </UButton>
+                    </template>
 
-            <UPagination
-                v-if="(data?.total ?? 0) > PAGE_SIZE"
-                v-model:page="page"
-                :total="data?.total ?? 0"
-                :items-per-page="PAGE_SIZE"
+                    <USelect
+                        v-model="filter"
+                        :items="[
+                            { label: 'All users', value: 'all' },
+                            { label: 'Admins', value: 'admins' },
+                            { label: 'Banned', value: 'banned' },
+                            { label: 'Unverified', value: 'unverified' }
+                        ]"
+                        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
+                        class="min-w-32"
+                    />
+
+                    <UDropdownMenu
+                        :items="
+                            table?.tableApi
+                                ?.getAllColumns()
+                                .filter((column: any) => column.getCanHide())
+                                .map((column: any) => ({
+                                    label: upperFirst(
+                                        column.id === 'banned'
+                                            ? 'status'
+                                            : column.id === 'emailVerified'
+                                              ? 'email'
+                                              : column.id
+                                    ),
+                                    type: 'checkbox' as const,
+                                    checked: column.getIsVisible(),
+                                    onUpdateChecked(checked: boolean) {
+                                        table?.tableApi?.getColumn(column.id)?.toggleVisibility(!!checked);
+                                    },
+                                    onSelect(e?: Event) {
+                                        e?.preventDefault();
+                                    }
+                                }))
+                        "
+                        :content="{ align: 'end' }"
+                    >
+                        <UButton
+                            label="Display"
+                            color="neutral"
+                            variant="outline"
+                            trailing-icon="i-lucide-settings-2"
+                        />
+                    </UDropdownMenu>
+                </div>
+            </div>
+
+            <UAlert
+                v-if="error"
+                color="error"
+                icon="i-lucide-circle-alert"
+                title="Couldn't load users"
+                :description="error.message"
             />
+
+            <UTable
+                ref="table"
+                v-model:row-selection="rowSelection"
+                v-model:column-visibility="columnVisibility"
+                v-model:sorting="sorting"
+                :sorting-options="{ manualSorting: true }"
+                :get-row-id="(row: AdminUser) => row.id"
+                class="shrink-0"
+                :data="users"
+                :columns="columns"
+                :loading="status === 'pending'"
+                :ui="{
+                    base: 'table-fixed border-separate border-spacing-0',
+                    thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',
+                    tbody: '[&>tr]:last:[&>td]:border-b-0',
+                    th: 'py-2 first:rounded-l-lg last:rounded-r-lg border-y border-default first:border-l last:border-r',
+                    td: 'border-b border-default',
+                    separator: 'h-0'
+                }"
+            />
+
+            <div class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto">
+                <div class="text-sm text-muted">
+                    {{ selected.length }} of {{ users.length }} on this page selected · {{ data?.total ?? 0 }} users
+                </div>
+                <UPagination v-model:page="page" :items-per-page="PAGE_SIZE" :total="data?.total ?? 0" />
+            </div>
+
+            <template v-if="targets.length">
+                <AdminUsersRoleModal v-model:open="roleOpen" :user="targets[0]!" @updated="afterChange" />
+                <AdminUsersEditModal v-model:open="editOpen" :user="targets[0]!" @updated="afterChange" />
+                <AdminUsersPasswordModal v-model:open="passwordOpen" :user="targets[0]!" />
+                <AdminUsersBanModal v-model:open="banOpen" :users="targets" @banned="afterChange" />
+                <AdminUsersDeleteModal v-model:open="deleteOpen" :users="targets" @deleted="afterChange" />
+            </template>
         </template>
     </UDashboardPanel>
 </template>

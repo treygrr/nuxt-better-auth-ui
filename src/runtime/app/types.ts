@@ -58,3 +58,43 @@ export interface Range {
     start: Date;
     end: Date;
 }
+
+/** A user as Better Auth's Admin plugin returns it. */
+export interface AdminUser {
+    id: string;
+    name: string;
+    email: string;
+    image?: string | null;
+    emailVerified: boolean;
+    role?: string | null;
+    banned?: boolean | null;
+    banReason?: string | null;
+    banExpires?: string | Date | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+}
+
+/** A session as Better Auth's Admin plugin returns it. */
+export interface AdminSession {
+    id: string;
+    token: string;
+    userId: string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    impersonatedBy?: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+    expiresAt: string | Date;
+}
+
+/** One page of users, and what to show. */
+export interface AdminUserQuery {
+    limit: number;
+    offset: number;
+    search?: string;
+    searchField?: 'email' | 'name';
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
+    /** One filter at a time, as Better Auth's list-users supports. */
+    filter?: { field: 'role' | 'banned' | 'emailVerified'; value: string };
+}
