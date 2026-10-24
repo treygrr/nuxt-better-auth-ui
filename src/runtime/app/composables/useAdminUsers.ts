@@ -1,6 +1,9 @@
 import { useAuthClient } from '@nuxtjs/better-auth/composables';
+import { $fetch } from '#imports';
 
-import type { AdminSession, AdminUser, AdminUserQuery } from '../types';
+import { ADMIN_API } from '../../constants';
+
+import type { AdminAccount, AdminSession, AdminUser, AdminUserQuery } from '../types';
 
 type Result<T> = { data: T | null; error: { message?: string; code?: string } | null };
 
@@ -89,6 +92,11 @@ export const useAdminUsers = () => {
         sessions: (userId: string) => unwrap(admin().listUserSessions({ userId })).then(({ sessions }) => sessions),
         revokeSession: (sessionToken: string) => unwrap(admin().revokeUserSession({ sessionToken })),
         revokeSessions: (userId: string) => unwrap(admin().revokeUserSessions({ userId })),
-        remove: (userId: string) => unwrap(admin().removeUser({ userId }))
+        remove: (userId: string) => unwrap(admin().removeUser({ userId })),
+        /** Linked sign-in methods, from this module's own route (the Admin plugin has none). */
+        accounts: (userId: string) =>
+            $fetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`).catch((error) => {
+                throw new Error(error?.data?.statusText || error?.statusText || error?.message || 'The request failed');
+            })
     };
 };

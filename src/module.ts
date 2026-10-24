@@ -1,7 +1,7 @@
 import type { NuxtPage } from '@nuxt/schema';
 
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
-import { DEMO_API } from './runtime/constants';
+import { ADMIN_API, DEMO_API } from './runtime/constants';
 import {
     addComponentsDir,
     addImports,
@@ -96,6 +96,13 @@ export default defineNuxtModule<ModuleOptions>({
         ]);
         // Prefixed, so they can't clash with the app's own components: <AdminUserMenu>, <AdminHomeStats>, …
         addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
+
+        // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoint for.
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/accounts`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/users/accounts.get')
+        });
 
         // Sample data from the Nuxt UI dashboard template, for the inbox, customers and settings pages.
         for (const name of ['customers', 'mails', 'members', 'notifications']) {

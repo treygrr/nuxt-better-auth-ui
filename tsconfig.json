@@ -1,4 +1,12 @@
 {
     "extends": "./.nuxt/tsconfig.json",
-    "exclude": ["dist", "node_modules", "playground"]
+    "exclude": [
+        "dist",
+        "node_modules",
+        "playground",
+        "src/runtime/server"
+    ],
+    "files": [
+        "typecheck/server-imports.d.ts"
+    ]
 }

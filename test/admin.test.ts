@@ -229,3 +229,39 @@ describe('user management', () => {
         expect((await signInAs('carol@example.com', 'new-password-456')).status).toBe(401);
     });
 });
+
+describe("a user's sign-in methods", () => {
+    const accounts = (id: string, cookie?: string) => get(`/api/_better-auth-admin/users/${id}/accounts`, cookie);
+    const aliceId = async () =>
+        (await (await get('/api/auth/admin/list-users?searchValue=alice@&searchField=email', adminCookie)).json())
+            .users[0].id;
+
+    it('lists them for admins, without passwords or tokens', async () => {
+        const response = await accounts(await aliceId(), adminCookie);
+        expect(response.status).toBe(200);
+        const list = await response.json();
+        expect(list).toHaveLength(1);
+        expect(list[0]).toMatchObject({ providerId: 'credential' });
+        expect(Object.keys(list[0]).sort()).toEqual([
+            'accountId',
+            'createdAt',
+            'id',
+            'providerId',
+            'scope',
+            'updatedAt'
+        ]);
+        expect(JSON.stringify(list)).not.toMatch(/password|token/i);
+    });
+
+    it('refuses users without the permission', async () => {
+        expect((await accounts(await aliceId(), userCookie)).status).toBe(403);
+    });
+
+    it('refuses signed-out requests', async () => {
+        expect((await accounts(await aliceId())).status).toBe(401);
+    });
+
+    it('returns 404 for unknown users', async () => {
+        expect((await accounts('no-such-user', adminCookie)).status).toBe(404);
+    });
+});

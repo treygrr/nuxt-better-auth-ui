@@ -98,3 +98,14 @@ export interface AdminUserQuery {
     /** One filter at a time, as Better Auth's list-users supports. */
     filter?: { field: 'role' | 'banned' | 'emailVerified'; value: string };
 }
+
+/** A linked sign-in method, as the module's accounts route returns it (no passwords or tokens). */
+export interface AdminAccount {
+    id: string;
+    /** `credential` for email and password, otherwise the OAuth provider, eg `google`. */
+    providerId: string;
+    accountId: string;
+    scope: string | null;
+    createdAt: string | Date;
+    updatedAt: string | Date;
+}

@@ -14,7 +14,7 @@ import {
     useToast
 } from '#imports';
 
-import type { AdminSession, AdminUser } from '../../types';
+import type { AdminAccount, AdminSession, AdminUser } from '../../types';
 
 const adminPath = useAdminPath();
 const { role: adminRole } = useBetterAuthAdminConfig();
@@ -34,7 +34,27 @@ const { data: sessions, refresh: refreshSessions } = await useAsyncData(
     () => admin.sessions(userId),
     { server: false }
 );
+const { data: accounts, error: accountsError } = await useAsyncData(
+    `better-auth-admin-user-accounts-${userId}`,
+    () => admin.accounts(userId),
+    { server: false }
+);
 const refresh = () => Promise.all([refreshUser(), refreshSessions()]);
+
+/** How each sign-in method is shown; others fall back to their provider id. */
+const providers: Record<string, { label: string; icon: string }> = {
+    credential: { label: 'Email and password', icon: 'i-lucide-key-round' },
+    google: { label: 'Google', icon: 'i-simple-icons-google' },
+    github: { label: 'GitHub', icon: 'i-simple-icons-github' },
+    discord: { label: 'Discord', icon: 'i-simple-icons-discord' },
+    apple: { label: 'Apple', icon: 'i-simple-icons-apple' },
+    microsoft: { label: 'Microsoft', icon: 'i-simple-icons-microsoft' },
+    facebook: { label: 'Facebook', icon: 'i-simple-icons-facebook' },
+    twitter: { label: 'X', icon: 'i-simple-icons-x' },
+    gitlab: { label: 'GitLab', icon: 'i-simple-icons-gitlab' }
+};
+const provider = (account: AdminAccount) =>
+    providers[account.providerId] ?? { label: account.providerId, icon: 'i-lucide-link' };
 
 const isSelf = computed(() => user.value?.id === session.user.value?.id);
 const date = (value?: string | Date | null) => (value ? new Date(value).toLocaleString() : '—');
@@ -239,6 +259,37 @@ const thisSession = computed(() => session.session.value?.id);
                         <dt class="text-muted">Last updated</dt>
                         <dd>{{ date(user.updatedAt) }}</dd>
                     </dl>
+                </UPageCard>
+
+                <UPageCard title="Sign-in methods" :description="`How ${user.name} signs in.`" variant="subtle">
+                    <UAlert
+                        v-if="accountsError"
+                        color="error"
+                        variant="subtle"
+                        icon="i-lucide-circle-alert"
+                        :description="accountsError.message"
+                    />
+                    <p v-else-if="!accounts?.length" class="text-sm text-muted">
+                        No sign-in methods. They can't sign in until they reset their password.
+                    </p>
+                    <ul v-else class="divide-y divide-default">
+                        <li
+                            v-for="account in accounts"
+                            :key="account.id"
+                            class="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                        >
+                            <UIcon :name="provider(account).icon" class="size-5 shrink-0 text-muted" />
+                            <div class="min-w-0">
+                                <p class="text-sm font-medium text-highlighted">{{ provider(account).label }}</p>
+                                <p class="text-xs text-muted truncate">
+                                    Connected {{ date(account.createdAt) }}
+                                    <template v-if="account.providerId !== 'credential'"
+                                        >· {{ account.providerId }} ID {{ account.accountId }}</template
+                                    >
+                                </p>
+                            </div>
+                        </li>
+                    </ul>
                 </UPageCard>
 
                 <UPageCard title="Sessions" :description="`Where ${user.name} is signed in.`" variant="subtle">
