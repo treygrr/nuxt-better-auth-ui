@@ -1,8 +1,10 @@
 import { getMigrations } from 'better-auth/db/migration';
 
+import { seedMockUsers, type SeedContext } from '../seed/mock-users';
+
 /**
  * Creates or updates Better Auth's tables (including the Admin plugin's columns), then seeds the
- * development accounts from .env: an admin to sign in with and some users for the admin pages to list.
+ * development data from .env: an admin to sign in with, and mock users for the admin pages.
  * Both steps run in one plugin because Nitro doesn't wait for async plugins.
  */
 export default defineNitroPlugin(async () => {
@@ -16,19 +18,17 @@ export default defineNitroPlugin(async () => {
     if (!adminEmail || !adminPassword) return;
 
     const context = await auth.$context;
-    const ensureUser = async (name: string, email: string, password: string) => {
-        const existing = await context.internalAdapter.findUserByEmail(email);
-        if (existing) return existing.user;
-        const { user } = await auth.api.signUpEmail({ body: { name, email, password } });
-        return user;
-    };
-
-    const admin = await ensureUser('Playground Admin', adminEmail, adminPassword);
+    let admin = (await context.internalAdapter.findUserByEmail(adminEmail))?.user;
+    if (!admin) {
+        ({ user: admin } = await auth.api.signUpEmail({
+            body: { name: 'Playground Admin', email: adminEmail, password: adminPassword }
+        }));
+    }
     await context.internalAdapter.updateUser(admin.id, { role: 'admin', emailVerified: true });
 
-    const demoUsers = Number(process.env.PLAYGROUND_DEMO_USERS ?? 0);
-    for (let i = 1; i <= demoUsers; i++) {
-        await ensureUser(`Demo User ${i}`, `demo${i}@example.com`, adminPassword);
-    }
-    console.info(`[playground] Sign in as ${adminEmail} (admin); ${demoUsers} demo users.`);
+    const count = Number(process.env.PLAYGROUND_MOCK_USERS ?? 0);
+    const created = await seedMockUsers(context as unknown as SeedContext, count, adminPassword);
+    console.info(
+        `[playground] Sign in as ${adminEmail} (admin). ${count} mock users (${created} new); their password is the admin's.`
+    );
 });

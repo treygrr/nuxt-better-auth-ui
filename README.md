@@ -111,12 +111,19 @@ export default defineNuxtConfig({
 
 ```bash
 pnpm install
+cp playground/.env.example playground/.env
 pnpm dev:prepare
 pnpm dev         # the playground
 pnpm test        # builds the module and the playground, then checks access control against the built server
 pnpm typecheck
 pnpm fmt
 ```
+
+On startup the playground seeds an admin (`admin@example.com` / `password123` by default) and 40 mock users from
+`playground/.env`: join dates over six months, verified and unverified emails, two more admins, three bans
+(permanent, expiring, expired), linked GitHub, Google and Discord accounts (some users have no password), and active
+sessions on different devices. Mock users share the admin's password. It only adds users that are missing, so delete
+`playground/.data/auth.sqlite` to start over.
 
 ## License
 
