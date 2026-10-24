@@ -11,6 +11,9 @@ declare module '#imports' {
     export const defineEventHandler: H3['defineEventHandler'];
     export const getRouterParam: H3['getRouterParam'];
     export const getQuery: H3['getQuery'];
+    export const getRequestIP: H3['getRequestIP'];
+    export const getRequestHeader: H3['getRequestHeader'];
+    export const useRuntimeConfig: () => { public: Record<string, unknown> };
 }
 
 export {};

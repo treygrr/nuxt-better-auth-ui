@@ -3,7 +3,7 @@ import { $fetch } from '#imports';
 
 import { ADMIN_API } from '../../constants';
 
-import type { AdminAccount, AdminSession, AdminStats, AdminUser, AdminUserQuery } from '../types';
+import type { AdminAccount, AdminAuditEntry, AdminSession, AdminStats, AdminUser, AdminUserQuery } from '../types';
 
 type Result<T> = { data: T | null; error: { message?: string; code?: string } | null };
 
@@ -106,6 +106,9 @@ export const useAdminUsers = () => {
         /** Signs in as the user; the admin's own session is kept to return to. */
         impersonate: (userId: string) => unwrap(admin().impersonateUser({ userId })),
         stopImpersonating: () => unwrap(admin().stopImpersonating()),
+        /** The audit log, newest first; `userId` limits it to entries where they acted or were acted on. */
+        audit: (query: { limit: number; offset: number; action?: string; userId?: string }) =>
+            $fetch<{ entries: AdminAuditEntry[]; total: number }>(`${ADMIN_API}/audit`, { query }).catch(fetchError),
         /** The home page's numbers; `boundaries` are the chart's period boundaries, start to end. */
         stats: (boundaries: Date[]) =>
             $fetch<AdminStats>(`${ADMIN_API}/stats`, {

@@ -5,6 +5,7 @@ export type BetterAuthAdminPublicConfig = {
     route: string;
     role: string;
     impersonation: boolean;
+    auditLog: boolean;
 };
 
 export const useBetterAuthAdminConfig = () => useRuntimeConfig().public.betterAuthAdmin as BetterAuthAdminPublicConfig;

@@ -487,3 +487,146 @@ describe('impersonation', () => {
         }
     });
 });
+
+describe('audit log', () => {
+    type Entry = {
+        action: string;
+        actorEmail: string;
+        targetId: string | null;
+        targetEmail: string | null;
+        details: Record<string, unknown> | null;
+    };
+    const post = (path: string, body: unknown, cookie = adminCookie) =>
+        fetch(`${base}/api/auth${path}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie },
+            body: JSON.stringify(body)
+        });
+    const log = async (query = '') => {
+        const response = await get(`/api/_better-auth-admin/audit?limit=100${query}`, adminCookie);
+        expect(response.status).toBe(200);
+        return (await response.json()) as { entries: Entry[]; total: number };
+    };
+    const latest = async (query = '') => (await log(query)).entries[0]!;
+    let carolId: string;
+
+    it('records creating a user, with the new user as the target', async () => {
+        const response = await post('/admin/create-user', {
+            name: 'Carol',
+            email: 'carol@audit.test',
+            password: 'password123',
+            role: 'user'
+        });
+        expect(response.status).toBe(200);
+        carolId = (await response.json()).user.id;
+        expect(await latest()).toMatchObject({
+            action: 'user.create',
+            actorEmail: 'bob@example.com',
+            targetId: carolId,
+            targetEmail: 'carol@audit.test',
+            details: { role: 'user' }
+        });
+    });
+
+    it('records bans with their reason and length, role changes and edits', async () => {
+        await post('/admin/ban-user', { userId: carolId, banReason: 'Spam', banExpiresIn: 86400 });
+        expect(await latest()).toMatchObject({
+            action: 'user.ban',
+            targetId: carolId,
+            details: { reason: 'Spam', expiresIn: 86400 }
+        });
+        await post('/admin/unban-user', { userId: carolId });
+        expect((await latest()).action).toBe('user.unban');
+        await post('/admin/set-role', { userId: carolId, role: 'admin' });
+        expect(await latest()).toMatchObject({ action: 'user.set-role', details: { role: 'admin' } });
+        await post('/admin/set-role', { userId: carolId, role: 'user' });
+        await post('/admin/update-user', { userId: carolId, data: { name: 'Carol B' } });
+        expect(await latest()).toMatchObject({ action: 'user.update', details: { fields: ['name'] } });
+    });
+
+    it("doesn't record actions that failed", async () => {
+        const before = (await log()).total;
+        const self = (await (await get('/api/auth/get-session', adminCookie)).json()).user.id;
+        expect((await post('/admin/ban-user', { userId: self })).ok).toBe(false);
+        expect((await post('/admin/set-role', { userId: carolId, role: 'admin' }, userCookie)).ok).toBe(false);
+        expect((await log()).total).toBe(before);
+    });
+
+    it("records removing a sign-in method, through the module's own route", async () => {
+        const db = new Database(databasePath);
+        const { createdAt } = db.prepare('select createdAt from user where id = ?').get(carolId) as {
+            createdAt: string;
+        };
+        db.prepare(
+            'insert into account (id, accountId, providerId, userId, createdAt, updatedAt) values (?, ?, ?, ?, ?, ?)'
+        ).run('audit-github', '1', 'github', carolId, createdAt, createdAt);
+        const response = await fetch(`${base}/api/_better-auth-admin/users/${carolId}/accounts/audit-github`, {
+            method: 'DELETE',
+            headers: { origin: base, cookie: adminCookie }
+        });
+        expect(response.status).toBe(200);
+        expect(await latest()).toMatchObject({
+            action: 'account.remove',
+            targetId: carolId,
+            details: { providerId: 'github' }
+        });
+    });
+
+    it('keeps who a deleted user was', async () => {
+        await post('/admin/remove-user', { userId: carolId });
+        expect(await latest()).toMatchObject({
+            action: 'user.delete',
+            targetId: carolId,
+            targetEmail: 'carol@audit.test'
+        });
+    });
+
+    it('filters by user and by action', async () => {
+        const carol = await log(`&userId=${carolId}`);
+        expect(carol.entries.every((entry) => entry.targetId === carolId)).toBe(true);
+        expect(carol.entries.map((entry) => entry.action)).toEqual([
+            'user.delete',
+            'account.remove',
+            'user.update',
+            'user.set-role',
+            'user.set-role',
+            'user.unban',
+            'user.ban',
+            'user.create'
+        ]);
+        const bans = await log('&action=user.ban');
+        expect(bans.entries.length).toBeGreaterThan(0);
+        expect(bans.entries.every((entry) => entry.action === 'user.ban')).toBe(true);
+    });
+
+    it('records impersonation, by the admin, both ways', async () => {
+        const alice = (
+            await (await get('/api/auth/admin/list-users?searchValue=alice@&searchField=email', adminCookie)).json()
+        ).users[0].id;
+        const started = await post('/admin/impersonate-user', { userId: alice });
+        // The response's cookies replace the admin's, as in a browser.
+        const jar = new Map(adminCookie.split('; ').map((pair) => pair.split(/=(.*)/s) as [string, string]));
+        for (const set of started.headers.getSetCookie()) {
+            const [name, value] = set.split(';')[0]!.split(/=(.*)/s) as [string, string];
+            if (value) jar.set(name, value);
+            else jar.delete(name);
+        }
+        const cookie = [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
+        expect(await latest()).toMatchObject({
+            action: 'user.impersonate',
+            actorEmail: 'bob@example.com',
+            targetId: alice
+        });
+        expect((await post('/admin/stop-impersonating', {}, cookie)).status).toBe(200);
+        expect(await latest()).toMatchObject({
+            action: 'user.stop-impersonating',
+            actorEmail: 'bob@example.com',
+            targetId: alice
+        });
+    });
+
+    it('is closed to users without the permission', async () => {
+        expect((await get('/api/_better-auth-admin/audit', userCookie)).status).toBe(403);
+        expect((await get('/api/_better-auth-admin/audit')).status).toBe(401);
+    });
+});

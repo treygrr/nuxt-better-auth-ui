@@ -1,11 +1,21 @@
 <script setup lang="ts">
 // Adapted from the Nuxt UI dashboard template (https://github.com/nuxt-ui-templates/dashboard, MIT).
 import type { NavigationMenuItem } from '@nuxt/ui';
-import { computed, onMounted, ref, useAdminPath, useCookie, useRoute, useToast } from '#imports';
+import {
+    computed,
+    onMounted,
+    ref,
+    useAdminPath,
+    useBetterAuthAdminConfig,
+    useCookie,
+    useRoute,
+    useToast
+} from '#imports';
 
 const route = useRoute();
 const toast = useToast();
 const adminPath = useAdminPath();
+const { auditLog } = useBetterAuthAdminConfig();
 
 const open = ref(false);
 const close = () => {
@@ -29,6 +39,9 @@ const links = computed(
                     to: adminPath('/users'),
                     onSelect: close
                 },
+                ...(auditLog
+                    ? [{ label: 'Audit log', icon: 'i-lucide-history', to: adminPath('/audit'), onSelect: close }]
+                    : []),
                 {
                     label: 'Inbox',
                     icon: 'i-lucide-inbox',

@@ -112,3 +112,19 @@ export interface AdminAccount {
     createdAt: string | Date;
     updatedAt: string | Date;
 }
+
+/** An entry in the audit log. Names and emails are as they were at the time. */
+export interface AdminAuditEntry {
+    id: string;
+    action: string;
+    actorId: string;
+    actorEmail: string;
+    actorName: string;
+    targetId: string | null;
+    targetEmail: string | null;
+    targetName: string | null;
+    details: Record<string, unknown> | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    createdAt: string;
+}

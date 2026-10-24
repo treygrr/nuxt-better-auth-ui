@@ -31,10 +31,16 @@ settings pages and a notifications panel. Those pages still show the template's 
   `<AdminImpersonationBanner />` in your app's layout (eg `app.vue`) for a "You're signed in as …" bar with
   **Stop impersonating**, which returns you to their admin page. With the option off, the module refuses Better
   Auth's impersonate-user endpoint too, since Better Auth's default admin role is otherwise allowed to use it.
+- **Audit log** (on by default, `auditLog: false` to turn off): every successful admin action — creating, editing,
+  banning and unbanning users, role and password changes, deletions, signing sessions out, impersonation and
+  removing sign-in methods — with who did it, to whom (names and emails as they were, so deleted users stay
+  readable), details such as the ban reason, IP and browser. Its own **Audit log** page, filterable by action, and
+  an **Activity** card on each user's page. It's a small Better Auth plugin that adds one table, `adminAuditLog`,
+  through Better Auth's migrations (run them, or `npx @better-auth/cli generate` for Prisma or Drizzle); Better
+  Auth's own tables aren't changed. A failed write is logged and never blocks the action.
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
 
-> **Status: early.** Next: an audit log of admin actions, then custom roles and permissions. The template's other
-> pages still show sample data.
+> **Status: early.** Next: custom roles and permissions. The template's other pages still show sample data.
 
 ## Setup
 
@@ -95,7 +101,9 @@ export default defineNuxtConfig({
         // The role that may use the admin pages and Better Auth's admin endpoints.
         role: 'admin',
         // Let admins sign in as a user (Better Auth's impersonation). Off, its endpoint is refused too.
-        impersonation: false
+        impersonation: false,
+        // Record admin actions in an adminAuditLog table (added through Better Auth's migrations).
+        auditLog: true
     }
 });
 ```

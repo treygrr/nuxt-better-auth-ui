@@ -31,6 +31,12 @@ export type ModuleOptions = {
      * @default false
      */
     impersonation: boolean;
+    /**
+     * Record admin actions (bans, role changes, deletions, impersonation, …) in an `adminAuditLog` table,
+     * created by Better Auth's migrations, and show them in the admin pages.
+     * @default true
+     */
+    auditLog: boolean;
 };
 
 /** The layout the admin pages use: a Nuxt UI dashboard, separate from the app's own layouts. */
@@ -45,7 +51,8 @@ export default defineNuxtModule<ModuleOptions>({
     defaults: {
         route: '/admin',
         role: 'admin',
-        impersonation: false
+        impersonation: false,
+        auditLog: true
     },
     // Installed before this module, in order, and checked against these versions.
     moduleDependencies: {
@@ -61,7 +68,8 @@ export default defineNuxtModule<ModuleOptions>({
         nuxt.options.runtimeConfig.public.betterAuthAdmin = {
             route,
             role: options.role,
-            impersonation: options.impersonation
+            impersonation: options.impersonation,
+            auditLog: options.auditLog
         } satisfies BetterAuthAdminPublicConfig;
 
         // Better Auth's Admin plugin, added to the app's auth config through @nuxtjs/better-auth.
@@ -96,6 +104,15 @@ export default defineNuxtModule<ModuleOptions>({
                     '}'
                 ].join('\n')
         });
+        const auditLog = addTemplate({
+            filename: 'better-auth-admin/audit-log.mjs',
+            write: true,
+            getContents: () =>
+                [
+                    `import { adminAuditLog } from ${JSON.stringify(resolve('./runtime/server/audit/plugin'))}`,
+                    'export default adminAuditLog()'
+                ].join('\n')
+        });
         const clientPlugin = addTemplate({
             filename: 'better-auth-admin/client-plugin.mjs',
             write: true,
@@ -106,6 +123,7 @@ export default defineNuxtModule<ModuleOptions>({
         nuxt.hook('better-auth:plugins:extend', (sources) => {
             (sources.server ??= []).push(serverPlugin.dst);
             if (!options.impersonation) sources.server.push(impersonationOff.dst);
+            if (options.auditLog) sources.server.push(auditLog.dst);
             (sources.client ??= []).push(clientPlugin.dst);
         });
 
@@ -121,6 +139,13 @@ export default defineNuxtModule<ModuleOptions>({
         addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
 
         // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoints for.
+        if (options.auditLog) {
+            addServerHandler({
+                route: `${ADMIN_API}/audit`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/audit.get')
+            });
+        }
         addServerHandler({
             route: `${ADMIN_API}/stats`,
             method: 'get',
@@ -164,6 +189,7 @@ export default defineNuxtModule<ModuleOptions>({
                 // Better Auth user management
                 page('users', '/users', 'users/index.vue'),
                 page('user', '/users/:id', 'users/[id].vue'),
+                ...(options.auditLog ? [page('audit', '/audit', 'audit.vue')] : []),
                 // From the dashboard template, with its sample data
                 page('inbox', '/inbox', 'inbox.vue'),
                 page('customers', '/customers', 'customers.vue'),

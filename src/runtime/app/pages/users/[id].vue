@@ -19,7 +19,7 @@ import { useImpersonateItem } from '../../composables/useImpersonateItem';
 import { providerInfo } from '../../utils/providers';
 
 const adminPath = useAdminPath();
-const { role: adminRole } = useBetterAuthAdminConfig();
+const { role: adminRole, auditLog } = useBetterAuthAdminConfig();
 const userId = useRoute().params.id as string;
 const session = useUserSession();
 const admin = useAdminUsers();
@@ -40,7 +40,14 @@ const {
     error: accountsError,
     refresh: refreshAccounts
 } = await useAsyncData(`better-auth-admin-user-accounts-${userId}`, () => admin.accounts(userId), { server: false });
-const refresh = () => Promise.all([refreshUser(), refreshSessions(), refreshAccounts()]);
+// The latest audit log entries about this user, when the log is on.
+const ACTIVITY_SIZE = 10;
+const { data: activity, refresh: refreshActivity } = await useAsyncData(
+    `better-auth-admin-user-activity-${userId}`,
+    () => (auditLog ? admin.audit({ limit: ACTIVITY_SIZE, offset: 0, userId }) : Promise.resolve(null)),
+    { server: false }
+);
+const refresh = () => Promise.all([refreshUser(), refreshSessions(), refreshAccounts(), refreshActivity()]);
 
 const provider = (account: AdminAccount) => providerInfo(account.providerId);
 
@@ -384,6 +391,24 @@ const thisSession = computed(() => session.session.value?.id);
                             />
                         </li>
                     </ul>
+                </UPageCard>
+
+                <UPageCard
+                    v-if="auditLog"
+                    title="Activity"
+                    :description="`Admin actions on or by ${user.name}.`"
+                    variant="subtle"
+                >
+                    <template #footer v-if="(activity?.total ?? 0) > ACTIVITY_SIZE">
+                        <UButton
+                            :label="`All ${activity!.total} entries`"
+                            :to="adminPath(`/audit?userId=${user.id}`)"
+                            color="neutral"
+                            variant="subtle"
+                            trailing-icon="i-lucide-arrow-right"
+                        />
+                    </template>
+                    <AdminAuditLogTable :entries="activity?.entries ?? []" :user-id="user.id" />
                 </UPageCard>
 
                 <AdminUsersRoleModal v-model:open="roleOpen" :user="user" @updated="refresh" />

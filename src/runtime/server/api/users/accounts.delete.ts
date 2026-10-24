@@ -1,5 +1,13 @@
-import { createError, defineEventHandler, getRouterParam } from '#imports';
+import {
+    createError,
+    defineEventHandler,
+    getRequestHeader,
+    getRequestIP,
+    getRouterParam,
+    useRuntimeConfig
+} from '#imports';
 
+import { writeAuditEntry, type AuditPerson } from '../../audit/plugin';
 import { requireAdminPermission, requireUser } from '../../utils/admin';
 
 /**
@@ -7,7 +15,7 @@ import { requireAdminPermission, requireUser } from '../../utils/admin';
  * the last one, which would lock them out, unless the app sets `account.accountLinking.allowUnlinkingAll`.
  */
 export default defineEventHandler(async (event) => {
-    const { context } = await requireAdminPermission(event, { user: ['update'] });
+    const { user: admin, context } = await requireAdminPermission(event, { user: ['update'] });
     const user = await requireUser(context, getRouterParam(event, 'id'));
 
     const accounts = await context.internalAdapter.findAccounts(user.id);
@@ -21,5 +29,15 @@ export default defineEventHandler(async (event) => {
     }
 
     await context.internalAdapter.deleteAccount(account.id);
+    if ((useRuntimeConfig().public.betterAuthAdmin as { auditLog?: boolean }).auditLog) {
+        await writeAuditEntry(context as never, {
+            action: 'account.remove',
+            actor: admin as AuditPerson,
+            target: user as AuditPerson,
+            details: { providerId: account.providerId },
+            ipAddress: getRequestIP(event, { xForwardedFor: true }) ?? null,
+            userAgent: getRequestHeader(event, 'user-agent') ?? null
+        });
+    }
     return { removed: account.id };
 });
