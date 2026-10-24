@@ -35,6 +35,8 @@ type AdminClient = {
         revokeUserSession(input: { sessionToken: string }): Promise<Result<{ success: boolean }>>;
         revokeUserSessions(input: { userId: string }): Promise<Result<{ success: boolean }>>;
         removeUser(input: { userId: string }): Promise<Result<{ success: boolean }>>;
+        impersonateUser(input: { userId: string }): Promise<Result<unknown>>;
+        stopImpersonating(): Promise<Result<unknown>>;
     };
     requestPasswordReset(input: { email: string; redirectTo?: string }): Promise<Result<{ status: boolean }>>;
 };
@@ -101,6 +103,9 @@ export const useAdminUsers = () => {
         /** Linked sign-in methods, from this module's own route (the Admin plugin has none). */
         accounts: (userId: string) =>
             $fetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`).catch(fetchError),
+        /** Signs in as the user; the admin's own session is kept to return to. */
+        impersonate: (userId: string) => unwrap(admin().impersonateUser({ userId })),
+        stopImpersonating: () => unwrap(admin().stopImpersonating()),
         /** The home page's numbers; `boundaries` are the chart's period boundaries, start to end. */
         stats: (boundaries: Date[]) =>
             $fetch<AdminStats>(`${ADMIN_API}/stats`, {

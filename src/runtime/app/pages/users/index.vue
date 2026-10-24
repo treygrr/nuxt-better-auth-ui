@@ -22,6 +22,7 @@ import {
 } from '#imports';
 
 import type { AdminUser, AdminUserQuery } from '../../types';
+import { useImpersonateItem } from '../../composables/useImpersonateItem';
 import { providerInfo, sortProviders } from '../../utils/providers';
 
 const UAvatar = resolveComponent('UAvatar');
@@ -127,6 +128,8 @@ async function run(action: () => Promise<unknown>, success: string) {
     }
 }
 
+const impersonateItem = useImpersonateItem();
+
 function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
     const user = row.original;
     const self = isSelf(user);
@@ -163,6 +166,7 @@ function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
                 onSelect: () => run(() => admin.revokeSessions(user.id), `${user.name} was signed out everywhere`)
             }
         ],
+        ...[impersonateItem(user)].filter((item) => item !== null).map((item) => [item]),
         [
             user.banned
                 ? {

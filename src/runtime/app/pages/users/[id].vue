@@ -15,6 +15,7 @@ import {
 } from '#imports';
 
 import type { AdminAccount, AdminSession, AdminUser } from '../../types';
+import { useImpersonateItem } from '../../composables/useImpersonateItem';
 import { providerInfo } from '../../utils/providers';
 
 const adminPath = useAdminPath();
@@ -26,7 +27,6 @@ const toast = useToast();
 
 const {
     data: user,
-    status,
     error,
     refresh: refreshUser
 } = await useAsyncData(`better-auth-admin-user-${userId}`, () => admin.get(userId), { server: false });
@@ -104,6 +104,8 @@ async function run(action: () => Promise<unknown>, success: string) {
     }
 }
 
+const impersonateItem = useImpersonateItem();
+
 const actions = computed<DropdownMenuItem[][]>(() => {
     const current = user.value;
     if (!current) return [];
@@ -118,6 +120,7 @@ const actions = computed<DropdownMenuItem[][]>(() => {
             },
             { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => (modal.value = 'password') }
         ],
+        ...[impersonateItem(current)].filter((item) => item !== null).map((item) => [item]),
         [
             current.banned
                 ? {
@@ -213,7 +216,8 @@ const thisSession = computed(() => session.session.value?.id);
                 </template>
             </UAlert>
 
-            <div v-else-if="status === 'pending' && !user" class="space-y-4">
+            <!-- Loading. Not "status === 'pending'": data loads in the browser only, so the server renders 'idle'. -->
+            <div v-else-if="!user" class="space-y-4">
                 <USkeleton class="h-32 w-full" />
                 <USkeleton class="h-48 w-full" />
             </div>

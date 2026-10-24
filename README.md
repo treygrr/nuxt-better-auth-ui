@@ -25,10 +25,16 @@ settings pages and a notifications panel. Those pages still show the template's 
 - **Remove a sign-in method** from its menu, eg an old Google link, or their password. Like Better Auth's own
   unlink-account endpoint, the last one can't be removed (it would lock them out) unless the app sets
   `account.accountLinking.allowUnlinkingAll`.
+- **Sign in as a user** (impersonation, opt-in with `impersonation: true`), from the row menu or their page, to see
+  the app as they do. It uses Better Auth's impersonation: a one-hour session that keeps yours to return to, and
+  marks it as an impersonation in their sessions list. Admins and banned users can't be impersonated. Put
+  `<AdminImpersonationBanner />` in your app's layout (eg `app.vue`) for a "You're signed in as …" bar with
+  **Stop impersonating**, which returns you to their admin page. With the option off, the module refuses Better
+  Auth's impersonate-user endpoint too, since Better Auth's default admin role is otherwise allowed to use it.
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
 
-> **Status: early.** Next: real numbers on the home page, an audit log of admin actions, custom roles and permissions,
-> then impersonation. The template's other pages still show sample data.
+> **Status: early.** Next: an audit log of admin actions, then custom roles and permissions. The template's other
+> pages still show sample data.
 
 ## Setup
 
@@ -88,7 +94,7 @@ export default defineNuxtConfig({
         route: '/admin',
         // The role that may use the admin pages and Better Auth's admin endpoints.
         role: 'admin',
-        // Show "impersonate user" in the admin pages.
+        // Let admins sign in as a user (Better Auth's impersonation). Off, its endpoint is refused too.
         impersonation: false
     }
 });

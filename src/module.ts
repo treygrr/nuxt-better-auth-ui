@@ -26,7 +26,8 @@ export type ModuleOptions = {
      */
     role: string;
     /**
-     * Show "impersonate user" in the admin pages.
+     * Let admins sign in as a user from their page, through Better Auth's impersonation. Off, Better Auth's
+     * impersonate-user endpoint is refused too. Apps showing the banner add `<AdminImpersonationBanner />`.
      * @default false
      */
     impersonation: boolean;
@@ -74,6 +75,27 @@ export default defineNuxtModule<ModuleOptions>({
                     `export default admin(${JSON.stringify({ adminRoles: [options.role] })})`
                 ].join('\n')
         });
+        // Better Auth lets any admin impersonate. With the option off, this refuses the endpoint, so hiding the
+        // button isn't the only thing standing in the way.
+        const impersonationOff = addTemplate({
+            filename: 'better-auth-admin/impersonation-off.mjs',
+            write: true,
+            getContents: () =>
+                [
+                    "import { APIError, createAuthMiddleware } from 'better-auth/api'",
+                    'export default {',
+                    "    id: 'better-auth-admin-impersonation-off',",
+                    '    hooks: {',
+                    '        before: [{',
+                    "            matcher: (context) => context.path === '/admin/impersonate-user',",
+                    '            handler: createAuthMiddleware(async () => {',
+                    "                throw new APIError('FORBIDDEN', { message: 'Impersonation is turned off (betterAuthAdmin.impersonation)' })",
+                    '            })',
+                    '        }]',
+                    '    }',
+                    '}'
+                ].join('\n')
+        });
         const clientPlugin = addTemplate({
             filename: 'better-auth-admin/client-plugin.mjs',
             write: true,
@@ -83,6 +105,7 @@ export default defineNuxtModule<ModuleOptions>({
         // @nuxtjs/better-auth calls this at `modules:done`, after every module's setup.
         nuxt.hook('better-auth:plugins:extend', (sources) => {
             (sources.server ??= []).push(serverPlugin.dst);
+            if (!options.impersonation) sources.server.push(impersonationOff.dst);
             (sources.client ??= []).push(clientPlugin.dst);
         });
 

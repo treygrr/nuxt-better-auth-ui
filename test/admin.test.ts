@@ -428,3 +428,62 @@ describe('home page stats', () => {
         expect((await stats([new Date(now - day), new Date(now)], userCookie)).status).toBe(403);
     });
 });
+
+describe('impersonation', () => {
+    /** Applies a response's Set-Cookie headers to a cookie header, as a browser would. */
+    const withCookies = (cookie: string, response: Response) => {
+        const jar = new Map(cookie.split('; ').map((pair) => pair.split(/=(.*)/s).slice(0, 2) as [string, string]));
+        for (const set of response.headers.getSetCookie()) {
+            const [name, value] = set.split(';')[0]!.split(/=(.*)/s) as [string, string];
+            if (value && !/max-age=0/i.test(set)) jar.set(name, value);
+            else jar.delete(name);
+        }
+        return [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
+    };
+    const post = (path: string, cookie: string, body: unknown = {}) =>
+        fetch(`${base}/api/auth${path}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie },
+            body: JSON.stringify(body)
+        });
+    const sessionOf = async (cookie: string) => (await get('/api/auth/get-session', cookie)).json();
+    const idOf = async (email: string) =>
+        (await (await get(`/api/auth/admin/list-users?searchValue=${email}&searchField=email`, adminCookie)).json())
+            .users[0].id;
+
+    it('signs an admin in as a user, and back', async () => {
+        const admin = await sessionOf(adminCookie);
+        const response = await post('/admin/impersonate-user', adminCookie, { userId: await idOf('alice@') });
+        expect(response.status).toBe(200);
+        let cookie = withCookies(adminCookie, response);
+
+        const impersonated = await sessionOf(cookie);
+        expect(impersonated.user.email).toBe('alice@example.com');
+        expect(impersonated.session.impersonatedBy).toBe(admin.user.id);
+        // The admin pages are closed to them now.
+        expect((await get('/api/_better-auth-admin/stats?buckets=2026-01-01,2026-01-02', cookie)).status).toBe(403);
+
+        const stopped = await post('/admin/stop-impersonating', cookie);
+        expect(stopped.status).toBe(200);
+        cookie = withCookies(cookie, stopped);
+        const back = await sessionOf(cookie);
+        expect(back.user.id).toBe(admin.user.id);
+        expect(back.session.impersonatedBy ?? null).toBeNull();
+    });
+
+    it('refuses users without the permission', async () => {
+        const response = await post('/admin/impersonate-user', userCookie, { userId: await idOf('bob@') });
+        expect(response.status).toBe(403);
+    });
+
+    it("can't impersonate another admin", async () => {
+        const db = new Database(databasePath);
+        db.prepare("update user set role = 'admin' where email = 'alice@example.com'").run();
+        try {
+            const response = await post('/admin/impersonate-user', adminCookie, { userId: await idOf('alice@') });
+            expect(response.status).toBe(403);
+        } finally {
+            db.prepare("update user set role = 'user' where email = 'alice@example.com'").run();
+        }
+    });
+});
