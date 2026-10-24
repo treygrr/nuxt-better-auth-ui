@@ -95,8 +95,14 @@ export interface AdminUserQuery {
     searchField?: 'email' | 'name';
     sortBy?: string;
     sortDirection?: 'asc' | 'desc';
-    /** One filter at a time, as Better Auth's list-users supports. */
-    filter?: { field: 'role' | 'banned' | 'emailVerified'; value: string };
+    /** Filters combine: eg banned users who sign in with GitHub. */
+    filters?: {
+        role?: string;
+        banned?: boolean;
+        emailVerified?: boolean;
+        /** `credential` (has a password), `social` (any social link), `social-only` (no password), or a provider id. */
+        signIn?: string;
+    };
 }
 
 /** A linked sign-in method, as the module's accounts route returns it (no passwords or tokens). */

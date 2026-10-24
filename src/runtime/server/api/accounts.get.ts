@@ -1,13 +1,13 @@
 import { createError, defineEventHandler, getQuery } from '#imports';
 
-import { requireAdminPermission } from '../utils/admin';
+import { findAll, requireAdminPermission } from '../utils/admin';
 
 /** The most users one request may ask about: a few pages of the users list. */
 const MAX_USERS = 100;
 
 /**
- * The sign-in methods of several users at once, as `{ [userId]: providerIds }`, for the users list. One query,
- * reading only the user and provider of each account. Same permission as viewing a user.
+ * The sign-in methods of several users at once, as `{ [userId]: providerIds }`, for the users list. Reads only
+ * the user and provider of each account. Same permission as viewing a user.
  */
 export default defineEventHandler(async (event) => {
     const { context } = await requireAdminPermission(event, { user: ['get'] });
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     const providers: Record<string, string[]> = Object.fromEntries(ids.map((id) => [id, []]));
     if (!ids.length) return providers;
 
-    const accounts = await context.adapter.findMany<{ userId: string; providerId: string }>({
+    const accounts = await findAll<{ userId: string; providerId: string }>(context, {
         model: 'account',
         where: [{ field: 'userId', operator: 'in', value: ids }],
         select: ['userId', 'providerId']

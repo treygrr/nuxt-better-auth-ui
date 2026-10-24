@@ -11,7 +11,8 @@ settings pages and a notifications panel. Those pages still show the template's 
 
 ## User management
 
-- **Users list:** search by email or name, filter (admins, banned, unverified), sort, paginate; select rows to ban or
+- **Users list:** search by email or name, filter (admins, banned, unverified) and by sign-in method (email and
+  password, any social, social only, or a provider such as GitHub), with filters combining, sort, paginate; select rows to ban or
   delete several at once.
 - **Add user:** name, email, optional password, role.
 - **Per user** (row menu or the user's page): edit name, email, avatar and verification; change role; set a password
@@ -106,6 +107,8 @@ export default defineNuxtConfig({
 - Sign-in methods use the module's own routes, since the Admin plugin has none for them:
   `GET /api/_better-auth-admin/users/:id/accounts` (Better Auth's `user: ['get']` permission; returns provider, account
   ID, scope and dates, never passwords or tokens) and `DELETE …/accounts/:accountId` (`user: ['update']`).
+  The users list comes from `GET /api/_better-auth-admin/users`: Better Auth's list-users (same `user: ['list']`
+  permission and output) with filters that combine and a `signIn` filter, which Better Auth's can't do.
   `GET /api/_better-auth-admin/accounts?userIds=a,b,…` returns `{ [userId]: providerIds }` for up to 100 users, in one
   query, for the users list.
 - Route rules let only signed-in users with the admin role in; others are sent to the login page or get a 403. Better

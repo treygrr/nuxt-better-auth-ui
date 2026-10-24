@@ -13,6 +13,16 @@ export type StoredAccount = {
     updatedAt: Date;
 } & Record<string, unknown>;
 
+export type Where = { field: string; operator?: string; value: unknown; connector?: 'AND' | 'OR' };
+type FindMany = {
+    model: string;
+    where?: Where[];
+    select?: string[];
+    limit?: number;
+    offset?: number;
+    sortBy?: { field: string; direction: 'asc' | 'desc' };
+};
+
 // The Admin plugin is added by this module, so the app's typed auth instance doesn't know its API.
 type AdminAuth = {
     api: {
@@ -23,11 +33,8 @@ type AdminAuth = {
     $context: Promise<{
         options: { account?: { accountLinking?: { allowUnlinkingAll?: boolean } } };
         adapter: {
-            findMany<T>(query: {
-                model: string;
-                where?: Array<{ field: string; operator?: string; value: unknown }>;
-                select?: string[];
-            }): Promise<T[]>;
+            findMany<T>(query: FindMany): Promise<T[]>;
+            count(query: { model: string; where?: Where[] }): Promise<number | string>;
         };
         internalAdapter: {
             findUserById(id: string): Promise<{ id: string } | null>;
@@ -49,8 +56,31 @@ export async function requireAdminPermission(event: H3Event, permissions: Record
     return { user, context: await auth.$context };
 }
 
+export type AdminContext = Awaited<AdminAuth['$context']>;
+
+/**
+ * Every matching row. Better Auth's adapters return at most 100 rows when no limit is given, so this reads them
+ * a page at a time.
+ */
+export async function findAll<T>(context: AdminContext, query: Omit<FindMany, 'limit' | 'offset' | 'sortBy'>) {
+    const PAGE = 1000;
+    const rows: T[] = [];
+    for (let offset = 0; ; offset += PAGE) {
+        const page = await context.adapter.findMany<T>({
+            ...query,
+            // Paging sorts by id, which the query must then select.
+            ...(query.select && { select: [...new Set(['id', ...query.select])] }),
+            limit: PAGE,
+            offset,
+            sortBy: { field: 'id', direction: 'asc' }
+        });
+        rows.push(...page);
+        if (page.length < PAGE) return rows;
+    }
+}
+
 /** The user in the route's `:id`, or a 404. */
-export async function requireUser(context: Awaited<AdminAuth['$context']>, userId: string | undefined) {
+export async function requireUser(context: AdminContext, userId: string | undefined) {
     const user = userId ? await context.internalAdapter.findUserById(userId) : null;
     if (!user) throw createError({ statusCode: 404, statusMessage: 'User not found' });
     return user;

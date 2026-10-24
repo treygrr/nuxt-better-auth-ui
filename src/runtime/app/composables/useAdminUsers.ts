@@ -60,27 +60,13 @@ export const useAdminUsers = () => {
     const admin = () => client().admin;
 
     return {
-        list: (query: AdminUserQuery) =>
-            unwrap(
-                admin().listUsers({
-                    query: {
-                        limit: query.limit,
-                        offset: query.offset,
-                        sortBy: query.sortBy ?? 'createdAt',
-                        sortDirection: query.sortDirection ?? 'desc',
-                        ...(query.search && {
-                            searchValue: query.search,
-                            searchField: query.searchField ?? 'email',
-                            searchOperator: 'contains'
-                        }),
-                        ...(query.filter && {
-                            filterField: query.filter.field,
-                            filterValue: query.filter.value,
-                            filterOperator: 'eq'
-                        })
-                    }
-                })
-            ),
+        /** The users list, from the module's own route: its filters combine and include sign-in method. */
+        list: ({ filters, ...query }: AdminUserQuery) =>
+            $fetch<{ users: AdminUser[]; total: number }>(`${ADMIN_API}/users`, {
+                query: { ...query, ...filters }
+            }).catch(fetchError),
+        /** The sign-in methods in use or configured, for the sign-in filter. */
+        providersInUse: () => $fetch<string[]>(`${ADMIN_API}/providers`).catch(fetchError),
         get: (id: string) => unwrap(admin().getUser({ query: { id } })),
         create: (input: { name: string; email: string; password?: string; role: string }) =>
             unwrap(admin().createUser(input)).then(({ user }) => user),

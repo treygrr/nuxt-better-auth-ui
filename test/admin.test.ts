@@ -359,3 +359,90 @@ describe("several users' sign-in methods at once", () => {
         expect((await providersOf(ids, adminCookie)).status).toBe(400);
     });
 });
+
+describe('filtering the users list', () => {
+    // Users of their own, found by searching for their email domain, so other tests' users don't interfere.
+    const users = {
+        password: ['credential'],
+        github: ['credential', 'github'],
+        google: ['google'],
+        both: ['github', 'google']
+    };
+    beforeAll(() => {
+        const db = new Database(databasePath);
+        const { createdAt } = db.prepare("select createdAt from user where email = 'alice@example.com'").get() as {
+            createdAt: string;
+        };
+        for (const [name, providers] of Object.entries(users)) {
+            db.prepare(
+                'insert into user (id, name, email, emailVerified, createdAt, updatedAt, role, banned) values (?, ?, ?, 1, ?, ?, ?, ?)'
+            ).run(
+                `filter-${name}`,
+                name,
+                `${name}@filter.test`,
+                createdAt,
+                createdAt,
+                'user',
+                name === 'github' ? 1 : 0
+            );
+            for (const providerId of providers) {
+                db.prepare(
+                    'insert into account (id, accountId, providerId, userId, createdAt, updatedAt) values (?, ?, ?, ?, ?, ?)'
+                ).run(`filter-${name}-${providerId}`, name, providerId, `filter-${name}`, createdAt, createdAt);
+            }
+        }
+    });
+
+    const list = async (query: string, cookie = adminCookie) => {
+        const response = await get(
+            `/api/_better-auth-admin/users?search=filter.test&sortBy=name&sortDirection=asc&${query}`,
+            cookie
+        );
+        expect(response.status).toBe(200);
+        return (await response.json()) as { users: Array<{ name: string }>; total: number };
+    };
+    const names = async (query: string) => (await list(query)).users.map((user) => user.name);
+
+    it('filters by sign-in method', async () => {
+        expect(await names('')).toEqual(['both', 'github', 'google', 'password']);
+        expect(await names('signIn=credential')).toEqual(['github', 'password']);
+        expect(await names('signIn=social')).toEqual(['both', 'github', 'google']);
+        expect(await names('signIn=social-only')).toEqual(['both', 'google']);
+        expect(await names('signIn=github')).toEqual(['both', 'github']);
+        expect(await names('signIn=apple')).toEqual([]);
+    });
+
+    it('combines filters', async () => {
+        expect(await names('signIn=github&banned=true')).toEqual(['github']);
+        expect(await names('signIn=github&banned=false')).toEqual(['both']);
+        expect(await names('signIn=social-only&role=admin')).toEqual([]);
+    });
+
+    it('pages, with the total across pages', async () => {
+        const { users: page, total } = await list('signIn=social&limit=2&offset=2');
+        expect(page.map((user) => user.name)).toEqual(['google']);
+        expect(total).toBe(3);
+    });
+
+    it('lists the sign-in methods in use', async () => {
+        const response = await get('/api/_better-auth-admin/providers', adminCookie);
+        expect(await response.json()).toEqual(expect.arrayContaining(['credential', 'github', 'google']));
+    });
+
+    it('refuses users without the permission and signed-out requests', async () => {
+        expect((await get('/api/_better-auth-admin/users', userCookie)).status).toBe(403);
+        expect((await get('/api/_better-auth-admin/users')).status).toBe(401);
+        expect((await get('/api/_better-auth-admin/providers', userCookie)).status).toBe(403);
+    });
+
+    it('reads past the database adapter’s default 100-row limit', async () => {
+        const db = new Database(databasePath);
+        const insert = db.prepare(
+            'insert into account (id, accountId, providerId, userId, createdAt, updatedAt) values (?, ?, ?, ?, ?, ?)'
+        );
+        for (let i = 0; i < 120; i++) insert.run(`many-${i}`, String(i), `provider-${i}`, 'filter-password', 0, 0);
+        const response = await get('/api/_better-auth-admin/accounts?userIds=filter-password', adminCookie);
+        expect((await response.json())['filter-password']).toHaveLength(121);
+        db.prepare("delete from account where id like 'many-%'").run();
+    });
+});
