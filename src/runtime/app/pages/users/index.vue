@@ -48,34 +48,14 @@ const sorting = ref([{ id: 'createdAt', desc: true }]);
 const rowSelection = ref<Record<string, boolean>>({});
 const columnVisibility = ref<Record<string, boolean>>({});
 
-const filters: Record<string, AdminUserQuery['filters']> = {
-    all: {},
-    admins: { role: adminRole },
-    banned: { banned: true },
-    unverified: { emailVerified: false }
+const filters: Record<string, AdminUserQuery['filter']> = {
+    all: undefined,
+    admins: { field: 'role', value: adminRole },
+    banned: { field: 'banned', value: 'true' },
+    unverified: { field: 'emailVerified', value: 'false' }
 };
 
-// Filter by sign-in method: has a password, a social link, no password, or a given provider.
-const signIn = ref('any');
-const { data: providersInUse } = await useAsyncData(
-    'better-auth-admin-providers-in-use',
-    () => admin.providersInUse(),
-    {
-        server: false,
-        default: () => [] as string[]
-    }
-);
-const signInItems = computed(() => [
-    { label: 'Any sign-in', value: 'any' },
-    { label: 'Email and password', value: 'credential', icon: providerInfo('credential').icon },
-    { label: 'Any social', value: 'social', icon: 'i-lucide-users' },
-    { label: 'Social only (no password)', value: 'social-only', icon: 'i-lucide-key-square' },
-    ...sortProviders(providersInUse.value)
-        .filter((id) => id !== 'credential')
-        .map((id) => ({ label: providerInfo(id).label, value: id, icon: providerInfo(id).icon }))
-]);
-
-watch([debouncedSearch, searchField, filter, signIn, sorting], () => {
+watch([debouncedSearch, searchField, filter, sorting], () => {
     page.value = 1;
 });
 watch(page, () => {
@@ -92,9 +72,9 @@ const { data, status, error, refresh } = await useAsyncData(
             searchField: searchField.value,
             sortBy: sorting.value[0]?.id ?? 'createdAt',
             sortDirection: sorting.value[0]?.desc === false ? 'asc' : 'desc',
-            filters: { ...filters[filter.value], ...(signIn.value !== 'any' && { signIn: signIn.value }) }
+            filter: filters[filter.value]
         }),
-    { server: false, watch: [page, debouncedSearch, searchField, filter, signIn, sorting] }
+    { server: false, watch: [page, debouncedSearch, searchField, filter, sorting] }
 );
 
 const users = computed(() => data.value?.users ?? []);
@@ -412,14 +392,6 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                         ]"
                         :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
                         class="min-w-32"
-                    />
-
-                    <USelect
-                        v-model="signIn"
-                        :items="signInItems"
-                        aria-label="Sign-in method"
-                        :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
-                        class="min-w-40"
                     />
 
                     <UDropdownMenu
