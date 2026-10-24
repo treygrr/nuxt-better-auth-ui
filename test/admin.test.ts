@@ -330,3 +330,32 @@ describe('removing sign-in methods', () => {
         expect(response.status).toBe(401);
     });
 });
+
+describe("several users' sign-in methods at once", () => {
+    const providersOf = (userIds: string[], cookie?: string) =>
+        get(`/api/_better-auth-admin/accounts?userIds=${userIds.join(',')}`, cookie);
+    const idOf = async (name: string) =>
+        (await (await get(`/api/auth/admin/list-users?searchValue=${name}@&searchField=email`, adminCookie)).json())
+            .users[0].id;
+
+    it('returns each user’s providers, matching their own accounts list', async () => {
+        const [alice, bob] = [await idOf('alice'), await idOf('bob')];
+        const response = await providersOf([alice, bob, 'no-such-user'], adminCookie);
+        expect(response.status).toBe(200);
+        const providers = await response.json();
+        for (const id of [alice, bob]) {
+            const accounts = await (await get(`/api/_better-auth-admin/users/${id}/accounts`, adminCookie)).json();
+            expect(providers[id].sort()).toEqual(accounts.map((a: { providerId: string }) => a.providerId).sort());
+        }
+        expect(providers['no-such-user']).toEqual([]);
+    });
+
+    it('refuses users without the permission', async () => {
+        expect((await providersOf([await idOf('alice')], userCookie)).status).toBe(403);
+    });
+
+    it('limits how many users one request asks about', async () => {
+        const ids = Array.from({ length: 101 }, (_, i) => `user-${i}`);
+        expect((await providersOf(ids, adminCookie)).status).toBe(400);
+    });
+});

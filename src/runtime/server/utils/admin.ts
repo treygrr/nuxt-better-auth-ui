@@ -22,6 +22,13 @@ type AdminAuth = {
     };
     $context: Promise<{
         options: { account?: { accountLinking?: { allowUnlinkingAll?: boolean } } };
+        adapter: {
+            findMany<T>(query: {
+                model: string;
+                where?: Array<{ field: string; operator?: string; value: unknown }>;
+                select?: string[];
+            }): Promise<T[]>;
+        };
         internalAdapter: {
             findUserById(id: string): Promise<{ id: string } | null>;
             findAccounts(userId: string): Promise<StoredAccount[]>;

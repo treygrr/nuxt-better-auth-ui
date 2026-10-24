@@ -21,12 +21,15 @@ import {
 } from '#imports';
 
 import type { AdminUser, AdminUserQuery } from '../../types';
+import { providerInfo, sortProviders } from '../../utils/providers';
 
 const UAvatar = resolveComponent('UAvatar');
 const UBadge = resolveComponent('UBadge');
 const UButton = resolveComponent('UButton');
 const UCheckbox = resolveComponent('UCheckbox');
 const UDropdownMenu = resolveComponent('UDropdownMenu');
+const UIcon = resolveComponent('UIcon');
+const UTooltip = resolveComponent('UTooltip');
 
 const adminPath = useAdminPath();
 const { role: adminRole } = useBetterAuthAdminConfig();
@@ -75,6 +78,14 @@ const { data, status, error, refresh } = await useAsyncData(
 );
 
 const users = computed(() => data.value?.users ?? []);
+
+// Each listed user's sign-in methods, fetched for the whole page in one request.
+const { data: providers, status: providersStatus } = await useAsyncData(
+    'better-auth-admin-users-providers',
+    (): Promise<Record<string, string[]>> =>
+        users.value.length ? admin.providers(users.value.map((user) => user.id)) : Promise.resolve({}),
+    { server: false, watch: [users], default: () => ({}) as Record<string, string[]> }
+);
 const isSelf = (user: AdminUser) => user.id === session.user.value?.id;
 const selected = computed(() => users.value.filter((user) => rowSelection.value[user.id]));
 
@@ -261,6 +272,28 @@ const columns: TableColumn<AdminUser>[] = [
                 : h(UBadge, { label: 'Unverified', color: 'warning', variant: 'outline' })
     },
     {
+        id: 'signIn',
+        header: 'Sign-in',
+        cell: ({ row }) => {
+            const ids = providers.value[row.original.id];
+            if (!ids) return providersStatus.value === 'pending' ? h('span', { class: 'text-dimmed' }, '…') : null;
+            if (!ids.length) return h(UBadge, { label: 'None', color: 'warning', variant: 'outline' });
+            return h(
+                'div',
+                { class: 'flex items-center gap-1.5' },
+                sortProviders(ids).map((id) =>
+                    h(UTooltip, { text: providerInfo(id).label }, () =>
+                        h(UIcon, {
+                            name: providerInfo(id).icon,
+                            class: 'size-4.5 text-muted',
+                            'aria-label': providerInfo(id).label
+                        })
+                    )
+                )
+            );
+        }
+    },
+    {
         accessorKey: 'createdAt',
         header: sortHeader('Joined'),
         cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString()
@@ -284,6 +317,8 @@ const columns: TableColumn<AdminUser>[] = [
             )
     }
 ];
+
+const columnLabels: Record<string, string> = { banned: 'Status', emailVerified: 'Email', signIn: 'Sign-in' };
 
 const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));
 </script>
@@ -365,13 +400,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                                 ?.getAllColumns()
                                 .filter((column: any) => column.getCanHide())
                                 .map((column: any) => ({
-                                    label: upperFirst(
-                                        column.id === 'banned'
-                                            ? 'status'
-                                            : column.id === 'emailVerified'
-                                              ? 'email'
-                                              : column.id
-                                    ),
+                                    label: columnLabels[column.id] ?? upperFirst(column.id),
                                     type: 'checkbox' as const,
                                     checked: column.getIsVisible(),
                                     onUpdateChecked(checked: boolean) {

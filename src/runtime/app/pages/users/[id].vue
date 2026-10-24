@@ -15,6 +15,7 @@ import {
 } from '#imports';
 
 import type { AdminAccount, AdminSession, AdminUser } from '../../types';
+import { providerInfo } from '../../utils/providers';
 
 const adminPath = useAdminPath();
 const { role: adminRole } = useBetterAuthAdminConfig();
@@ -41,20 +42,7 @@ const {
 } = await useAsyncData(`better-auth-admin-user-accounts-${userId}`, () => admin.accounts(userId), { server: false });
 const refresh = () => Promise.all([refreshUser(), refreshSessions(), refreshAccounts()]);
 
-/** How each sign-in method is shown; others fall back to their provider id. */
-const providers: Record<string, { label: string; icon: string }> = {
-    credential: { label: 'Email and password', icon: 'i-lucide-key-round' },
-    google: { label: 'Google', icon: 'i-simple-icons-google' },
-    github: { label: 'GitHub', icon: 'i-simple-icons-github' },
-    discord: { label: 'Discord', icon: 'i-simple-icons-discord' },
-    apple: { label: 'Apple', icon: 'i-simple-icons-apple' },
-    microsoft: { label: 'Microsoft', icon: 'i-simple-icons-microsoft' },
-    facebook: { label: 'Facebook', icon: 'i-simple-icons-facebook' },
-    twitter: { label: 'X', icon: 'i-simple-icons-x' },
-    gitlab: { label: 'GitLab', icon: 'i-simple-icons-gitlab' }
-};
-const provider = (account: AdminAccount) =>
-    providers[account.providerId] ?? { label: account.providerId, icon: 'i-lucide-link' };
+const provider = (account: AdminAccount) => providerInfo(account.providerId);
 
 // The sign-in method being removed. The last one can't be: it would lock the user out.
 const removing = ref<AdminAccount | null>(null);

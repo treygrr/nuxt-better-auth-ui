@@ -101,6 +101,11 @@ export const useAdminUsers = () => {
         /** Linked sign-in methods, from this module's own route (the Admin plugin has none). */
         accounts: (userId: string) =>
             $fetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`).catch(fetchError),
+        /** Sign-in methods of several users at once, as `{ [userId]: providerIds }`, for the users list. */
+        providers: (userIds: string[]) =>
+            $fetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, { query: { userIds: userIds.join(',') } }).catch(
+                fetchError
+            ),
         /** Removes one sign-in method; the server refuses to remove a user's last one. */
         removeAccount: (userId: string, accountId: string) =>
             $fetch(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts/${encodeURIComponent(accountId)}`, {
