@@ -1,63 +1,35 @@
 <script setup lang="ts">
-import { computed, useAsyncData, watch } from '#imports';
-import { randomInt } from '../../utils/random';
-import { eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, format } from 'date-fns';
-import type { Period, Range } from '../../types';
+import { computed } from '#imports';
+import { format } from 'date-fns';
+
+import type { AdminStats, Period } from '../../types';
 
 const props = defineProps<{
     period: Period;
-    range: Range;
+    stats: AdminStats | null | undefined;
 }>();
 
-type DataRecord = {
-    date: string;
-    amount: number;
-};
+const formatNumber = new Intl.NumberFormat('en').format;
 
-const formatNumber = new Intl.NumberFormat('en', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
-    .format;
-
-const formatDate = (date: Date): string => {
-    return {
+const formatDate = (date: Date): string =>
+    ({
         daily: format(date, 'd MMM'),
         weekly: format(date, 'd MMM yyyy'),
         monthly: format(date, 'MMM yyy')
-    }[props.period];
-};
+    })[props.period];
 
-const { data } = await useAsyncData<DataRecord[]>(
-    'chart',
-    async () => {
-        const dates = (
-            {
-                daily: eachDayOfInterval,
-                weekly: eachWeekOfInterval,
-                monthly: eachMonthOfInterval
-            } as Record<Period, typeof eachDayOfInterval>
-        )[props.period](props.range);
-
-        // The y axis rounds the highest amount up to its next step, so keeping it just above 7,000 leaves room above the peak
-        const amounts = dates.map(() => randomInt(1000, 7000));
-        amounts[randomInt(0, amounts.length - 1)] = randomInt(7100, 7200);
-
-        return dates.map((date, i) => ({ date: formatDate(date), amount: amounts[i]! }));
-    },
-    {
-        watch: [() => props.period, () => props.range],
-        default: () => []
-    }
+const data = computed(() =>
+    (props.stats?.series ?? []).map(({ date, signUps }) => ({ date: formatDate(new Date(date)), signUps }))
 );
-
-const total = computed(() => data.value.reduce((acc: number, { amount }) => acc + amount, 0));
 </script>
 
 <template>
     <UCard :ui="{ root: 'overflow-visible', body: 'p-0! overflow-hidden rounded-b-[inherit]' }">
         <template #header>
             <div>
-                <p class="text-xs text-muted uppercase mb-1.5">Revenue</p>
+                <p class="text-xs text-muted uppercase mb-1.5">Sign-ups</p>
                 <p class="text-3xl text-highlighted font-semibold">
-                    {{ formatNumber(total) }}
+                    {{ formatNumber(stats?.newUsers ?? 0) }}
                 </p>
             </div>
         </template>
@@ -67,15 +39,15 @@ const total = computed(() => data.value.reduce((acc: number, { amount }) => acc 
             curve="monotone"
             :data="data"
             index="date"
-            :categories="[{ key: 'amount', label: 'Revenue' }]"
+            :categories="[{ key: 'signUps', label: 'Sign-ups' }]"
             :x-axis="false"
-            :y-axis="false"
+            :y-axis="true"
             :grid="true"
             :format="formatNumber"
-            :aspect-ratio="3"
+            :height="240"
             :initial-width="1152"
             class="-my-px"
-            aria-label="Revenue"
+            aria-label="Sign-ups"
         />
     </UCard>
 </template>

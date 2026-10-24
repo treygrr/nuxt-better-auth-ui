@@ -3,7 +3,7 @@ import { $fetch } from '#imports';
 
 import { ADMIN_API } from '../../constants';
 
-import type { AdminAccount, AdminSession, AdminUser, AdminUserQuery } from '../types';
+import type { AdminAccount, AdminSession, AdminStats, AdminUser, AdminUserQuery } from '../types';
 
 type Result<T> = { data: T | null; error: { message?: string; code?: string } | null };
 
@@ -101,6 +101,11 @@ export const useAdminUsers = () => {
         /** Linked sign-in methods, from this module's own route (the Admin plugin has none). */
         accounts: (userId: string) =>
             $fetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`).catch(fetchError),
+        /** The home page's numbers; `boundaries` are the chart's period boundaries, start to end. */
+        stats: (boundaries: Date[]) =>
+            $fetch<AdminStats>(`${ADMIN_API}/stats`, {
+                query: { buckets: boundaries.map((date) => date.toISOString()).join(',') }
+            }).catch(fetchError),
         /** Sign-in methods of several users at once, as `{ [userId]: providerIds }`, for the users list. */
         providers: (userIds: string[]) =>
             $fetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, { query: { userIds: userIds.join(',') } }).catch(

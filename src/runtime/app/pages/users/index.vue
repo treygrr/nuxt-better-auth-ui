@@ -15,6 +15,7 @@ import {
     useAdminUsers,
     useAsyncData,
     useBetterAuthAdminConfig,
+    useRoute,
     useTemplateRef,
     useToast,
     watch
@@ -43,7 +44,9 @@ const page = ref(1);
 const search = ref('');
 const searchField = ref<'email' | 'name'>('email');
 const debouncedSearch = refDebounced(search, 300);
-const filter = ref('all');
+// Linkable, eg from the home page's Banned card: ?filter=banned
+const routeFilter = String(useRoute().query.filter ?? '');
+const filter = ref(['admins', 'banned', 'unverified'].includes(routeFilter) ? routeFilter : 'all');
 const sorting = ref([{ id: 'createdAt', desc: true }]);
 const rowSelection = ref<Record<string, boolean>>({});
 const columnVisibility = ref<Record<string, boolean>>({});

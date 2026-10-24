@@ -379,3 +379,52 @@ describe('reading many accounts', () => {
         db.prepare("delete from account where id like 'many-%'").run();
     });
 });
+
+describe('home page stats', () => {
+    const stats = (buckets: Date[], cookie = adminCookie) =>
+        get(`/api/_better-auth-admin/stats?buckets=${buckets.map((date) => date.toISOString()).join(',')}`, cookie);
+    const day = 24 * 60 * 60 * 1000;
+
+    it('counts users, sign-ups, bans and sessions from the database', async () => {
+        const db = new Database(databasePath);
+        const count = (sql: string) => (db.prepare(sql).get() as { n: number }).n;
+        // Two users who joined well before the range, to show in the previous period.
+        const insert = db.prepare(
+            'insert into user (id, name, email, emailVerified, createdAt, updatedAt, role, banned) values (?, ?, ?, 0, ?, ?, ?, 0)'
+        );
+        const old = new Date(Date.now() - 10 * day).toISOString();
+        for (const id of ['stats-old-1', 'stats-old-2']) insert.run(id, id, `${id}@stats.test`, old, old, 'user');
+
+        const now = Date.now();
+        const buckets = [new Date(now - 7 * day), new Date(now - 3 * day), new Date(now + day)];
+        const response = await stats(buckets);
+        expect(response.status).toBe(200);
+        const body = await response.json();
+
+        expect(body.users).toBe(count('select count(*) n from user'));
+        expect(body.banned).toBe(count('select count(*) n from user where banned = 1'));
+        expect(body.sessions).toBe(
+            count(`select count(*) n from session where expiresAt > '${new Date().toISOString()}'`)
+        );
+        // Everyone else joined during this test run, inside the range.
+        expect(body.newUsers).toBe(body.users - 2);
+        expect(body.previousNewUsers).toBe(2);
+        expect(body.series).toHaveLength(2);
+        expect(body.series[0].signUps + body.series[1].signUps).toBe(body.newUsers);
+        expect(body.series[1].signUps).toBe(body.newUsers);
+        db.prepare("delete from user where id like 'stats-old-%'").run();
+    });
+
+    it('rejects bad buckets', async () => {
+        const now = Date.now();
+        expect((await stats([new Date(now)])).status).toBe(400);
+        expect((await stats([new Date(now), new Date(now - day)])).status).toBe(400);
+        const tooMany = Array.from({ length: 121 }, (_, i) => new Date(now + i * day));
+        expect((await stats(tooMany)).status).toBe(400);
+    });
+
+    it('refuses users without the permission', async () => {
+        const now = Date.now();
+        expect((await stats([new Date(now - day), new Date(now)], userCookie)).status).toBe(403);
+    });
+});

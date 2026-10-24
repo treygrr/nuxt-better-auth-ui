@@ -1,87 +1,58 @@
 <script setup lang="ts">
-import { useAsyncData, watch } from '#imports';
-import { randomInt } from '../../utils/random';
-import type { Period, Range, Stat } from '../../types';
+import { computed, useAdminPath } from '#imports';
 
-const props = defineProps<{
-    period: Period;
-    range: Range;
-}>();
+import type { AdminStats, Stat } from '../../types';
 
-function formatCurrency(value: number): string {
-    return value.toLocaleString('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0
-    });
-}
+const props = defineProps<{ stats: AdminStats | null | undefined }>();
 
-const baseStats = [
-    {
-        title: 'Customers',
-        icon: 'i-lucide-users',
-        minValue: 400,
-        maxValue: 1000,
-        minVariation: -15,
-        maxVariation: 25
-    },
-    {
-        title: 'Conversions',
-        icon: 'i-lucide-chart-pie',
-        minValue: 1000,
-        maxValue: 2000,
-        minVariation: -10,
-        maxVariation: 20
-    },
-    {
-        title: 'Revenue',
-        icon: 'i-lucide-circle-dollar-sign',
-        minValue: 200000,
-        maxValue: 500000,
-        minVariation: -20,
-        maxVariation: 30,
-        formatter: formatCurrency
-    },
-    {
-        title: 'Orders',
-        icon: 'i-lucide-shopping-cart',
-        minValue: 100,
-        maxValue: 300,
-        minVariation: -5,
-        maxVariation: 15
-    }
-];
+const adminPath = useAdminPath();
+const number = new Intl.NumberFormat('en').format;
 
-const { data: stats } = await useAsyncData<Stat[]>(
-    'stats',
-    async () => {
-        return baseStats.map((stat) => {
-            const value = randomInt(stat.minValue, stat.maxValue);
-            const variation = randomInt(stat.minVariation, stat.maxVariation);
+/** Percent change, or undefined when there's nothing to compare with. */
+const change = (now: number, before: number) => (before > 0 ? Math.round(((now - before) / before) * 100) : undefined);
 
-            return {
-                title: stat.title,
-                icon: stat.icon,
-                value: stat.formatter ? stat.formatter(value) : value,
-                variation
-            };
-        });
-    },
-    {
-        watch: [() => props.period, () => props.range],
-        default: () => []
-    }
-);
+const cards = computed<Stat[]>(() => {
+    const stats = props.stats;
+    if (!stats) return [];
+    return [
+        {
+            title: 'Users',
+            icon: 'i-lucide-users',
+            value: number(stats.users),
+            // Growth over the range: new users against everyone who was already here.
+            variation: change(stats.users, stats.users - stats.newUsers),
+            to: adminPath('/users')
+        },
+        {
+            title: 'Sign-ups',
+            icon: 'i-lucide-user-plus',
+            value: number(stats.newUsers),
+            variation: change(stats.newUsers, stats.previousNewUsers),
+            to: adminPath('/users')
+        },
+        {
+            title: 'Active sessions',
+            icon: 'i-lucide-monitor-smartphone',
+            value: stats.sessions === null ? '—' : number(stats.sessions)
+        },
+        {
+            title: 'Banned',
+            icon: 'i-lucide-ban',
+            value: number(stats.banned),
+            to: adminPath('/users?filter=banned')
+        }
+    ];
+});
 </script>
 
 <template>
     <UPageGrid class="lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-px">
         <UPageCard
-            v-for="(stat, index) in stats"
-            :key="index"
+            v-for="stat in cards"
+            :key="stat.title"
             :icon="stat.icon"
             :title="stat.title"
-            to="/customers"
+            :to="stat.to"
             variant="subtle"
             :ui="{
                 container: 'gap-y-1.5',
@@ -96,7 +67,12 @@ const { data: stats } = await useAsyncData<Stat[]>(
                     {{ stat.value }}
                 </span>
 
-                <UBadge :color="stat.variation > 0 ? 'success' : 'error'" variant="subtle" class="text-xs">
+                <UBadge
+                    v-if="stat.variation !== undefined"
+                    :color="stat.variation > 0 ? 'success' : stat.variation < 0 ? 'error' : 'neutral'"
+                    variant="subtle"
+                    class="text-xs"
+                >
                     {{ stat.variation > 0 ? '+' : '' }}{{ stat.variation }}%
                 </UBadge>
             </div>

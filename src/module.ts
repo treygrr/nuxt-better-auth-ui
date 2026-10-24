@@ -99,6 +99,11 @@ export default defineNuxtModule<ModuleOptions>({
 
         // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoints for.
         addServerHandler({
+            route: `${ADMIN_API}/stats`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/stats.get')
+        });
+        addServerHandler({
             route: `${ADMIN_API}/accounts`,
             method: 'get',
             handler: resolve('./runtime/server/api/accounts.get')

@@ -1,7 +1,6 @@
 import type { AvatarProps } from '@nuxt/ui';
 
 export type UserStatus = 'subscribed' | 'unsubscribed' | 'bounced';
-export type SaleStatus = 'paid' | 'failed' | 'refunded';
 
 export interface User {
     id: number;
@@ -32,16 +31,20 @@ export interface Stat {
     title: string;
     icon: string;
     value: number | string;
-    variation: number;
-    formatter?: (value: number) => string;
+    /** Change against the previous period, in percent; absent when there's nothing to compare. */
+    variation?: number;
+    to?: string;
 }
 
-export interface Sale {
-    id: string;
-    date: string;
-    status: SaleStatus;
-    email: string;
-    amount: number;
+/** The admin home page's numbers, from the module's stats route. */
+export interface AdminStats {
+    users: number;
+    newUsers: number;
+    previousNewUsers: number;
+    banned: number;
+    /** Null when sessions live only in secondary storage, where they can't be counted. */
+    sessions: number | null;
+    series: Array<{ date: string; signUps: number }>;
 }
 
 export interface Notification {

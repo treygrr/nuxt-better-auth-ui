@@ -13,7 +13,7 @@ export type StoredAccount = {
     updatedAt: Date;
 } & Record<string, unknown>;
 
-type Where = { field: string; operator?: string; value: unknown; connector?: 'AND' | 'OR' };
+export type Where = { field: string; operator?: string; value: unknown; connector?: 'AND' | 'OR' };
 type FindMany = {
     model: string;
     where?: Where[];
@@ -31,9 +31,14 @@ type AdminAuth = {
         }): Promise<{ success: boolean }>;
     };
     $context: Promise<{
-        options: { account?: { accountLinking?: { allowUnlinkingAll?: boolean } } };
+        options: {
+            account?: { accountLinking?: { allowUnlinkingAll?: boolean } };
+            secondaryStorage?: unknown;
+            session?: { storeSessionInDatabase?: boolean };
+        };
         adapter: {
             findMany<T>(query: FindMany): Promise<T[]>;
+            count(query: { model: string; where?: Where[] }): Promise<number | string>;
         };
         internalAdapter: {
             findUserById(id: string): Promise<{ id: string } | null>;

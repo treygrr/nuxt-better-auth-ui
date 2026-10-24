@@ -11,6 +11,8 @@ settings pages and a notifications panel. Those pages still show the template's 
 
 ## User management
 
+- **Home:** total users, sign-ups (against the previous period), active sessions and bans, a sign-ups chart by
+  day, week or month over a chosen range, and the newest users. All from count queries on Better Auth's tables.
 - **Users list:** search by email or name, filter (admins, banned, unverified), sort, paginate; select rows to ban or
   delete several at once.
 - **Add user:** name, email, optional password, role.
