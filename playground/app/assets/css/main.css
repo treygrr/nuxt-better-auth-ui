@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+/* Tailwind skips node_modules, so point it at the admin pages' classes. */
+@source "../../../node_modules/@treygrr/nuxt-better-auth-admin/dist/runtime";

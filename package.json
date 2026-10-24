@@ -1,0 +1,77 @@
+{
+    "name": "@treygrr/nuxt-better-auth-admin",
+    "version": "0.0.0",
+    "private": true,
+    "description": "Admin pages for Better Auth in Nuxt, built with Nuxt UI: manage users, roles, bans and sessions.",
+    "keywords": [
+        "nuxt",
+        "nuxt-module",
+        "better-auth",
+        "admin",
+        "dashboard",
+        "nuxt-ui",
+        "user-management"
+    ],
+    "homepage": "https://github.com/treygrr/nuxt-better-auth-admin#readme",
+    "bugs": {
+        "url": "https://github.com/treygrr/nuxt-better-auth-admin/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/treygrr/nuxt-better-auth-admin"
+    },
+    "license": "MIT",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/types.d.mts",
+            "import": "./dist/module.mjs"
+        }
+    },
+    "main": "./dist/module.mjs",
+    "files": [
+        "dist"
+    ],
+    "packageManager": "pnpm@12.14.0",
+    "scripts": {
+        "build": "nuxt-module-build prepare && nuxt-module-build build",
+        "dev": "nuxt dev playground",
+        "dev:build": "nuxt build playground",
+        "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
+        "fmt": "prettier --check src test playground scripts server auth.config.ts prettier.config.mjs",
+        "fmt:fix": "prettier --write src test playground scripts server auth.config.ts prettier.config.mjs",
+        "test": "pnpm build && vitest run",
+        "typecheck": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground && vue-tsc --noEmit",
+        "release": "node scripts/release.mjs",
+        "prepack": "pnpm build"
+    },
+    "dependencies": {
+        "@nuxt/kit": "^4.6.0"
+    },
+    "peerDependencies": {
+        "@nuxt/ui": "^4.12.0",
+        "@nuxtjs/better-auth": "^0.3.12",
+        "better-auth": "^1.7.0",
+        "nuxt": "^4.6.0"
+    },
+    "devDependencies": {
+        "@nuxt/module-builder": "1.0.3",
+        "@nuxt/schema": "4.6.2",
+        "@nuxt/ui": "4.12.0",
+        "@nuxtjs/better-auth": "0.3.12",
+        "@types/better-sqlite3": "7.6.13",
+        "@types/node": "24.13.6",
+        "better-auth": "1.7.12",
+        "better-sqlite3": "13.0.3",
+        "nuxt": "4.6.2",
+        "prettier": "3.9.9",
+        "tailwindcss": "4.3.3",
+        "typescript": "6.0.3",
+        "vitest": "5.0.5",
+        "vue": "3.5.44",
+        "vue-tsc": "3.3.13"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
