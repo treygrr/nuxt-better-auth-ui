@@ -1,26 +1,72 @@
 <script setup lang="ts">
-import { useBetterAuthAdminConfig } from '#imports';
+import { ref, shallowRef, useAdminDashboard, useAdminPath } from '#imports';
+import { sub } from 'date-fns';
+import type { DropdownMenuItem } from '@nuxt/ui';
+import type { Period, Range } from '../types';
 
-const { route } = useBetterAuthAdminConfig();
+const adminPath = useAdminPath();
+
+const { isNotificationsSlideoverOpen } = useAdminDashboard();
+
+const items = [
+    [
+        {
+            label: 'New mail',
+            icon: 'i-lucide-send',
+            to: adminPath('/inbox')
+        },
+        {
+            label: 'New customer',
+            icon: 'i-lucide-user-plus',
+            to: adminPath('/customers')
+        }
+    ]
+] satisfies DropdownMenuItem[][];
+
+const range = shallowRef<Range>({
+    start: sub(new Date(), { days: 14 }),
+    end: new Date()
+});
+const period = ref<Period>('daily');
 </script>
 
 <template>
-    <UDashboardPanel id="better-auth-admin-overview">
+    <UDashboardPanel id="home">
         <template #header>
-            <UDashboardNavbar title="Overview">
+            <UDashboardNavbar title="Home" :ui="{ right: 'gap-3' }">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
+
+                <template #right>
+                    <UTooltip text="Notifications" :shortcuts="['N']">
+                        <UButton color="neutral" variant="ghost" square @click="isNotificationsSlideoverOpen = true">
+                            <UChip color="error" inset>
+                                <UIcon name="i-lucide-bell" class="size-5 shrink-0" />
+                            </UChip>
+                        </UButton>
+                    </UTooltip>
+
+                    <UDropdownMenu :items="items">
+                        <UButton icon="i-lucide-plus" size="md" class="rounded-full" />
+                    </UDropdownMenu>
+                </template>
             </UDashboardNavbar>
+
+            <UDashboardToolbar>
+                <template #left>
+                    <!-- NOTE: The `-ms-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
+                    <AdminHomeDateRangePicker v-model="range" class="-ms-1" />
+
+                    <AdminHomePeriodSelect v-model="period" :range="range" />
+                </template>
+            </UDashboardToolbar>
         </template>
 
         <template #body>
-            <UPageCard
-                title="Users"
-                description="Search users and manage their roles, bans and sessions."
-                icon="i-lucide-users"
-                :to="`${route}/users`"
-            />
+            <AdminHomeStats :period="period" :range="range" />
+            <AdminHomeChart :period="period" :range="range" />
+            <AdminHomeSales :period="period" :range="range" />
         </template>
     </UDashboardPanel>
 </template>

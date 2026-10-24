@@ -79,10 +79,12 @@ const columns: TableColumn<AdminUser>[] = [
                     <UBadge :label="row.original.role ?? 'user'" color="neutral" variant="subtle" />
                 </template>
                 <template #emailVerified-cell="{ row }">
-                    <UIcon v-if="row.original.emailVerified" name="i-lucide-check" />
+                    <UIcon v-if="row.original.emailVerified" name="i-lucide-check" class="text-success" />
+                    <span v-else class="text-dimmed">No</span>
                 </template>
                 <template #banned-cell="{ row }">
                     <UBadge v-if="row.original.banned" label="Banned" color="error" variant="subtle" />
+                    <span v-else class="text-dimmed">No</span>
                 </template>
                 <template #createdAt-cell="{ row }">
                     {{ new Date(row.original.createdAt).toLocaleDateString() }}

@@ -1,6 +1,11 @@
+import type { NuxtPage } from '@nuxt/schema';
+
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
+import { DEMO_API } from './runtime/constants';
 import {
+    addComponentsDir,
     addImports,
+    addServerHandler,
     addLayout,
     addTemplate,
     createResolver,
@@ -44,7 +49,9 @@ export default defineNuxtModule<ModuleOptions>({
     // Installed before this module, in order, and checked against these versions.
     moduleDependencies: {
         '@nuxt/ui': { version: '>=4.12.0' },
-        '@nuxtjs/better-auth': { version: '>=0.3.12' }
+        '@nuxtjs/better-auth': { version: '>=0.3.12' },
+        // useBreakpoints and friends, used by the dashboard template's pages.
+        '@vueuse/nuxt': { version: '>=14.0.0' }
     },
     setup(options, nuxt) {
         const { resolve } = createResolver(import.meta.url);
@@ -79,25 +86,49 @@ export default defineNuxtModule<ModuleOptions>({
             (sources.client ??= []).push(clientPlugin.dst);
         });
 
-        addImports({ name: 'useBetterAuthAdminConfig', from: resolve('./runtime/app/utils/config') });
+        // Module files live in node_modules, where Nuxt doesn't auto-import, so they import these
+        // from #imports explicitly; registering them is what makes that work.
+        addImports([
+            { name: 'useBetterAuthAdminConfig', from: resolve('./runtime/app/utils/config') },
+            { name: 'useAdminPath', from: resolve('./runtime/app/utils/config') },
+            { name: 'useAdminDashboard', from: resolve('./runtime/app/composables/useDashboard') }
+        ]);
+        // Prefixed, so they can't clash with the app's own components: <AdminUserMenu>, <AdminHomeStats>, …
+        addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
+
+        // Sample data from the Nuxt UI dashboard template, for the inbox, customers and settings pages.
+        for (const name of ['customers', 'mails', 'members', 'notifications']) {
+            addServerHandler({
+                route: `${DEMO_API}/${name}`,
+                method: 'get',
+                handler: resolve(`./runtime/server/api/demo/${name}`)
+            });
+        }
         addLayout({ src: resolve('./runtime/app/layouts/admin.vue') }, LAYOUT);
 
+        const page = (name: string, path: string, file: string, children?: NuxtPage[]): NuxtPage => ({
+            name: `better-auth-admin${name && `-${name}`}`,
+            path: path ? `${route}${path}` : route,
+            file: resolve(`./runtime/app/pages/${file}`),
+            children
+        });
         extendPages((pages) => {
             pages.push(
+                page('', '', 'index.vue'),
+                // Better Auth user management
+                page('users', '/users', 'users/index.vue'),
+                page('user', '/users/:id', 'users/[id].vue'),
+                // From the dashboard template, with its sample data
+                page('inbox', '/inbox', 'inbox.vue'),
+                page('customers', '/customers', 'customers.vue'),
                 {
-                    name: 'better-auth-admin',
-                    path: route,
-                    file: resolve('./runtime/app/pages/index.vue')
-                },
-                {
-                    name: 'better-auth-admin-users',
-                    path: `${route}/users`,
-                    file: resolve('./runtime/app/pages/users/index.vue')
-                },
-                {
-                    name: 'better-auth-admin-user',
-                    path: `${route}/users/:id`,
-                    file: resolve('./runtime/app/pages/users/[id].vue')
+                    ...page('', '/settings', 'settings.vue', [
+                        { ...page('settings', '', 'settings/index.vue'), path: '' },
+                        { ...page('settings-members', '', 'settings/members.vue'), path: 'members' },
+                        { ...page('settings-notifications', '', 'settings/notifications.vue'), path: 'notifications' },
+                        { ...page('settings-security', '', 'settings/security.vue'), path: 'security' }
+                    ]),
+                    name: undefined
                 }
             );
         });

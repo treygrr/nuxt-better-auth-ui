@@ -4,7 +4,13 @@ Admin pages for [Better Auth](https://better-auth.com) in Nuxt, built with [Nuxt
 Better Auth's [Admin plugin](https://better-auth.com/docs/plugins/admin) to your app's auth and a dashboard at
 `/admin` where users with the admin role manage other users.
 
-> **Status: scaffold.** The users list works; user details, roles, bans, sessions and impersonation are next.
+The dashboard is the [Nuxt UI dashboard template](https://github.com/nuxt-ui-templates/dashboard) (MIT), brought in
+whole: a collapsible sidebar with search, a home page with stats and a revenue chart, an inbox, a customers table,
+settings pages and a notifications panel. Those pages still show the template's sample data, served from
+`/api/_better-auth-admin/demo/*`; **Users** is the real thing, backed by Better Auth.
+
+> **Status: scaffold.** The users list works; user details, roles, bans, sessions and impersonation are next, and the
+> template's pages will be wired to real data as they find uses.
 
 ## Setup
 
@@ -22,6 +28,12 @@ export default defineNuxtConfig({
 It depends on [`@nuxt/ui`](https://ui.nuxt.com) and [`@nuxtjs/better-auth`](https://better-auth.nuxt.dev), and installs
 them for you through Nuxt's [module dependencies](https://nuxt.com/docs/4.x/guide/modules/module-dependencies). Your app
 still needs its own Better Auth config (`server/auth.config.ts`, `app/auth.config.ts`).
+
+Install the icon sets the dashboard uses (Nuxt Icon looks for them in your app's dependencies):
+
+```bash
+pnpm add @iconify-json/lucide @iconify-json/simple-icons
+```
 
 Tailwind doesn't scan `node_modules`, so point it at the admin pages in your main CSS file:
 
@@ -68,8 +80,13 @@ export default defineNuxtConfig({
 
 - The module registers Better Auth's `admin()` and `adminClient()` plugins through `@nuxtjs/better-auth`'s
   `better-auth:plugins:extend` hook, so your auth config doesn't change.
-- The pages use their own `better-auth-admin` layout, a Nuxt UI dashboard with a sidebar, separate from your app's
-  layouts.
+- The pages use their own `better-auth-admin` layout, the dashboard template's sidebar layout, separate from your app's
+  layouts. Its components are registered with an `Admin` prefix (`<AdminUserMenu>`, `<AdminHomeStats>`, …) so they
+  can't clash with yours, and every runtime file imports from `#imports` explicitly, since Nuxt doesn't auto-import
+  inside `node_modules`.
+- It also installs [`@vueuse/nuxt`](https://vueuse.org/guide/#nuxt), which the template's pages use.
+- Left out, because they belong to your app: the template's `app.vue`, `error.vue`, `app.config.ts` colours and CSS
+  theme.
 - Route rules let only signed-in users with the admin role in; others are sent to the login page or get a 403. Better
   Auth checks the role again on every `/api/auth/admin/*` request.
 
@@ -86,4 +103,4 @@ pnpm fmt
 
 ## License
 
-MIT
+MIT. The parts adapted from the Nuxt UI dashboard template keep its MIT notice; see [LICENSE](LICENSE).

@@ -101,9 +101,27 @@ describe('the admin pages', () => {
         const response = await get('/admin', adminCookie);
         expect(response.status).toBe(200);
         const html = await response.text();
-        expect(html).toContain('Overview');
-        expect(html).toContain('Back to site');
-        expect((await get('/admin/users', adminCookie)).status).toBe(200);
+        // The sidebar: the dashboard template's navigation, plus Better Auth's users.
+        for (const label of ['Home', 'Users', 'Inbox', 'Customers', 'Settings']) expect(html).toContain(label);
+    });
+
+    it.each([
+        '/admin',
+        '/admin/users',
+        '/admin/inbox',
+        '/admin/customers',
+        '/admin/settings',
+        '/admin/settings/members',
+        '/admin/settings/notifications',
+        '/admin/settings/security'
+    ])('render %s for admins', async (path) => {
+        expect((await get(path, adminCookie)).status).toBe(200);
+    });
+
+    it.each(['customers', 'mails', 'members', 'notifications'])('serve the demo %s data', async (name) => {
+        const response = await get(`/api/_better-auth-admin/demo/${name}`, adminCookie);
+        expect(response.status).toBe(200);
+        expect((await response.json()).length).toBeGreaterThan(0);
     });
 
     it("give admins Better Auth's admin API", async () => {

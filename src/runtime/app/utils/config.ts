@@ -8,3 +8,9 @@ export type BetterAuthAdminPublicConfig = {
 };
 
 export const useBetterAuthAdminConfig = () => useRuntimeConfig().public.betterAuthAdmin as BetterAuthAdminPublicConfig;
+
+/** Turns an admin-relative path (`/`, `/inbox`) into a URL under the configured admin route. */
+export const useAdminPath = () => {
+    const { route } = useBetterAuthAdminConfig();
+    return (path: string) => (path === '/' ? route : `${route}${path}`);
+};
