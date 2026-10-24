@@ -97,11 +97,16 @@ export default defineNuxtModule<ModuleOptions>({
         // Prefixed, so they can't clash with the app's own components: <AdminUserMenu>, <AdminHomeStats>, …
         addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
 
-        // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoint for.
+        // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoints for.
         addServerHandler({
             route: `${ADMIN_API}/users/:id/accounts`,
             method: 'get',
             handler: resolve('./runtime/server/api/users/accounts.get')
+        });
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/accounts/:accountId`,
+            method: 'delete',
+            handler: resolve('./runtime/server/api/users/accounts.delete')
         });
 
         // Sample data from the Nuxt UI dashboard template, for the inbox, customers and settings pages.

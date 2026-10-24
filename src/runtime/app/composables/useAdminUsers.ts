@@ -45,6 +45,11 @@ const unwrap = async <T>(request: Promise<Result<T>>): Promise<T> => {
     return data as T;
 };
 
+/** Rethrows a failed $fetch to this module's routes as an Error with the server's message. */
+const fetchError = (error: { data?: { statusMessage?: string; message?: string }; message?: string }): never => {
+    throw new Error(error?.data?.statusMessage || error?.data?.message || error?.message || 'The request failed');
+};
+
 /** Better Auth's admin API for users, returning data or throwing an Error with a readable message. */
 export const useAdminUsers = () => {
     const client = () => {
@@ -95,8 +100,11 @@ export const useAdminUsers = () => {
         remove: (userId: string) => unwrap(admin().removeUser({ userId })),
         /** Linked sign-in methods, from this module's own route (the Admin plugin has none). */
         accounts: (userId: string) =>
-            $fetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`).catch((error) => {
-                throw new Error(error?.data?.statusText || error?.statusText || error?.message || 'The request failed');
-            })
+            $fetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`).catch(fetchError),
+        /** Removes one sign-in method; the server refuses to remove a user's last one. */
+        removeAccount: (userId: string, accountId: string) =>
+            $fetch(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts/${encodeURIComponent(accountId)}`, {
+                method: 'DELETE'
+            }).catch(fetchError)
     };
 };

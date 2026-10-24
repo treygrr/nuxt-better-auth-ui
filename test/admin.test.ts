@@ -265,3 +265,68 @@ describe("a user's sign-in methods", () => {
         expect((await accounts('no-such-user', adminCookie)).status).toBe(404);
     });
 });
+
+describe('removing sign-in methods', () => {
+    const remove = (userId: string, accountId: string, cookie?: string) =>
+        fetch(`${base}/api/_better-auth-admin/users/${userId}/accounts/${accountId}`, {
+            method: 'DELETE',
+            headers: { origin: base, ...(cookie && { cookie }) }
+        });
+    const listAccounts = async (userId: string) =>
+        (await get(`/api/_better-auth-admin/users/${userId}/accounts`, adminCookie)).json();
+    const alice = async () =>
+        (await (await get('/api/auth/admin/list-users?searchValue=alice@&searchField=email', adminCookie)).json())
+            .users[0];
+
+    /** Links a GitHub account to the user, as signing in with GitHub would. */
+    const linkGitHub = (userId: string) => {
+        const db = new Database(databasePath);
+        const credential = db
+            .prepare("select * from account where userId = ? and providerId = 'credential'")
+            .get(userId);
+        db.prepare(
+            'insert into account (id, accountId, providerId, userId, createdAt, updatedAt) values (?, ?, ?, ?, ?, ?)'
+        ).run('github-account', 'gh-12345', 'github', userId, credential.createdAt, credential.updatedAt);
+    };
+
+    it("refuses to remove someone's only sign-in method", async () => {
+        const { id } = await alice();
+        const [only] = await listAccounts(id);
+        const response = await remove(id, only.id, adminCookie);
+        expect(response.status).toBe(400);
+        expect((await response.json()).statusMessage).toMatch(/only sign-in method/);
+        expect(await listAccounts(id)).toHaveLength(1);
+    });
+
+    it('refuses users without the permission, signed-out requests and unknown methods', async () => {
+        const { id } = await alice();
+        linkGitHub(id);
+        expect((await remove(id, 'github-account', userCookie)).status).toBe(403);
+        expect((await remove(id, 'github-account')).status).toBe(401);
+        expect((await remove(id, 'no-such-account', adminCookie)).status).toBe(404);
+        expect((await remove('no-such-user', 'github-account', adminCookie)).status).toBe(404);
+    });
+
+    it('removes a linked method', async () => {
+        const { id } = await alice();
+        expect((await listAccounts(id)).map((a: { providerId: string }) => a.providerId).sort()).toEqual([
+            'credential',
+            'github'
+        ]);
+        expect((await remove(id, 'github-account', adminCookie)).status).toBe(200);
+        expect((await listAccounts(id)).map((a: { providerId: string }) => a.providerId)).toEqual(['credential']);
+    });
+
+    it('removing the password stops it working', async () => {
+        const { id } = await alice();
+        linkGitHub(id);
+        const credential = (await listAccounts(id)).find((a: { providerId: string }) => a.providerId === 'credential');
+        expect((await remove(id, credential.id, adminCookie)).status).toBe(200);
+        const response = await fetch(`${base}/api/auth/sign-in/email`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base },
+            body: JSON.stringify({ email: 'alice@example.com', password: 'password123' })
+        });
+        expect(response.status).toBe(401);
+    });
+});

@@ -34,12 +34,12 @@ const { data: sessions, refresh: refreshSessions } = await useAsyncData(
     () => admin.sessions(userId),
     { server: false }
 );
-const { data: accounts, error: accountsError } = await useAsyncData(
-    `better-auth-admin-user-accounts-${userId}`,
-    () => admin.accounts(userId),
-    { server: false }
-);
-const refresh = () => Promise.all([refreshUser(), refreshSessions()]);
+const {
+    data: accounts,
+    error: accountsError,
+    refresh: refreshAccounts
+} = await useAsyncData(`better-auth-admin-user-accounts-${userId}`, () => admin.accounts(userId), { server: false });
+const refresh = () => Promise.all([refreshUser(), refreshSessions(), refreshAccounts()]);
 
 /** How each sign-in method is shown; others fall back to their provider id. */
 const providers: Record<string, { label: string; icon: string }> = {
@@ -55,6 +55,39 @@ const providers: Record<string, { label: string; icon: string }> = {
 };
 const provider = (account: AdminAccount) =>
     providers[account.providerId] ?? { label: account.providerId, icon: 'i-lucide-link' };
+
+// The sign-in method being removed. The last one can't be: it would lock the user out.
+const removing = ref<AdminAccount | null>(null);
+const removeOpen = computed({
+    get: () => removing.value !== null,
+    set: (value) => {
+        if (!value) removing.value = null;
+    }
+});
+const accountItems = (account: AdminAccount): DropdownMenuItem[][] => {
+    const onlyOne = (accounts.value?.length ?? 0) <= 1;
+    return [
+        [
+            {
+                label: 'Copy account ID',
+                icon: 'i-lucide-copy',
+                onSelect: async () => {
+                    await navigator.clipboard.writeText(account.accountId);
+                    toast.add({ title: 'Copied to clipboard', description: account.accountId });
+                }
+            }
+        ],
+        [
+            {
+                label: onlyOne ? 'Remove (their only sign-in method)' : 'Remove',
+                icon: 'i-lucide-unlink',
+                color: 'error',
+                disabled: onlyOne,
+                onSelect: () => (removing.value = account)
+            }
+        ]
+    ];
+};
 
 const isSelf = computed(() => user.value?.id === session.user.value?.id);
 const date = (value?: string | Date | null) => (value ? new Date(value).toLocaleString() : '—');
@@ -288,6 +321,14 @@ const thisSession = computed(() => session.session.value?.id);
                                     >
                                 </p>
                             </div>
+                            <UDropdownMenu :items="accountItems(account)" :content="{ align: 'end' }" class="ms-auto">
+                                <UButton
+                                    icon="i-lucide-ellipsis-vertical"
+                                    color="neutral"
+                                    variant="ghost"
+                                    :aria-label="`${provider(account).label} actions`"
+                                />
+                            </UDropdownMenu>
                         </li>
                     </ul>
                 </UPageCard>
@@ -357,6 +398,14 @@ const thisSession = computed(() => session.session.value?.id);
                 <AdminUsersEditModal v-model:open="editOpen" :user="user" @updated="refresh" />
                 <AdminUsersPasswordModal v-model:open="passwordOpen" :user="user" />
                 <AdminUsersBanModal v-model:open="banOpen" :users="[user]" @banned="refresh" />
+                <AdminUsersRemoveAccountModal
+                    v-if="removing"
+                    v-model:open="removeOpen"
+                    :user="user"
+                    :account="removing"
+                    :label="provider(removing).label"
+                    @removed="refresh"
+                />
                 <AdminUsersDeleteModal
                     v-model:open="deleteOpen"
                     :users="[user]"

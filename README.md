@@ -18,6 +18,9 @@ settings pages and a notifications panel. Those pages still show the template's 
   or email a reset link; ban with a reason and an expiry, or unban; sign out of one session or everywhere; delete.
 - **User page:** profile, role and status, ban details, sign-in methods (email and password, Google, GitHub, …), and
   active sessions with device, IP and last activity.
+- **Remove a sign-in method** from its menu, eg an old Google link, or their password. Like Better Auth's own
+  unlink-account endpoint, the last one can't be removed (it would lock them out) unless the app sets
+  `account.accountLinking.allowUnlinkingAll`.
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
 
 > **Status: early.** Next: real numbers on the home page, an audit log of admin actions, custom roles and permissions,
@@ -98,9 +101,9 @@ export default defineNuxtConfig({
 - It also installs [`@vueuse/nuxt`](https://vueuse.org/guide/#nuxt), which the template's pages use.
 - Left out, because they belong to your app: the template's `app.vue`, `error.vue`, `app.config.ts` colours and CSS
   theme.
-- Sign-in methods come from the module's own `GET /api/_better-auth-admin/users/:id/accounts`, since the Admin plugin
-  has no endpoint for them. It checks Better Auth's `user: ['get']` permission and returns provider, account ID, scope
-  and dates, never passwords or tokens.
+- Sign-in methods use the module's own routes, since the Admin plugin has none for them:
+  `GET /api/_better-auth-admin/users/:id/accounts` (Better Auth's `user: ['get']` permission; returns provider, account
+  ID, scope and dates, never passwords or tokens) and `DELETE …/accounts/:accountId` (`user: ['update']`).
 - Route rules let only signed-in users with the admin role in; others are sent to the login page or get a 403. Better
   Auth checks the role again on every `/api/auth/admin/*` request.
 
