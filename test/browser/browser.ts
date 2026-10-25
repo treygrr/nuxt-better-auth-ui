@@ -51,7 +51,12 @@ export async function openPage(options: { viewport?: { width: number; height: nu
         page,
         problems,
         async go(path: string) {
-            await page.goto(`${base}${path}`, { waitUntil: 'load' });
+            // A navigation the page itself is still making (eg after signing in) aborts this one: go again once it's done.
+            await page.goto(`${base}${path}`, { waitUntil: 'load' }).catch(async (error: Error) => {
+                if (!error.message.includes('ERR_ABORTED')) throw error;
+                await page.waitForLoadState('load');
+                await page.goto(`${base}${path}`, { waitUntil: 'load' });
+            });
             // Hydration, and data fetched in the browser.
             await page.waitForLoadState('networkidle').catch(() => {});
             await page.waitForTimeout(500);
