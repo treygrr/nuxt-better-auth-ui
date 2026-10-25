@@ -35,16 +35,46 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await signInWithForm(session, 'orla@browser.test', '/account');
         await session.go('/account?tab=organizations');
         await session.page.getByRole('button', { name: 'Create organization' }).click();
-        await session.page.getByLabel('Name').fill('Orla & Co');
-        await expect(session.page.getByLabel('Slug').inputValue()).resolves.toBe('orla-co');
-        await session.page.getByRole('dialog').getByRole('button', { name: 'Create organization' }).click();
+        const dialog = session.page.getByRole('dialog');
+        await dialog.getByLabel('Name').fill('Orla & Co');
+        await expect(dialog.getByLabel('Slug').inputValue()).resolves.toBe('orla-co');
+        // The app's own field (the playground's "website").
+        await dialog.getByLabel('Website').fill('https://orla.example');
+        await dialog.getByRole('button', { name: 'Create organization' }).click();
         await session.page.getByText('Created Orla & Co').waitFor();
         // A new organization becomes the active one (Better Auth's create sets it).
         await session.page.getByText('Active').first().waitFor();
+        expect(session.problems).toEqual([]);
 
-        await session.page.getByRole('button', { name: 'Manage' }).click();
+        // Its own page: details, members, invitations, teams and roles.
+        await session.page.getByRole('link', { name: 'Manage' }).click();
+        await session.page.waitForURL((url) => url.pathname.startsWith('/organization/'), { timeout: 10_000 });
+        await expect(session.page.getByLabel('Website').inputValue()).resolves.toBe('https://orla.example');
+        await session.page.getByLabel('Name', { exact: true }).fill('Orla and Co');
+        await session.page.getByRole('button', { name: 'Save' }).click();
+        await session.page.getByText('Details saved').waitFor();
+
+        await session.page.getByRole('tab', { name: 'Members' }).click();
         await session.page.getByText('Members (1)').waitFor();
-        await session.page.getByRole('dialog').getByText('orla@browser.test').waitFor();
+
+        await session.page.getByRole('tab', { name: 'Invitations' }).click();
+        await session.page.getByLabel('Their email').fill('guest@orla.test');
+        await session.page.getByRole('button', { name: 'Send invitation' }).click();
+        await session.page.getByText('Invited guest@orla.test').waitFor();
+        await session.page.getByText('Waiting for an answer').waitFor();
+
+        await session.page.getByRole('tab', { name: 'Teams' }).click();
+        await session.page.getByLabel('Name').fill('Design');
+        await session.page.getByRole('button', { name: 'Create team' }).click();
+        await session.page.getByText('Created Design').waitFor();
+
+        await session.page.getByRole('tab', { name: 'Roles' }).click();
+        await session.page.getByText('Editor').first().waitFor();
+        await session.page.getByRole('button', { name: 'Create role' }).click();
+        await session.page.getByRole('dialog').getByLabel('Name').fill('reviewer');
+        await session.page.getByRole('dialog').getByRole('checkbox', { name: 'update' }).first().check();
+        await session.page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+        await session.page.getByText('Created reviewer').waitFor();
         expect(session.problems).toEqual([]);
     });
 

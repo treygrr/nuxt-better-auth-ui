@@ -124,5 +124,36 @@ describe('organization configuration', () => {
             })
         ).json();
         expect(teamMembers.map((item: { userId: string }) => item.userId)).toContain(member.id);
+
+        // The organization's page shows every team with its members, to anyone in the organization.
+        const ui = (cookie: string) =>
+            fetch(`${base}/api/_better-auth-ui/organizations/${organizationId}/teams`, { headers: { cookie } });
+        // Better Auth also gives a new organization a default team named after it.
+        const teams = await (await ui(owner.cookie)).json();
+        expect(teams).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ name: 'Design', members: [expect.objectContaining({ email: member.email })] })
+            ])
+        );
+        const outsider = await signUp('olive');
+        expect((await ui(outsider.cookie)).status).toBe(403);
+    });
+
+    it("tells the organization's page what each member may do", async () => {
+        const permissions = async (cookie: string) =>
+            (
+                await fetch(`${base}/api/_better-auth-ui/organizations/${organizationId}/permissions`, {
+                    headers: { cookie }
+                })
+            ).json();
+        const owners = await permissions(owner.cookie);
+        expect(owners).toMatchObject({ 'organization:delete': true, 'project:delete': true, 'ac:create': true });
+        // The member has the organization's own "reviewer" role by now: project updates only.
+        const members = await permissions(member.cookie);
+        expect(members).toMatchObject({
+            'organization:delete': false,
+            'project:update': true,
+            'project:delete': false
+        });
     });
 });

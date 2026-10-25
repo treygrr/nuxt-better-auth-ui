@@ -14,6 +14,7 @@ declare module '#imports' {
     export const readBody: H3['readBody'];
     export const getRequestIP: H3['getRequestIP'];
     export const getRequestHeader: H3['getRequestHeader'];
+    export const getRequestHeaders: H3['getRequestHeaders'];
     export const setResponseHeader: H3['setResponseHeader'];
     export const useRuntimeConfig: () => { public: Record<string, unknown> };
 }

@@ -324,6 +324,11 @@ export type OrganizationOptions = {
     enabled: boolean;
     /** The invitation page; its links are `<page>/<invitation id>`. @default '/accept-invitation' */
     invitationPage?: string;
+    /**
+     * The organization's own page, `<page>/<organization id>`, signed in: its details, members, invitations, teams and
+     * roles, each part shown to those whose role allows it. @default '/organization'
+     */
+    page?: string;
     /** Whether users can create organizations. Better Auth's default: true. */
     allowUserToCreateOrganization?: boolean;
     /** Organizations a user can create. Better Auth's default: unlimited. */
@@ -764,15 +769,38 @@ export default defineNuxtModule<ModuleOptions>({
         const invitationPage = organizationOptions.enabled
             ? `/${(organizationOptions.invitationPage ?? '/accept-invitation').replace(/^\/+|\/+$/g, '')}`
             : false;
-        if (invitationPage) {
+        const organizationPage = organizationOptions.enabled
+            ? `/${(organizationOptions.page ?? '/organization').replace(/^\/+|\/+$/g, '')}`
+            : false;
+        if (invitationPage && organizationPage) {
             extendPages((pages) => {
-                pages.push({
-                    name: 'better-auth-ui-invitation',
-                    path: `${invitationPage}/:id`,
-                    file: resolve('./runtime/app/pages/auth/invitation.vue')
-                });
+                pages.push(
+                    {
+                        name: 'better-auth-ui-invitation',
+                        path: `${invitationPage}/:id`,
+                        file: resolve('./runtime/app/pages/auth/invitation.vue')
+                    },
+                    {
+                        // Not "better-auth-ui-organization": that's the admin's organization page.
+                        name: 'better-auth-ui-organization-page',
+                        path: `${organizationPage}/:id`,
+                        file: resolve('./runtime/app/pages/auth/organization.vue')
+                    }
+                );
             });
             extendRouteRules(`${invitationPage}/**`, { auth: { only: 'user' } });
+            extendRouteRules(`${organizationPage}/**`, { auth: { only: 'user' } });
+            // For the organization's page: what the user may do there, and its teams with their members.
+            addServerHandler({
+                route: `${UI_API}/organizations/:id/permissions`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/organization/permissions.get')
+            });
+            addServerHandler({
+                route: `${UI_API}/organizations/:id/teams`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/organization/teams.get')
+            });
         }
         // Where people approve a device's code (Device Authorization), signed in.
         const { deviceAuthorization } = moduleOptions;
@@ -819,8 +847,9 @@ export default defineNuxtModule<ModuleOptions>({
             deviceClients: deviceAuthorization.clients ?? {},
             // The permissions people may give an API key.
             apiKeyScopes: moduleOptions.apiKey.scopes ?? {},
-            // Where organization invitations are accepted (false without organizations).
+            // Where organization invitations are accepted, and organizations' own pages (false without organizations).
             invitationPage,
+            organizationPage,
             // The billing tab's plans, without their Stripe prices.
             stripePlans: moduleOptions.stripe.enabled
                 ? (moduleOptions.stripe.plans ?? []).map((plan) => ({

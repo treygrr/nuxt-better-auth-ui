@@ -72,6 +72,8 @@ export type OrganizationCapabilities = {
     allowCreate: boolean;
     /** The static roles: Better Auth's owner, admin and member, and the app's. */
     roles: string[];
+    /** Each static role's permissions (when the app's set-up gives them), for the organization's roles tab. */
+    rolePermissions: Record<string, Record<string, string[]>>;
     /** Every resource and its actions, for permission checks and the dynamic roles' permission grid. */
     statements: Record<string, string[]>;
     /** Owners and admins create their own roles (dynamic access control). */
@@ -94,7 +96,8 @@ const DEFAULT_ORGANIZATION_STATEMENTS = {
 
 type OrganizationOptions = {
     allowUserToCreateOrganization?: unknown;
-    roles?: Record<string, unknown>;
+    /** Better Auth's roles, made with its access control: each has its `statements`. */
+    roles?: Record<string, { statements?: Record<string, readonly string[]> }>;
     ac?: { statements?: Record<string, readonly string[]> };
     dynamicAccessControl?: { enabled?: boolean };
     teams?: { enabled?: boolean };
@@ -123,6 +126,16 @@ function organizationCapabilities(options: OrganizationOptions): OrganizationCap
     return {
         allowCreate: options.allowUserToCreateOrganization !== false,
         roles: options.roles ? Object.keys(options.roles) : ['owner', 'admin', 'member'],
+        rolePermissions: Object.fromEntries(
+            Object.entries(options.roles ?? {}).map(([role, definition]) => [
+                role,
+                Object.fromEntries(
+                    Object.entries(definition.statements ?? {})
+                        .filter(([, actions]) => actions.length)
+                        .map(([resource, actions]) => [resource, [...actions]])
+                )
+            ])
+        ),
         statements: Object.fromEntries(
             Object.entries(options.ac?.statements ?? DEFAULT_ORGANIZATION_STATEMENTS).map(([resource, actions]) => [
                 resource,
