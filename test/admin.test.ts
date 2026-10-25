@@ -910,3 +910,50 @@ describe('last sign-in', () => {
         expect((await get(`/api/_better-auth-admin/last-sign-in?userIds=${gina}`, userCookie)).status).toBe(403);
     });
 });
+
+describe('the sessions page', () => {
+    type Listed = {
+        sessions: Array<{ id: string; token: string; user: { email: string } | null; expiresAt: string }>;
+        total: number;
+    };
+    const list = async (query = '', cookie = adminCookie) => {
+        const response = await get(`/api/_better-auth-admin/sessions?${query}`, cookie);
+        expect(response.status).toBe(200);
+        return (await response.json()) as Listed;
+    };
+
+    it('lists unexpired sessions with their users, most recently active first', async () => {
+        const own = (await (await get('/api/auth/get-session', adminCookie)).json()).session.id;
+        const { sessions, total } = await list('limit=100');
+        expect(total).toBe(sessions.length);
+        expect(sessions.some((session) => session.id === own && session.user?.email === 'bob@example.com')).toBe(true);
+        expect(sessions.every((session) => new Date(session.expiresAt).getTime() > Date.now())).toBe(true);
+    });
+
+    it('pages, keeping the total', async () => {
+        const all = await list('limit=100');
+        const page = await list('limit=2&offset=1');
+        expect(page.total).toBe(all.total);
+        expect(page.sessions.map((session) => session.id)).toEqual(
+            all.sessions.slice(1, 3).map((session) => session.id)
+        );
+    });
+
+    it('lets a session be signed out through Better Auth', async () => {
+        const cookie = await signIn('gina', 'sign-in');
+        const ginaSession = (await (await get('/api/auth/get-session', cookie)).json()).session.id;
+        const { sessions } = await list('limit=100');
+        const listed = sessions.find((session) => session.id === ginaSession)!;
+        const revoked = await fetch(`${base}/api/auth/admin/revoke-user-session`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie: adminCookie },
+            body: JSON.stringify({ sessionToken: listed.token })
+        });
+        expect(revoked.status).toBe(200);
+        expect((await list('limit=100')).sessions.some((session) => session.id === ginaSession)).toBe(false);
+    });
+
+    it('needs the session: list permission', async () => {
+        expect((await get('/api/_better-auth-admin/sessions', userCookie)).status).toBe(403);
+    });
+});

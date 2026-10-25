@@ -5,6 +5,7 @@ import {
     computed,
     onMounted,
     ref,
+    useAdminCan,
     useAdminPath,
     useBetterAuthAdminConfig,
     useCookie,
@@ -16,6 +17,7 @@ const route = useRoute();
 const toast = useToast();
 const adminPath = useAdminPath();
 const { auditLog } = useBetterAuthAdminConfig();
+const can = useAdminCan();
 
 const open = ref(false);
 const close = () => {
@@ -39,6 +41,16 @@ const links = computed(
                     to: adminPath('/users'),
                     onSelect: close
                 },
+                ...(can({ session: ['list'] })
+                    ? [
+                          {
+                              label: 'Sessions',
+                              icon: 'i-lucide-monitor-smartphone',
+                              to: adminPath('/sessions'),
+                              onSelect: close
+                          }
+                      ]
+                    : []),
                 ...(auditLog
                     ? [{ label: 'Audit log', icon: 'i-lucide-history', to: adminPath('/audit'), onSelect: close }]
                     : []),

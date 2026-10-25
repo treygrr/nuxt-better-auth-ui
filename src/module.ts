@@ -299,6 +299,11 @@ export default defineNuxtModule<ModuleOptions>({
             });
         }
         addServerHandler({
+            route: `${ADMIN_API}/sessions`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/sessions.get')
+        });
+        addServerHandler({
             route: `${ADMIN_API}/stats`,
             method: 'get',
             handler: resolve('./runtime/server/api/stats.get')
@@ -346,6 +351,7 @@ export default defineNuxtModule<ModuleOptions>({
                 // Better Auth user management
                 page('users', '/users', 'users/index.vue'),
                 page('user', '/users/:id', 'users/[id].vue'),
+                page('sessions', '/sessions', 'sessions.vue'),
                 ...(options.auditLog ? [page('audit', '/audit', 'audit.vue')] : []),
                 // From the dashboard template, with its sample data
                 page('inbox', '/inbox', 'inbox.vue'),

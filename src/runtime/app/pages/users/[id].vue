@@ -18,6 +18,7 @@ import {
 import { ADMIN_API } from '../../../constants';
 import type { AdminAccount, AdminAuditEntry, AdminSession, AdminUser } from '../../types';
 import { useImpersonateItem } from '../../composables/useImpersonateItem';
+import { device } from '../../utils/device';
 import { shownItems } from '../../utils/menu';
 import { providerInfo } from '../../utils/providers';
 
@@ -183,34 +184,6 @@ const actions = computed<DropdownMenuItem[][]>(() => {
         ]
     ]);
 });
-
-/** A readable device from a user agent, eg "Chrome on Linux". */
-function device(userAgent?: string | null) {
-    if (!userAgent) return 'Unknown device';
-    const browser = /Edg\//.test(userAgent)
-        ? 'Edge'
-        : /Firefox\//.test(userAgent)
-          ? 'Firefox'
-          : /Chrome\//.test(userAgent)
-            ? 'Chrome'
-            : /Safari\//.test(userAgent)
-              ? 'Safari'
-              : /curl\//.test(userAgent)
-                ? 'curl'
-                : 'Browser';
-    const os = /Windows/.test(userAgent)
-        ? 'Windows'
-        : /Mac OS X/.test(userAgent)
-          ? 'macOS'
-          : /Android/.test(userAgent)
-            ? 'Android'
-            : /iPhone|iPad/.test(userAgent)
-              ? 'iOS'
-              : /Linux/.test(userAgent)
-                ? 'Linux'
-                : '';
-    return os ? `${browser} on ${os}` : browser;
-}
 
 const revokeSession = (item: AdminSession) => run(() => admin.revokeSession(item.token), 'Session signed out');
 const revokeAll = (current: AdminUser) =>

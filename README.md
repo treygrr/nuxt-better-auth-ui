@@ -48,6 +48,11 @@ settings pages and a notifications panel. Those pages still show the template's 
   caught through Better Auth's documented `ctx.context.newSession`, so every sign-in method counts. Events that look
   an account up by email are recorded after the response, so they can't reveal through timing whether it exists.
   One write per event.
+- **Sessions page:** everyone signed in, most recently active first, with device, IP, when they signed in and when
+  the session expires; sign any session out (Better Auth's `revoke-user-session`). Better Auth's Admin plugin only
+  lists one user's sessions, so the module reads them itself, a page at a time, only when an admin opens the page
+  (`session: list` permission). "Last active" is when Better Auth last refreshed the session (by default at most
+  daily). Not available when sessions live only in secondary storage such as Redis.
 - **Last sign-in** on the users list and each user's page, from those events: no extra writes, so it only knows
   sign-ins within the log's retention (older shows as "not in the last 30 days").
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
