@@ -62,12 +62,18 @@ export default defineNuxtConfig({
         // your own test prices, Checkout and the billing portal work; without, the pages show and Stripe calls fail.
         stripe: {
             enabled: true,
+            // Your own test-mode prices, from .env, to try Checkout for real (see test/stripe-live.test.ts).
             plans: [
-                { name: 'basic', priceId: 'price_playground_basic', limits: { projects: 5 } },
+                {
+                    name: 'basic',
+                    priceId: process.env.PLAYGROUND_STRIPE_PRICE_BASIC || 'price_playground_basic',
+                    limits: { projects: 5 }
+                },
                 {
                     name: 'pro',
-                    priceId: 'price_playground_pro',
-                    annualDiscountPriceId: 'price_playground_pro_yearly',
+                    priceId: process.env.PLAYGROUND_STRIPE_PRICE_PRO || 'price_playground_pro',
+                    annualDiscountPriceId:
+                        process.env.PLAYGROUND_STRIPE_PRICE_PRO_YEARLY || 'price_playground_pro_yearly',
                     limits: { projects: 50 },
                     freeTrial: { days: 14 }
                 }
