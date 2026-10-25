@@ -13,8 +13,9 @@ export type AuthCapabilities = {
     emailVerification: boolean;
     /** Configured social providers, eg ['github', 'google']. */
     socialProviders: string[];
-    /** `user.changeEmail.enabled` */
+    /** `user.changeEmail.enabled`, and whether a change is approved from the current (verified) address first. */
     changeEmail: boolean;
+    changeEmailConfirmation: boolean;
     /** `user.deleteUser.enabled`, and whether it confirms by email. */
     deleteUser: boolean;
     deleteUserByEmail: boolean;
@@ -34,7 +35,7 @@ type Options = {
     emailVerification?: { sendVerificationEmail?: unknown };
     socialProviders?: Record<string, unknown>;
     user?: {
-        changeEmail?: { enabled?: boolean };
+        changeEmail?: { enabled?: boolean; sendChangeEmailConfirmation?: unknown };
         deleteUser?: { enabled?: boolean; sendDeleteAccountVerification?: unknown };
     };
     plugins?: Array<{ id: string }>;
@@ -54,6 +55,7 @@ export default defineEventHandler((event): AuthCapabilities => {
         emailVerification: typeof options.emailVerification?.sendVerificationEmail === 'function',
         socialProviders: Object.keys(options.socialProviders ?? {}),
         changeEmail: options.user?.changeEmail?.enabled === true,
+        changeEmailConfirmation: typeof options.user?.changeEmail?.sendChangeEmailConfirmation === 'function',
         deleteUser: options.user?.deleteUser?.enabled === true,
         deleteUserByEmail: typeof options.user?.deleteUser?.sendDeleteAccountVerification === 'function',
         plugins: (options.plugins ?? []).map((plugin) => plugin.id)

@@ -85,12 +85,19 @@ function sendInBackground<Name extends BetterAuthEmailName>(
  *
  * ```ts
  * emailVerification: { sendVerificationEmail: betterAuthEmails.verifyEmail },
- * emailAndPassword: { sendResetPassword: betterAuthEmails.resetPassword }
+ * emailAndPassword: { sendResetPassword: betterAuthEmails.resetPassword },
+ * user: {
+ *     changeEmail: { enabled: true, sendChangeEmailConfirmation: betterAuthEmails.changeEmailConfirmation },
+ *     deleteUser: { enabled: true, sendDeleteAccountVerification: betterAuthEmails.deleteAccount }
+ * }
  * ```
  */
 export const betterAuthEmails = {
     verifyEmail: async (data: BetterAuthEmails['verify-email']) => sendInBackground('verify-email', data),
     resetPassword: async (data: BetterAuthEmails['reset-password']) => sendInBackground('reset-password', data),
     existingUserSignUp: async (data: BetterAuthEmails['existing-user-sign-up']) =>
-        sendInBackground('existing-user-sign-up', data)
+        sendInBackground('existing-user-sign-up', data),
+    changeEmailConfirmation: async (data: BetterAuthEmails['change-email-confirmation']) =>
+        sendInBackground('change-email-confirmation', data),
+    deleteAccount: async (data: BetterAuthEmails['delete-account']) => sendInBackground('delete-account', data)
 };

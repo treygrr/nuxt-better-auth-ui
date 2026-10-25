@@ -11,5 +11,11 @@ export default defineServerAuth({
     database: new Database(databasePath),
     // Auth emails through the module: templates and delivery are set in nuxt.config (betterAuthUi.emails).
     emailAndPassword: { enabled: true, sendResetPassword: betterAuthEmails.resetPassword },
-    emailVerification: { sendVerificationEmail: betterAuthEmails.verifyEmail }
+    emailVerification: { sendVerificationEmail: betterAuthEmails.verifyEmail },
+    // Account page features: changing email (approved from the current address) and deleting the account
+    // (confirmed by email).
+    user: {
+        changeEmail: { enabled: true, sendChangeEmailConfirmation: betterAuthEmails.changeEmailConfirmation },
+        deleteUser: { enabled: true, sendDeleteAccountVerification: betterAuthEmails.deleteAccount }
+    }
 });

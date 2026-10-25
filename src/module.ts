@@ -102,6 +102,8 @@ export type PagesOptions = {
     forgotPassword: string | false;
     /** Where password reset links land. @default '/reset-password' */
     resetPassword: string | false;
+    /** The signed-in user's account page: profile, email, password, sign-in methods, devices, deleting it. @default '/account' */
+    account: string | false;
 };
 
 export type ModuleOptions = {
@@ -152,7 +154,8 @@ export default defineNuxtModule<ModuleOptions>({
             signIn: '/login',
             signUp: '/signup',
             forgotPassword: '/forgot-password',
-            resetPassword: '/reset-password'
+            resetPassword: '/reset-password',
+            account: '/account'
         },
         emails: {}
     },
@@ -169,7 +172,13 @@ export default defineNuxtModule<ModuleOptions>({
 
         // The app's email sender and templates, for `betterAuthEmails`. A virtual module, so Nitro bundles the
         // app's files; the helper only imports it when it sends, since the auth config also loads at build time.
-        const EMAILS: BetterAuthEmailName[] = ['verify-email', 'reset-password', 'existing-user-sign-up'];
+        const EMAILS: BetterAuthEmailName[] = [
+            'verify-email',
+            'reset-password',
+            'existing-user-sign-up',
+            'change-email-confirmation',
+            'delete-account'
+        ];
         const unknownEmails = Object.keys(emails.templates ?? {}).filter(
             (name) => !EMAILS.includes(name as BetterAuthEmailName)
         );
@@ -217,7 +226,8 @@ export default defineNuxtModule<ModuleOptions>({
             ['signIn', 'sign-in.vue'],
             ['signUp', 'sign-up.vue'],
             ['forgotPassword', 'forgot-password.vue'],
-            ['resetPassword', 'reset-password.vue']
+            ['resetPassword', 'reset-password.vue'],
+            ['account', 'account.vue']
         ];
         extendPages((pages) => {
             for (const [name, file] of AUTH_PAGES) {
@@ -236,8 +246,9 @@ export default defineNuxtModule<ModuleOptions>({
         });
         for (const [name] of AUTH_PAGES) {
             const path = pagePaths[name];
-            // Signed-in users are sent on (@nuxtjs/better-auth's redirects.guest).
-            if (path) extendRouteRules(path, { auth: { only: 'guest' } });
+            // The account page is for signed-in users; the others send signed-in users on
+            // (@nuxtjs/better-auth's redirects.guest).
+            if (path) extendRouteRules(path, { auth: { only: name === 'account' ? 'user' : 'guest' } });
         }
         addServerHandler({
             route: `${UI_API}/capabilities`,

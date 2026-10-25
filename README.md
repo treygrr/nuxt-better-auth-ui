@@ -2,8 +2,7 @@
 
 Auth UI for [Better Auth](https://better-auth.com) in Nuxt, built with [Nuxt UI](https://ui.nuxt.com): an admin
 dashboard at `/admin`, where staff manage users through Better Auth's
-[Admin plugin](https://better-auth.com/docs/plugins/admin), sign-in pages, and auth emails with your own templates. A
-self-service account page is coming next. Configure it under `betterAuthUi` in `nuxt.config.ts`.
+[Admin plugin](https://better-auth.com/docs/plugins/admin), sign-in pages, a self-service account page, and auth emails with your own templates. Configure it under `betterAuthUi` in `nuxt.config.ts`.
 
 The dashboard is the [Nuxt UI dashboard template](https://github.com/nuxt-ui-templates/dashboard) (MIT), brought in
 whole: a collapsible sidebar with search, a home page with stats and a revenue chart, an inbox, a customers table,
@@ -166,6 +165,7 @@ On by default, in your app's own layout, built with Nuxt UI's `UAuthForm` and `@
 | Sign up           | `/signup`          | name, email, password; "check your email" when you require verification          |
 | Forgot password   | `/forgot-password` | emails a reset link (the same answer whether or not the email has an account)    |
 | Reset password    | `/reset-password`  | where reset links land: choose a new password, or ask for a new link if it expired |
+| Account           | `/account`         | see "Account page" below                                                        |
 
 - **Each page shows only what your Better Auth set-up supports**, read from it at runtime: social buttons for configured
   providers, sign-up only when it's enabled, password length rules, "Forgot password?" only with reset emails.
@@ -181,6 +181,24 @@ On by default, in your app's own layout, built with Nuxt UI's `UAuthForm` and `@
 - `/login` is where `@nuxtjs/better-auth` sends signed-out visitors by default. After signing in, people go back
   where they came from (its `?redirect=`, checked to be a path on your site), else to its `redirects.authenticated`,
   else `/`. Signed-in visitors are sent away from these pages.
+
+## Account page
+
+`/account` (signed-in users only; `pages.account` moves or turns it off), in your app's layout, using Better Auth's own
+user and session APIs ([User & Accounts](https://better-auth.com/docs/concepts/users-accounts),
+[Session Management](https://better-auth.com/docs/concepts/session-management)):
+
+| Section          | What people can do                                                                                 | Needs                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| Profile          | change their name and avatar                                                                       |                                       |
+| Email            | resend the verification link; change their email (approved from the old address when it's verified, then verified at the new one) | `user.changeEmail.enabled` to change |
+| Password         | change it, optionally signing out other devices; accounts without one get a link to set one        | email and password sign-in            |
+| Sign-in methods  | connect another social provider, disconnect one (never the last)                                   | social providers                      |
+| Devices          | see where they're signed in, sign out of one or all others                                         |                                       |
+| Delete account   | with their password, a recent sign-in, or an email confirmation                                    | `user.deleteUser.enabled`             |
+
+Sections the app's Better Auth set-up doesn't support are left out. The lists are server-rendered from Better Auth's
+`list-accounts` and `list-sessions`.
 
 ## Emails
 
@@ -236,7 +254,11 @@ own templates, delivered by your own function (Resend, SMTP, …).
             sendResetPassword: betterAuthEmails.resetPassword,
             onExistingUserSignUp: betterAuthEmails.existingUserSignUp
         },
-        emailVerification: { sendVerificationEmail: betterAuthEmails.verifyEmail }
+        emailVerification: { sendVerificationEmail: betterAuthEmails.verifyEmail },
+        user: {
+            changeEmail: { enabled: true, sendChangeEmailConfirmation: betterAuthEmails.changeEmailConfirmation },
+            deleteUser: { enabled: true, sendDeleteAccountVerification: betterAuthEmails.deleteAccount }
+        }
     });
     ```
 
@@ -245,6 +267,8 @@ own templates, delivered by your own function (Resend, SMTP, …).
 | `verify-email`          | `emailVerification.sendVerificationEmail`   | `{ user, url, token }`  |
 | `reset-password`        | `emailAndPassword.sendResetPassword`        | `{ user, url, token }`  |
 | `existing-user-sign-up` | `emailAndPassword.onExistingUserSignUp`     | `{ user }`              |
+| `change-email-confirmation` | `user.changeEmail.sendChangeEmailConfirmation` | `{ user, newEmail, url, token }` |
+| `delete-account`        | `user.deleteUser.sendDeleteAccountVerification` | `{ user, url, token }` |
 
 Emails are sent in the background, not awaited, as
 [Better Auth advises](https://better-auth.com/docs/concepts/email) (waiting would reveal through timing which emails

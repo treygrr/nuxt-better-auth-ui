@@ -18,6 +18,10 @@ export type BetterAuthEmails = {
     'reset-password': { user: EmailUser; url: string; token: string };
     /** `emailAndPassword.onExistingUserSignUp`: someone tried to sign up with their email. */
     'existing-user-sign-up': { user: EmailUser };
+    /** `user.changeEmail.sendChangeEmailConfirmation`: approve a change, sent to the current address. */
+    'change-email-confirmation': { user: EmailUser; newEmail: string; url: string; token: string };
+    /** `user.deleteUser.sendDeleteAccountVerification`: confirm deleting the account. */
+    'delete-account': { user: EmailUser; url: string; token: string };
 };
 
 export type BetterAuthEmailName = keyof BetterAuthEmails;

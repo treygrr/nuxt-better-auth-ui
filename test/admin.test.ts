@@ -998,8 +998,10 @@ describe('sign-in pages', () => {
             resetPassword: true,
             emailVerification: true,
             socialProviders: [],
-            changeEmail: false,
-            deleteUser: false
+            changeEmail: true,
+            changeEmailConfirmation: true,
+            deleteUser: true,
+            deleteUserByEmail: true
         });
         expect(capabilities.plugins).toContain('admin');
     });
@@ -1021,5 +1023,44 @@ describe('sign-in pages', () => {
     it('sends signed-in users away from them', async () => {
         const response = await get('/login', userCookie);
         expect(response.status).toBe(302);
+    });
+});
+
+describe('the account page', () => {
+    it('is for signed-in users: others are sent to sign in, and back', async () => {
+        const response = await get('/account');
+        expect(response.status).toBe(302);
+        expect(response.headers.get('location')).toMatch(/^\/login\?redirect=%2Faccount|^\/login\?redirect=\/account/);
+    });
+
+    it("renders the signed-in user's sections on the server", async () => {
+        const html = await (await get('/account', userCookie)).text();
+        for (const text of ['Your account', 'alice@example.com', 'Profile', 'Email', 'Devices', 'Delete account']) {
+            expect(html, text).toContain(text);
+        }
+    });
+});
+
+describe('changing a verified email', () => {
+    it('asks the current address to approve first', async () => {
+        const cookie = await signIn('ivy', 'sign-up');
+        const ivy = (await (await get('/api/auth/get-session', cookie)).json()).user.id;
+        // Verified, as if she'd opened her verification link.
+        await fetch(`${base}/api/auth/admin/update-user`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie: adminCookie },
+            body: JSON.stringify({ userId: ivy, data: { emailVerified: true } })
+        });
+        const fresh = await signIn('ivy', 'sign-in');
+        const response = await fetch(`${base}/api/auth/change-email`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie: fresh },
+            body: JSON.stringify({ newEmail: 'ivy-new@example.com', callbackURL: '/account' })
+        });
+        expect(response.status).toBe(200);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const [email] = await (await get('/api/_playground/outbox')).json();
+        expect(email).toMatchObject({ email: 'change-email-confirmation', to: 'ivy@example.com' });
+        expect(email.text).toContain('ivy-new@example.com');
     });
 });
