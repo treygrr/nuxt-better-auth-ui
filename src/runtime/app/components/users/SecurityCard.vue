@@ -15,6 +15,7 @@ import { ADMIN_API } from '../../../constants';
 import type { AdminPasskey } from '../../../server/api/users/passkeys.get';
 import { requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 import type { AdminUser } from '../../types';
+import { serverError } from '../../utils/server-error';
 
 /**
  * A user's two-factor and passkeys, for helping someone who lost a device: turning their two-factor off, and removing
@@ -26,7 +27,7 @@ const emit = defineEmits<{ changed: [] }>();
 const { capabilities } = useAuthCapabilities();
 const canUpdate = useAdminCan()({ user: ['update'] });
 const toast = useToast();
-const { t } = useAuthI18n();
+const { t, errorMessage } = useAuthI18n();
 const { twoFactorRequired } = useRuntimeConfig().public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };
 const required = computed(() => requiresTwoFactor(props.user, twoFactorRequired));
 
@@ -36,9 +37,8 @@ const { data: passkeys, refresh } = useFetch<AdminPasskey[]>(`${base}/passkeys`,
     default: () => []
 });
 
-/** The server's message for a failed request. */
-const message = (error: unknown) =>
-    (error as { data?: { statusMessage?: string; message?: string } }).data?.statusMessage ?? (error as Error).message;
+/** A failed request in words, translated by its code. */
+const message = (error: unknown) => errorMessage(serverError(error));
 
 const confirmReset = ref(false);
 async function resetTwoFactor() {

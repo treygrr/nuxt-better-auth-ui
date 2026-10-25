@@ -36,7 +36,13 @@ export default defineEventHandler(async (event): Promise<AdminOrganizationDetail
               limit: 1
           })
         : [];
-    if (!organization) throw createError({ statusCode: 404, statusMessage: 'Organization not found' });
+    if (!organization) {
+        throw createError({
+            statusCode: 404,
+            statusMessage: 'Organization not found',
+            data: { code: 'ORGANIZATION_NOT_FOUND' }
+        });
+    }
 
     const [members, invitations] = await Promise.all([
         context.adapter.findMany<{ id: string; userId: string; role: string; createdAt: Date }>({

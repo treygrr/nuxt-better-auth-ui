@@ -25,6 +25,7 @@ import { useImpersonateItem } from '../../composables/useImpersonateItem';
 import { device } from '../../utils/device';
 import { shownItems } from '../../utils/menu';
 import { providerInfo } from '../../utils/providers';
+import { serverError } from '../../utils/server-error';
 
 const adminPath = useAdminPath();
 const { role: adminRole, auditLog, notes, organizations } = useBetterAuthAdminConfig();
@@ -33,7 +34,7 @@ const session = useUserSession();
 const admin = useAdminUsers();
 const toast = useToast();
 const can = useAdminCan();
-const { t } = useAuthI18n();
+const { t, errorMessage } = useAuthI18n();
 
 // Fetched during server rendering, with the admin's cookies, and handed to the browser in the payload.
 const {
@@ -77,9 +78,8 @@ const { data: activity, refresh: refreshActivity } = await useFetch<{ entries: A
     `${ADMIN_API}/audit`,
     { query: { limit: ACTIVITY_SIZE, offset: 0, userId }, immediate: auditLog }
 );
-/** The server's message for a failed request, eg Better Auth's "User not found". */
-const errorText = (failure: { data?: unknown; statusMessage?: string; message: string }) =>
-    (failure.data as { message?: string } | undefined)?.message || failure.statusMessage || failure.message;
+/** A failed request in words, eg Better Auth's "User not found", translated by its code. */
+const errorText = (failure: unknown) => errorMessage(serverError(failure));
 const refresh = () => Promise.all([refreshUser(), refreshSessions(), refreshAccounts(), refreshActivity()]);
 
 const provider = (account: AdminAccount) => providerInfo(account.providerId);

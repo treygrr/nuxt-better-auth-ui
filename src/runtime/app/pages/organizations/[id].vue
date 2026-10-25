@@ -4,13 +4,14 @@ import { upperFirst } from 'scule';
 
 import { ADMIN_API } from '../../../constants';
 import type { AdminOrganizationDetail } from '../../../server/api/organizations/[id].get';
+import { serverError } from '../../utils/server-error';
 
 /**
  * One organization, for staff: its members (linking to their user pages) and pending invitations. Read-only: Better
  * Auth's Organization plugin changes an organization only for its own members, from their account page.
  */
 const adminPath = useAdminPath();
-const { t } = useAuthI18n();
+const { t, errorMessage } = useAuthI18n();
 const id = useRoute().params.id as string;
 
 const { data: organization, error } = await useFetch<AdminOrganizationDetail>(
@@ -40,7 +41,7 @@ const roles = (role: string) =>
                 color="error"
                 icon="i-lucide-circle-alert"
                 :title="t('admin.organizations.loadFailed')"
-                :description="error.statusMessage || error.message"
+                :description="errorMessage(serverError(error))"
             >
                 <template #actions>
                     <UButton

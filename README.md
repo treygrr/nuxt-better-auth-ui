@@ -671,7 +671,24 @@ betterAuthUi: { locale: 'es' }
 - **With @nuxtjs/i18n**, the pages follow its current language instead, as visitors switch it (when it's one of these
   two); `locale` then only sets the default emails' language.
 - **Better Auth's errors** ("Invalid email or password", "Username is already taken", …) are shown in the page's
-  language by their error code; codes the module doesn't know show Better Auth's own message.
+  language by their error code; codes the module doesn't know show Better Auth's own message. The module's own routes
+  give their errors codes too ("User not found" is `USER_NOT_FOUND`), so admin messages are translated the same way.
+- **Your own words:** `messages` replaces any of the module's, per language and key, eg calling organizations
+  "teams", or adds a language (English fills the keys it leaves out; default emails and texts stay English):
+
+  ```ts
+  betterAuthUi: {
+      messages: {
+          en: { 'account.tabs.organizations': 'Teams', 'signIn.title': 'Log in', 'errors.USER_NOT_FOUND': 'No such user.' },
+          fr: { 'signIn.title': 'Connexion', 'signIn.submit': 'Se connecter' }
+      },
+      locale: 'fr'
+  }
+  ```
+
+  The keys are the module's message keys (`src/runtime/app/i18n/auth.en.ts` and `admin.en.ts`; the admin's start
+  with `admin.`).
+- **Numbers and dates** (the home chart, the stats) follow the page's language.
 - **Nuxt UI's own labels** (the password field's "Show password", a select's "No data") follow `<UApp :locale>`, as
   usual for Nuxt UI: pass it `es` from `@nuxt/ui/locale` too.
 - **Your email templates** get no language from the module; write them in yours.

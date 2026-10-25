@@ -4,6 +4,7 @@ import { $fetch, computed, ref, useAdminCan, useAuthI18n, useFetch, useToast } f
 import { ADMIN_API } from '../../../constants';
 import type { AdminApiKey } from '../../../server/api/users/api-keys.get';
 import type { AdminUser } from '../../types';
+import { serverError } from '../../utils/server-error';
 
 /** A user's API keys (API Key plugin), to revoke one that leaked. Shown when the app uses the plugin. */
 const props = defineProps<{ user: AdminUser }>();
@@ -11,7 +12,7 @@ const emit = defineEmits<{ changed: [] }>();
 
 const canUpdate = useAdminCan()({ user: ['update'] });
 const toast = useToast();
-const { t } = useAuthI18n();
+const { t, errorMessage } = useAuthI18n();
 
 const base = `${ADMIN_API}/users/${encodeURIComponent(props.user.id)}/api-keys`;
 const { data: keys, refresh } = useFetch<AdminApiKey[]>(base, {
@@ -37,10 +38,9 @@ async function revoke() {
         await refresh();
         emit('changed');
     } catch (error) {
-        const data = (error as { data?: { statusMessage?: string } }).data;
         toast.add({
             title: t('admin.apiKeys.revokeFailed'),
-            description: data?.statusMessage ?? (error as Error).message,
+            description: errorMessage(serverError(error)),
             color: 'error'
         });
     }

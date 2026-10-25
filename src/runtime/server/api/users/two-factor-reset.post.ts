@@ -15,7 +15,13 @@ export default defineEventHandler(async (event) => {
     const { user: admin, context } = await requireAdminPermission(event, { user: ['update'] });
     const user = await requireUser(context, getRouterParam(event, 'id'));
     const plugin = context.getPlugin('two-factor');
-    if (!plugin) throw createError({ statusCode: 400, statusMessage: "This app doesn't use two-factor" });
+    if (!plugin) {
+        throw createError({
+            statusCode: 400,
+            statusMessage: "This app doesn't use two-factor",
+            data: { code: 'TWO_FACTOR_NOT_USED' }
+        });
+    }
 
     await context.adapter.deleteMany({
         model: (plugin.options?.twoFactorTable as string | undefined) ?? 'twoFactor',

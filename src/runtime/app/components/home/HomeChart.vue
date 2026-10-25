@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, useAuthI18n } from '#imports';
-import { format } from 'date-fns';
 
 import type { AdminStats, Period } from '../../types';
 
@@ -9,15 +8,15 @@ const props = defineProps<{
     stats: AdminStats | null | undefined;
 }>();
 
-const { t } = useAuthI18n();
-const formatNumber = new Intl.NumberFormat('en').format;
-
-const formatDate = (date: Date): string =>
-    ({
-        daily: format(date, 'd MMM'),
-        weekly: format(date, 'd MMM yyyy'),
-        monthly: format(date, 'MMM yyy')
-    })[props.period];
+const { t, locale } = useAuthI18n();
+// Numbers and dates in the page's language ("3 mar." in Spanish, "Mar 3" in English).
+const formatNumber = computed(() => new Intl.NumberFormat(locale.value).format);
+const dateFormats: Record<Period, Intl.DateTimeFormatOptions> = {
+    daily: { day: 'numeric', month: 'short' },
+    weekly: { day: 'numeric', month: 'short', year: 'numeric' },
+    monthly: { month: 'short', year: 'numeric' }
+};
+const formatDate = (date: Date) => new Intl.DateTimeFormat(locale.value, dateFormats[props.period]).format(date);
 
 const data = computed(() =>
     (props.stats?.series ?? []).map(({ date, signUps }) => ({ date: formatDate(new Date(date)), signUps }))

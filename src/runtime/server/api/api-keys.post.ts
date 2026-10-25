@@ -23,15 +23,29 @@ const EXPIRES_IN_DAYS = [30, 90, 365];
 export default defineEventHandler(async (event) => {
     const { user } = await requireUserSession(event);
     if ((user as { isAnonymous?: boolean | null }).isAnonymous) {
-        throw createError({ statusCode: 403, statusMessage: 'Guest accounts can’t have API keys' });
+        throw createError({
+            statusCode: 403,
+            statusMessage: 'Guest accounts can’t have API keys',
+            data: { code: 'GUEST_NO_API_KEYS' }
+        });
     }
+    // Each error's code is translated on the page (errors.<code>); the message is the English fallback.
     const body = (await readBody<{ name?: unknown; expiresInDays?: unknown; scopes?: unknown }>(event)) ?? {};
     const name = typeof body.name === 'string' ? body.name.trim() : '';
-    if (!name || name.length > 64)
-        throw createError({ statusCode: 400, statusMessage: 'Name the key (64 characters at most)' });
+    if (!name || name.length > 64) {
+        throw createError({
+            statusCode: 400,
+            statusMessage: 'Name the key (64 characters at most)',
+            data: { code: 'API_KEY_NAME_INVALID' }
+        });
+    }
     const days = body.expiresInDays ?? null;
     if (days !== null && !EXPIRES_IN_DAYS.includes(days as number)) {
-        throw createError({ statusCode: 400, statusMessage: 'Choose when the key expires' });
+        throw createError({
+            statusCode: 400,
+            statusMessage: 'Choose when the key expires',
+            data: { code: 'API_KEY_EXPIRY_INVALID' }
+        });
     }
 
     // "resource:action" strings, each one the module allows.
@@ -41,7 +55,11 @@ export default defineEventHandler(async (event) => {
     for (const scope of scopes) {
         const [resource, action] = typeof scope === 'string' ? scope.split(':') : [];
         if (!resource || !action || !allowed[resource]?.includes(action)) {
-            throw createError({ statusCode: 400, statusMessage: `Unknown permission: ${String(scope)}` });
+            throw createError({
+                statusCode: 400,
+                statusMessage: `Unknown permission: ${String(scope)}`,
+                data: { code: 'API_KEY_PERMISSION_UNKNOWN' }
+            });
         }
         (permissions[resource] ??= []).push(action);
     }

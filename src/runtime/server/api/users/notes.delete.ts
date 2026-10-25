@@ -17,12 +17,19 @@ export default defineEventHandler(async (event) => {
         ],
         limit: 1
     });
-    if (!note) throw createError({ statusCode: 404, statusMessage: 'Note not found' });
+    if (!note)
+        throw createError({ statusCode: 404, statusMessage: 'Note not found', data: { code: 'NOTE_NOT_FOUND' } });
     if (note.authorId !== admin.id) {
         const { success } = await auth.api.userHasPermission({
             body: { userId: admin.id, permissions: { user: ['delete'] } }
         });
-        if (!success) throw createError({ statusCode: 403, statusMessage: 'Only its author can delete this note' });
+        if (!success) {
+            throw createError({
+                statusCode: 403,
+                statusMessage: 'Only its author can delete this note',
+                data: { code: 'NOTE_NOT_YOURS' }
+            });
+        }
     }
     await context.adapter.delete({ model: NOTES_MODEL, where: [{ field: 'id', value: note.id }] });
 

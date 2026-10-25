@@ -413,11 +413,18 @@ export type ModuleOptions = {
      */
     signOutRedirect: string;
     /**
-     * The language of the pages and default emails: `en` or `es`. When the app uses @nuxtjs/i18n, the pages follow its
-     * current language instead (when supported). Nuxt UI's own labels follow `<UApp :locale>`.
+     * The language of the pages and default emails: `en` or `es`, or one the app gives words for in `messages`. When the
+     * app uses @nuxtjs/i18n, the pages follow its current language instead (when supported). Nuxt UI's own labels
+     * follow `<UApp :locale>`. Default emails and texts are in English for languages the module doesn't have.
      * @default 'en'
      */
-    locale: 'en' | 'es';
+    locale: 'en' | 'es' | (string & {});
+    /**
+     * The app's own words for the pages, per language, by key: rename things (`{ en: { 'account.tabs.organizations':
+     * 'Teams' } }`) or add a language (`{ fr: { 'signIn.title': 'Connexion', … } }`, English filling any gaps). The
+     * keys are the module's message keys (see its `i18n` folder); errors are `errors.<CODE>`.
+     */
+    messages?: Record<string, Record<string, string>>;
     /** Two-factor authentication, off by default. */
     twoFactor: TwoFactorOptions;
     /** Passkeys, off by default. */
@@ -782,6 +789,7 @@ export default defineNuxtModule<ModuleOptions>({
             signOutRedirect: moduleOptions.signOutRedirect,
             twoFactorRequired: twoFactor.required,
             locale: moduleOptions.locale,
+            messages: moduleOptions.messages ?? {},
             // Which alerts are on: the configuration page lists them, and the admin's two-factor reset sends one.
             securityAlerts,
             // The widget's public half; the secret key stays on the server (BETTER_AUTH_CAPTCHA_SECRET_KEY).

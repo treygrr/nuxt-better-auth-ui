@@ -11,7 +11,11 @@ export default defineEventHandler(async (event) => {
     const { user: admin, context } = await requireAdminPermission(event, { user: ['update'] });
     const user = await requireUser(context, getRouterParam(event, 'id'));
     if (!context.getPlugin('api-key'))
-        throw createError({ statusCode: 400, statusMessage: "This app doesn't use API keys" });
+        throw createError({
+            statusCode: 400,
+            statusMessage: "This app doesn't use API keys",
+            data: { code: 'API_KEYS_NOT_USED' }
+        });
 
     const [key] = await context.adapter.findMany<{ id: string; name?: string | null }>({
         model: 'apikey',
@@ -21,7 +25,8 @@ export default defineEventHandler(async (event) => {
         ],
         limit: 1
     });
-    if (!key) throw createError({ statusCode: 404, statusMessage: 'API key not found' });
+    if (!key)
+        throw createError({ statusCode: 404, statusMessage: 'API key not found', data: { code: 'API_KEY_NOT_FOUND' } });
     await context.adapter.delete({ model: 'apikey', where: [{ field: 'id', value: key.id }] });
 
     await recordAdminAction(event, context, {

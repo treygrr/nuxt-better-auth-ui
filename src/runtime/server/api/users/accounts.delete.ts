@@ -20,11 +20,19 @@ export default defineEventHandler(async (event) => {
 
     const accounts = await context.internalAdapter.findAccounts(user.id);
     const account = accounts.find((item) => item.id === getRouterParam(event, 'accountId'));
-    if (!account) throw createError({ statusCode: 404, statusMessage: 'Sign-in method not found' });
+    // Each error's code is translated on the pages (errors.<code>); the message is the English fallback.
+    if (!account) {
+        throw createError({
+            statusCode: 404,
+            statusMessage: 'Sign-in method not found',
+            data: { code: 'ACCOUNT_NOT_FOUND' }
+        });
+    }
     if (accounts.length === 1 && !context.options.account?.accountLinking?.allowUnlinkingAll) {
         throw createError({
             statusCode: 400,
-            statusMessage: 'This is their only sign-in method. Removing it would lock them out.'
+            statusMessage: 'This is their only sign-in method. Removing it would lock them out.',
+            data: { code: 'LAST_SIGN_IN_METHOD' }
         });
     }
 

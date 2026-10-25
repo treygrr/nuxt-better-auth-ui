@@ -36,28 +36,44 @@ const lookup = (messages: unknown, key: string) =>
 const interpolate = (text: string, params?: MessageParams) =>
     params ? text.replace(/\{(\w+)\}/g, (match, name: string) => String(params[name] ?? match)) : text;
 
-/** A supported locale from a code such as `es-MX`, else English. */
-export const resolveLocale = (code: string | undefined): Locale => {
-    const base = (code ?? '').slice(0, 2).toLowerCase();
-    return (LOCALES as string[]).includes(base) ? (base as Locale) : 'en';
+/**
+ * The app's own words (`betterAuthUi.messages`): per language, any key, eg `{ en: { 'account.tabs.organizations':
+ * 'Teams' } }`. A language the module doesn't have works too, with English for the keys it leaves out.
+ */
+export type MessageOverrides = Record<string, Partial<Record<MessageKey, string>> & Record<string, string>>;
+
+/** A supported locale from a code such as `es-MX` (the module's, or one the app gave words for), else English. */
+export const resolveLocale = (code: string | undefined, extra: string[] = []): string => {
+    const lower = (code ?? '').toLowerCase();
+    const base = lower.slice(0, 2);
+    const known = [...(LOCALES as string[]), ...extra.map((locale) => locale.toLowerCase())];
+    return known.includes(lower) ? lower : known.includes(base) ? base : 'en';
 };
 
 export function useAuthI18n() {
-    const { locale: configured } = useRuntimeConfig().public.betterAuthUi as { locale?: string };
+    const { locale: configured, messages: overrides = {} } = useRuntimeConfig().public.betterAuthUi as {
+        locale?: string;
+        messages?: MessageOverrides;
+    };
     // @nuxtjs/i18n, when the app uses it, decides the language as the visitor switches it.
     const i18n = (useNuxtApp() as unknown as { $i18n?: { locale: { value: string } } }).$i18n;
-    const locale = computed(() => resolveLocale(i18n?.locale.value ?? configured));
+    const locale = computed(() => resolveLocale(i18n?.locale.value ?? configured, Object.keys(overrides)));
+    /** The app's word first, then the module's in the language, then English. */
+    const word = (key: string) =>
+        overrides[locale.value]?.[key] ??
+        lookup(dictionaries[locale.value as Locale], key) ??
+        overrides.en?.[key] ??
+        lookup(en, key);
 
-    const t = (key: MessageKey, params?: MessageParams) =>
-        interpolate(lookup(dictionaries[locale.value], key) ?? lookup(en, key) ?? key, params);
+    const t = (key: MessageKey, params?: MessageParams) => interpolate(word(key) ?? key, params);
 
     /**
-     * A Better Auth error in words: by its code when there's a translation (eg `INVALID_EMAIL_OR_PASSWORD`), else
-     * its own message.
+     * An error in words: by its code when there's a translation (Better Auth's, eg `INVALID_EMAIL_OR_PASSWORD`, and
+     * the module's own routes'), else its own message.
      */
     const errorMessage = (error: { code?: string; message?: string } | null | undefined) => {
         if (!error) return '';
-        const translated = error.code ? lookup(dictionaries[locale.value], `errors.${error.code}`) : undefined;
+        const translated = error.code ? word(`errors.${error.code}`) : undefined;
         return translated ?? error.message ?? t('errors.generic');
     };
 

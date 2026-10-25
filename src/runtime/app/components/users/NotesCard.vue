@@ -14,6 +14,7 @@ import { useUserSession } from '@nuxtjs/better-auth/composables';
 import { ADMIN_API } from '../../../constants';
 import type { UserNote } from '../../../server/notes/plugin';
 import type { AdminUser } from '../../types';
+import { serverError } from '../../utils/server-error';
 
 /** Private staff notes on a user ("Warned for spam in chat"), newest first. Shown with `admin.notes` on. */
 const props = defineProps<{ user: AdminUser }>();
@@ -25,7 +26,7 @@ const canAdd = can({ user: ['update'] });
 const canDeleteAny = can({ user: ['delete'] });
 const session = useUserSession();
 const toast = useToast();
-const { t } = useAuthI18n();
+const { t, errorMessage } = useAuthI18n();
 
 const base = `${ADMIN_API}/users/${encodeURIComponent(props.user.id)}/notes`;
 const { data: notes, refresh } = useFetch<UserNote[]>(base, {
@@ -33,9 +34,8 @@ const { data: notes, refresh } = useFetch<UserNote[]>(base, {
     default: () => []
 });
 
-/** The server's message for a failed request. */
-const message = (error: unknown) =>
-    (error as { data?: { statusMessage?: string; message?: string } }).data?.statusMessage ?? (error as Error).message;
+/** A failed request in words, translated by its code. */
+const message = (error: unknown) => errorMessage(serverError(error));
 
 const draft = ref('');
 async function add() {

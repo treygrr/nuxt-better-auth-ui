@@ -8,7 +8,11 @@ export default defineEventHandler(async (event) => {
     const { user: admin, context } = await requireAdminPermission(event, { user: ['update'] });
     const user = await requireUser(context, getRouterParam(event, 'id'));
     if (!context.getPlugin('passkey'))
-        throw createError({ statusCode: 400, statusMessage: "This app doesn't use passkeys" });
+        throw createError({
+            statusCode: 400,
+            statusMessage: "This app doesn't use passkeys",
+            data: { code: 'PASSKEYS_NOT_USED' }
+        });
 
     const passkeyId = getRouterParam(event, 'passkeyId');
     const [passkey] = await context.adapter.findMany<{ id: string; name?: string | null }>({
@@ -19,7 +23,8 @@ export default defineEventHandler(async (event) => {
         ],
         limit: 1
     });
-    if (!passkey) throw createError({ statusCode: 404, statusMessage: 'Passkey not found' });
+    if (!passkey)
+        throw createError({ statusCode: 404, statusMessage: 'Passkey not found', data: { code: 'PASSKEY_NOT_FOUND' } });
     await context.adapter.delete({ model: 'passkey', where: [{ field: 'id', value: passkey.id }] });
 
     await recordAdminAction(event, context, {

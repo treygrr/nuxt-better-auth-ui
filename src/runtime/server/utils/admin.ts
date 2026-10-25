@@ -73,7 +73,14 @@ export async function requireAdminPermission(event: H3Event, permissions: Record
     const { user } = await requireUserSession(event);
     const auth = serverAuth(event) as unknown as AdminAuth;
     const { success } = await auth.api.userHasPermission({ body: { userId: user.id, permissions } });
-    if (!success) throw createError({ statusCode: 403, statusMessage: 'You are not allowed to do this' });
+    // The code is translated on the pages (errors.<code>); the message is the English fallback.
+    if (!success) {
+        throw createError({
+            statusCode: 403,
+            statusMessage: 'You are not allowed to do this',
+            data: { code: 'NOT_ALLOWED' }
+        });
+    }
     return { user, context: await auth.$context, auth };
 }
 
@@ -125,6 +132,7 @@ export async function recordAdminAction(
 /** The user in the route's `:id`, or a 404. */
 export async function requireUser(context: AdminContext, userId: string | undefined) {
     const user = userId ? await context.internalAdapter.findUserById(userId) : null;
-    if (!user) throw createError({ statusCode: 404, statusMessage: 'User not found' });
+    if (!user)
+        throw createError({ statusCode: 404, statusMessage: 'User not found', data: { code: 'USER_NOT_FOUND' } });
     return user;
 }

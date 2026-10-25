@@ -64,6 +64,8 @@ export default defineNuxtConfig({
         captcha: process.env.PLAYGROUND_CAPTCHA_SITE_KEY
             ? { provider: 'cloudflare-turnstile', siteKey: process.env.PLAYGROUND_CAPTCHA_SITE_KEY }
             : false,
+        // The app's own words for a few of the module's (any key, any language): here, organizations are "teams".
+        messages: { en: { 'account.tabs.organizations': 'Teams' } },
         // The pages' language: en or es.
         locale: process.env.PLAYGROUND_LOCALE === 'es' ? 'es' : 'en',
         // Delivery to the playground outbox, and an HTML verification email; the rest are plain-text defaults.

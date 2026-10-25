@@ -12,9 +12,15 @@ export default defineEventHandler(async (event): Promise<UserNote> => {
     const user = await requireUser(context, getRouterParam(event, 'id'));
     const body = (await readBody<{ body?: unknown }>(event))?.body;
     const text = typeof body === 'string' ? body.trim() : '';
-    if (!text) throw createError({ statusCode: 400, statusMessage: 'Write a note first' });
-    if (text.length > MAX_NOTE_LENGTH)
-        throw createError({ statusCode: 400, statusMessage: `Notes are at most ${MAX_NOTE_LENGTH} characters` });
+    if (!text)
+        throw createError({ statusCode: 400, statusMessage: 'Write a note first', data: { code: 'NOTE_EMPTY' } });
+    if (text.length > MAX_NOTE_LENGTH) {
+        throw createError({
+            statusCode: 400,
+            statusMessage: `Notes are at most ${MAX_NOTE_LENGTH} characters`,
+            data: { code: 'NOTE_TOO_LONG' }
+        });
+    }
 
     const note = await context.adapter.create<UserNote>({
         model: NOTES_MODEL,

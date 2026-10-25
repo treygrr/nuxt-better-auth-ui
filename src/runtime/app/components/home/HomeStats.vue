@@ -6,8 +6,9 @@ import type { AdminStats, Stat } from '../../types';
 const props = defineProps<{ stats: AdminStats | null | undefined }>();
 
 const adminPath = useAdminPath();
-const { t } = useAuthI18n();
-const number = new Intl.NumberFormat('en').format;
+const { t, locale } = useAuthI18n();
+// In the page's language ("1,234" in English, "1234" in Spanish).
+const number = (value: number) => new Intl.NumberFormat(locale.value).format(value);
 
 /** Percent change, or undefined when there's nothing to compare with. */
 const change = (now: number, before: number) => (before > 0 ? Math.round(((now - before) / before) * 100) : undefined);

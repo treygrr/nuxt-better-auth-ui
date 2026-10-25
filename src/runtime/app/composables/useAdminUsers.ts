@@ -4,6 +4,7 @@ import { $fetch, useAuthI18n } from '#imports';
 import { ADMIN_API } from '../../constants';
 
 import type { AdminUser } from '../types';
+import { serverError } from '../utils/server-error';
 
 type Result<T> = { data: T | null; error: { message?: string; code?: string } | null };
 
@@ -43,17 +44,16 @@ type AdminClient = {
  * their data with useFetch instead, so it's fetched during server rendering.
  */
 export const useAdminUsers = () => {
-    const { t } = useAuthI18n();
+    const { t, errorMessage } = useAuthI18n();
     const unwrap = async <T>(request: Promise<Result<T>>): Promise<T> => {
         const { data, error } = await request;
-        if (error) throw new Error(error.message || error.code || t('admin.common.requestFailed'));
+        // Translated by Better Auth's code where there's a translation, else its message.
+        if (error) throw new Error(errorMessage(error) || t('admin.common.requestFailed'));
         return data as T;
     };
-    /** Rethrows a failed $fetch to this module's routes as an Error with the server's message. */
-    const fetchError = (error: { data?: { statusMessage?: string; message?: string }; message?: string }): never => {
-        throw new Error(
-            error?.data?.statusMessage || error?.data?.message || error?.message || t('admin.common.requestFailed')
-        );
+    /** Rethrows a failed $fetch to this module's routes as an Error in words, translated by its code. */
+    const fetchError = (error: unknown): never => {
+        throw new Error(errorMessage(serverError(error)) || t('admin.common.requestFailed'));
     };
 
     const client = () => {

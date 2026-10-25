@@ -20,7 +20,13 @@ type AuthWithVerification = { api: { sendVerificationEmail(input: { body: { emai
 export default defineEventHandler(async (event) => {
     const { user: admin, context, auth } = await requireAdminPermission(event, { user: ['update'] });
     const user = (await requireUser(context, getRouterParam(event, 'id'))) as AuditPerson & { emailVerified?: boolean };
-    if (user.emailVerified) throw createError({ statusCode: 400, statusMessage: 'Their email is already verified' });
+    if (user.emailVerified) {
+        throw createError({
+            statusCode: 400,
+            statusMessage: 'Their email is already verified',
+            data: { code: 'EMAIL_ALREADY_VERIFIED' }
+        });
+    }
 
     await (auth as unknown as AuthWithVerification).api.sendVerificationEmail({ body: { email: user.email } });
 

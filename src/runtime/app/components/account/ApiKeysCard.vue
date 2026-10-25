@@ -4,6 +4,7 @@ import { $fetch, computed, ref, useAuthI18n, useRuntimeConfig, useToast } from '
 
 import { UI_API } from '../../../constants';
 import { useAccountApiKeys, type AccountApiKey } from '../../utils/account-data';
+import { serverError } from '../../utils/server-error';
 import CardTitle from './CardTitle.vue';
 
 /**
@@ -65,10 +66,9 @@ async function create() {
         });
         await refresh();
     } catch (error) {
-        const data = (error as { data?: { statusMessage?: string } }).data;
         toast.add({
             title: t('account.apiKeys.createFailed'),
-            description: data?.statusMessage ?? (error as Error).message,
+            description: errorMessage(serverError(error)),
             color: 'error'
         });
     } finally {

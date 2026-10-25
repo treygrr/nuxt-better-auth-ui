@@ -48,11 +48,6 @@ API (developer docs; at most a link on the configuration page).
 
 ## Smaller follow-ups
 
-- **Override the module's words**: a `betterAuthUi.messages` option (per language, any key) so apps can rename
-  things ("Organizations" to "Teams", "Sign in" to "Log in") or add a language, without forking.
-- Translate the module's own server error messages ("User not found", "Passkey not found", …), which admin toasts
-  show in English. Better Auth's are translated by code already.
-- Admin chart axis dates use English month names (date-fns `format`); format them with `Intl` in the page's language.
 - `@nuxtjs/better-auth`'s SSR POST bug (issue #648, PR #649): when it's fixed, server-render the user page's sessions.
 - Publish: `private: true` and `0.0.0` in package.json; `scripts/release.mjs`.
 - Install in neomons: remove its own sign-in pages (or set `pages.signIn: false`), set `appName`.
