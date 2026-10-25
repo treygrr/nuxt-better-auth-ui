@@ -551,6 +551,8 @@ export const adminEn = {
             usernameImmutable: "Can't be changed once set",
             lastUsed: 'Last-used hint',
             lastUsedHint: 'A cookie remembers how they last signed in',
+            multiSession: 'Several accounts at once',
+            multiSessionValue: 'Up to {count} per browser',
             twoFactor: 'Two-factor',
             authenticatorOrEmail: 'Authenticator app or email codes',
             authenticator: 'Authenticator app',

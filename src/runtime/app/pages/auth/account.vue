@@ -13,6 +13,7 @@ import {
 
 import { needsTwoFactorSetUp, requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 
+import AccountsCard from '../../components/account/AccountsCard.vue';
 import ApiKeysCard from '../../components/account/ApiKeysCard.vue';
 import BillingCard from '../../components/account/BillingCard.vue';
 import ConnectionsCard from '../../components/account/ConnectionsCard.vue';
@@ -221,7 +222,10 @@ const open = (value: string) => {
                 </template>
 
                 <template #devices>
-                    <DevicesCard :sessions="sessions" @changed="refreshSessions()" />
+                    <div class="space-y-6">
+                        <AccountsCard v-if="capabilities?.multiSession && !isGuest" />
+                        <DevicesCard :sessions="sessions" @changed="refreshSessions()" />
+                    </div>
                 </template>
 
                 <template #organizations>

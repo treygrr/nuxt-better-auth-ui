@@ -24,6 +24,8 @@ export default defineNuxtConfig({
         magicLink: { enabled: true },
         // "Email me a code" on sign-in, to the outbox.
         emailOtp: { enabled: true },
+        // Several accounts signed in at once: "Add another account" and a switcher (account page, admin menu).
+        multiSession: { enabled: true },
         // "Continue as a guest" on sign-in; guests keep their account by signing up or in.
         anonymous: { enabled: true, onLinkAccount: './server/auth/link-guest.ts' },
         // Signing in a TV app or CLI with a code, approved at /device.

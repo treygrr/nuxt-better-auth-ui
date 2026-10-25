@@ -42,8 +42,6 @@ finish-account page for providers without an email. Left:
 
 ## Better Auth plugins: maybe later
 
-- **Multi-session** (`multi-session`): several accounts signed in at once, with a switcher (work and personal,
-  shared devices).
 - **One-time token** (`one-time-token`): "Open in the app" hands a web session to a native or desktop client.
 - **One Tap** (`one-tap`): Google's one-tap prompt on the sign-in page.
 

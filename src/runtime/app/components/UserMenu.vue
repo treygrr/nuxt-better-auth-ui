@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, navigateTo, useAuthI18n, useAuthPages, useColorMode } from '#imports';
+import { computed, navigateTo, useAuthCapabilities, useAuthI18n, useAuthPages, useColorMode } from '#imports';
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 
 import { useSignOutTarget } from '../composables/useAuthPages';
+import { useDeviceAccounts } from '../composables/useDeviceAccounts';
 
 /** The signed-in admin, at the foot of the sidebar: their account, the colour mode, back to the site, sign out. */
 defineProps<{
@@ -15,6 +16,31 @@ const session = useUserSession();
 const pages = useAuthPages();
 const signOutTarget = useSignOutTarget();
 const { t } = useAuthI18n();
+// With multi-session: the other accounts signed in here, to switch to, and adding one.
+const { capabilities } = useAuthCapabilities();
+const { accounts, switchTo, addAccountLink } = useDeviceAccounts();
+const switchAccount = computed<DropdownMenuItem[]>(() =>
+    capabilities.value?.multiSession
+        ? [
+              {
+                  label: t('accounts.switcher.title'),
+                  icon: 'i-lucide-users-round',
+                  children: [
+                      ...accounts.value.map((account) => ({
+                          label: account.user.name || account.user.email,
+                          avatar: { src: account.user.image ?? undefined, alt: account.user.name },
+                          icon: account.current ? 'i-lucide-check' : undefined,
+                          disabled: account.current,
+                          onSelect: () => switchTo(account)
+                      })),
+                      ...(addAccountLink.value
+                          ? [{ label: t('accounts.add'), icon: 'i-lucide-user-plus', to: addAccountLink.value }]
+                          : [])
+                  ]
+              }
+          ]
+        : []
+);
 
 const user = computed(() => ({
     name: session.user.value?.name ?? '',
@@ -43,6 +69,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
         ...(pages.account
             ? [{ label: t('admin.userMenu.yourAccount'), icon: 'i-lucide-user-round', to: pages.account }]
             : []),
+        ...switchAccount.value,
         {
             label: t('admin.userMenu.appearance'),
             icon: 'i-lucide-sun-moon',

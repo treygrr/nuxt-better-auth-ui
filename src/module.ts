@@ -240,6 +240,19 @@ export type AnonymousOptions = {
     onLinkAccount?: string;
 };
 
+/** Several accounts signed in at once, through Better Auth's Multi Session plugin (https://better-auth.com/docs/plugins/multi-session). */
+export type MultiSessionOptions = {
+    /**
+     * Adds the plugin: people sign in to more accounts in the same browser ("Add another account") and switch
+     * between them without signing out, from the account page or `<AuthAccountSwitcher />`. Signing out signs out of
+     * them all. Needs no migration.
+     * @default false
+     */
+    enabled: boolean;
+    /** Accounts signed in at once, per browser. Better Auth's default: 5. */
+    maximumSessions?: number;
+};
+
 /**
  * Signing in apps on devices without a browser or keyboard (TVs, consoles, CLIs) with a code, through Better Auth's
  * Device Authorization plugin (https://better-auth.com/docs/plugins/device-authorization): the OAuth device grant.
@@ -543,6 +556,8 @@ export type ModuleOptions = {
     emailOtp: EmailOtpOptions;
     /** Guest accounts, off by default. */
     anonymous: AnonymousOptions;
+    /** Several accounts signed in at once, off by default. */
+    multiSession: MultiSessionOptions;
     /** Signing in devices with a code, off by default. */
     deviceAuthorization: DeviceAuthorizationOptions;
     /** API keys, off by default. */
@@ -681,6 +696,7 @@ export default defineNuxtModule<ModuleOptions>({
         magicLink: { enabled: false },
         emailOtp: { enabled: false },
         anonymous: { enabled: false },
+        multiSession: { enabled: false },
         deviceAuthorization: { enabled: false },
         apiKey: { enabled: false },
         phoneNumber: { enabled: false },
@@ -796,8 +812,10 @@ export default defineNuxtModule<ModuleOptions>({
             }
         });
         // With guest accounts, guests may use the sign-in and sign-up pages, to keep their account (Better Auth links
-        // it when they sign in or up); the module's middleware sends other signed-in users on instead.
-        const guestPages: Array<keyof PagesOptions> = moduleOptions.anonymous.enabled ? ['signIn', 'signUp'] : [];
+        // it when they sign in or up); with multi-session, signed-in users may too, to add another account
+        // (`?addAccount=1`). The module's middleware sends other signed-in users on instead.
+        const guestPages: Array<keyof PagesOptions> =
+            moduleOptions.anonymous.enabled || moduleOptions.multiSession.enabled ? ['signIn', 'signUp'] : [];
         for (const [name] of AUTH_PAGES) {
             const path = pagePaths[name];
             // The account and finish-account pages are for signed-in users; the others send signed-in users on
@@ -911,6 +929,8 @@ export default defineNuxtModule<ModuleOptions>({
         const securityAlerts = resolveSecurityAlerts(moduleOptions.securityAlerts);
         (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = {
             pages: pagePaths,
+            // Signed-in users may use the sign-in pages to add another account.
+            multiSession: moduleOptions.multiSession.enabled,
             // The device page's names for the apps that may ask (client_id → name).
             deviceClients: deviceAuthorization.clients ?? {},
             // The permissions people may give an API key.
@@ -1465,6 +1485,26 @@ export default defineNuxtModule<ModuleOptions>({
                 [
                     "import { lastLoginMethodClient } from 'better-auth/client/plugins'",
                     'export default lastLoginMethodClient()'
+                ]
+            );
+        }
+        // For apps: the accounts signed in on this browser, and a switcher. They show nothing without the plugin.
+        addImports([{ name: 'useDeviceAccounts', from: resolve('./runtime/app/composables/useDeviceAccounts') }]);
+        addComponent({
+            name: 'AuthAccountSwitcher',
+            filePath: resolve('./runtime/app/account-switcher/AccountSwitcher.vue')
+        });
+        if (moduleOptions.multiSession.enabled) {
+            const { maximumSessions } = moduleOptions.multiSession;
+            addAuthPlugin(
+                'multi-session',
+                [
+                    "import { multiSession } from 'better-auth/plugins'",
+                    `export default multiSession(${JSON.stringify(maximumSessions ? { maximumSessions } : {})})`
+                ],
+                [
+                    "import { multiSessionClient } from 'better-auth/client/plugins'",
+                    'export default multiSessionClient()'
                 ]
             );
         }

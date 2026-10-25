@@ -69,6 +69,8 @@ export type AuthCapabilities = {
     haveIBeenPwned: boolean;
     /** Better Auth's Last Login Method plugin: the sign-in page marks the method used last. */
     lastLoginMethod: boolean;
+    /** Better Auth's Multi Session plugin: several accounts signed in at once, and a switcher. */
+    multiSession: { maximumSessions: number } | null;
     /** Ids of the Better Auth plugins in use, eg ['admin', 'two-factor']. */
     plugins: string[];
 };
@@ -200,6 +202,7 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
     const anonymous = options.plugins?.find((plugin) => plugin.id === 'anonymous');
     const phone = options.plugins?.find((plugin) => plugin.id === 'phone-number');
     const sso = options.plugins?.find((plugin) => plugin.id === 'sso');
+    const multiSession = options.plugins?.find((plugin) => plugin.id === 'multi-session');
     const ssoOptions = (sso?.options ?? {}) as {
         domainVerification?: { enabled?: boolean; tokenPrefix?: string };
         redirectURI?: string;
@@ -288,6 +291,10 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
         jwt: jwt ? { jwksUrl: `${(await auth.$context).baseURL}${jwksPath}` } : null,
         haveIBeenPwned: has('have-i-been-pwned'),
         lastLoginMethod: has('last-login-method'),
+        // Better Auth's default: 5 accounts per browser.
+        multiSession: multiSession
+            ? { maximumSessions: (multiSession.options?.maximumSessions as number | undefined) || 5 }
+            : null,
         plugins: (options.plugins ?? []).map((plugin) => plugin.id)
     };
 });

@@ -8,8 +8,9 @@ const { organization } = useActiveOrganization();
     <UContainer class="flex flex-col items-start gap-4 py-16">
         <h1 class="text-xl font-semibold">nuxt-better-auth-ui playground</h1>
         <p v-if="loggedIn && user" class="text-muted">Signed in as {{ user.email }} ({{ user.role ?? 'user' }}).</p>
-        <!-- The module's organization switcher, as an app's header would show it. -->
+        <!-- The module's account and organization switchers, as an app's header would show them. -->
         <div v-if="loggedIn" class="flex items-center gap-2">
+            <AuthAccountSwitcher />
             <AuthOrganizationSwitcher />
             <span v-if="organization" class="text-sm text-muted">{{ organization.members.length }} members</span>
         </div>

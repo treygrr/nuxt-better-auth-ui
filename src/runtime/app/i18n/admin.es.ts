@@ -553,6 +553,8 @@ export const adminEs = {
             usernameImmutable: 'No se pueden cambiar una vez elegidos',
             lastUsed: 'Último método usado',
             lastUsedHint: 'Una cookie recuerda cómo iniciaron sesión la última vez',
+            multiSession: 'Varias cuentas a la vez',
+            multiSessionValue: 'Hasta {count} por navegador',
             twoFactor: 'Verificación en dos pasos',
             authenticatorOrEmail: 'App de autenticación o códigos por correo',
             authenticator: 'App de autenticación',

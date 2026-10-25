@@ -321,6 +321,23 @@ export const authEn = {
             }
         }
     },
+    accounts: {
+        title: 'Accounts on this device',
+        description: 'Switch between accounts without signing out. Up to {count} at once.',
+        current: 'In use',
+        switch: 'Switch',
+        signOutOne: 'Sign out',
+        signedOut: 'Signed out of {name}',
+        add: 'Add another account',
+        signOut: 'Sign out',
+        signOutAll: 'Sign out of all accounts',
+        failed: "Couldn't switch accounts",
+        addingTitle: 'Add another account',
+        addingDescription: "You'll stay signed in as {name}, and can switch between your accounts.",
+        switcher: {
+            title: 'Switch account'
+        }
+    },
     finishAccount: {
         title: 'Add your email',
         description:

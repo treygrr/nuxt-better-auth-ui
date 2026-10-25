@@ -118,6 +118,8 @@ const linkFields = computed<AuthFormField[]>(() => [
 // Guests (Anonymous plugin) may come here to keep their account: signing in links it to the one they sign in to.
 const { user: sessionUser, fetchSession } = useUserSession();
 const isGuest = computed(() => (sessionUser.value as { isAnonymous?: boolean | null } | null)?.isAnonymous === true);
+// With multi-session, signed-in users come here to add another account (?addAccount=1): they stay signed in to this one.
+const addingAccount = computed(() => !!sessionUser.value && !isGuest.value && !!route.query.addAccount);
 
 // The method used last time stands out.
 const highlight = (method: string): Partial<ButtonProps> =>
@@ -217,7 +219,7 @@ const socials = computed<ButtonProps[]>(() =>
 );
 // A guest account (Anonymous plugin), last: the other ways sign in for good. Not for someone already a guest.
 const guestButtons = computed<ButtonProps[]>(() => [
-    ...(capabilities.value?.anonymous && !isGuest.value
+    ...(capabilities.value?.anonymous && !isGuest.value && !addingAccount.value
         ? [
               {
                   label: t('signIn.guest.button'),
@@ -797,6 +799,15 @@ const phoneErrorMessage = computed(() =>
                         icon="i-lucide-user-round"
                         :title="t('signIn.guest.keepTitle')"
                         :description="t('signIn.guest.keepDescription')"
+                        class="mb-3 text-start"
+                    />
+                    <UAlert
+                        v-else-if="addingAccount"
+                        color="info"
+                        variant="subtle"
+                        icon="i-lucide-user-plus"
+                        :title="t('accounts.addingTitle')"
+                        :description="t('accounts.addingDescription', { name: sessionUser?.name ?? '' })"
                         class="mb-3 text-start"
                     />
                     <template v-if="pages.signUp && capabilities?.signUp">

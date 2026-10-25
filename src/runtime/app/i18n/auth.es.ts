@@ -324,6 +324,23 @@ export const authEs = {
             }
         }
     },
+    accounts: {
+        title: 'Cuentas en este dispositivo',
+        description: 'Cambia de cuenta sin cerrar sesión. Hasta {count} a la vez.',
+        current: 'En uso',
+        switch: 'Cambiar',
+        signOutOne: 'Cerrar sesión',
+        signedOut: 'Se cerró la sesión de {name}',
+        add: 'Añadir otra cuenta',
+        signOut: 'Cerrar sesión',
+        signOutAll: 'Cerrar sesión en todas las cuentas',
+        failed: 'No se pudo cambiar de cuenta',
+        addingTitle: 'Añadir otra cuenta',
+        addingDescription: 'Seguirás con la sesión iniciada como {name} y podrás cambiar entre tus cuentas.',
+        switcher: {
+            title: 'Cambiar de cuenta'
+        }
+    },
     finishAccount: {
         title: 'Añade tu correo',
         description:

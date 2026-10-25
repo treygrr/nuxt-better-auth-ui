@@ -127,6 +127,17 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                     label: t('admin.configuration.rows.lastUsed'),
                     ...on(c.lastLoginMethod),
                     hint: c.lastLoginMethod ? t('admin.configuration.rows.lastUsedHint') : undefined
+                },
+                {
+                    label: t('admin.configuration.rows.multiSession'),
+                    ...(c.multiSession
+                        ? on(
+                              true,
+                              t('admin.configuration.rows.multiSessionValue', {
+                                  count: c.multiSession.maximumSessions
+                              })
+                          )
+                        : on(false))
                 }
             ]
         },
