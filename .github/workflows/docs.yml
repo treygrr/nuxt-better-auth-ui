@@ -1,0 +1,47 @@
+name: Docs
+
+# The documentation site (docs/), prerendered and published to GitHub Pages
+# (https://nuxt.com/deploy/github-pages). Turn on Pages with "GitHub Actions" as its source in the repository settings.
+on:
+    push:
+        branches: [main]
+        paths: ['docs/**', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.github/workflows/docs.yml']
+    workflow_dispatch:
+
+# One deployment at a time; a newer push replaces a waiting one.
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: pnpm/action-setup@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            # Served from /<repository>/; with a custom domain, drop NUXT_APP_BASE_URL.
+            - run: pnpm docs:generate
+              env:
+                  NUXT_APP_BASE_URL: /${{ github.event.repository.name }}/
+                  NUXT_PUBLIC_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+            - uses: actions/upload-pages-artifact@v5
+              with:
+                  path: docs/.output/public
+
+    deploy:
+        needs: build
+        runs-on: ubuntu-latest
+        permissions:
+            pages: write
+            id-token: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - id: deployment
+              uses: actions/deploy-pages@v5

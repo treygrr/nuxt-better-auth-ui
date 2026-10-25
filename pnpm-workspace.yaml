@@ -1,8 +1,15 @@
 packages:
   - playground
+  # The documentation site (Nuxt Content), published to GitHub Pages.
+  - docs
 
 # Only install versions published at least a day ago.
 minimumReleaseAge: 1440
+
+# The docs: mdast-util-to-markdown 2.2.0 recurses forever with remark-mdc 3.11's bold handler (llms-full.txt fails to
+# build). 2.1.2 is what the Nuxt UI docs template is locked to. Remove when remark-mdc supports 2.2.
+overrides:
+  mdast-util-to-markdown: 2.1.2
 
 # pnpm 11+ fails the install unless each install script is explicitly allowed or denied.
 allowBuilds:
@@ -10,5 +17,7 @@ allowBuilds:
   '@tailwindcss/oxide': false
   better-sqlite3: true
   esbuild: false
+  # The docs' images (Nuxt Image).
+  sharp: true
   unrs-resolver: false
   vue-demi: false

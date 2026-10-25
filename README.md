@@ -930,7 +930,12 @@ pnpm dev         # the playground
 pnpm test        # builds the module and the playground, starts it once, then runs the API tests and the browser tests
 pnpm typecheck
 pnpm fmt
+pnpm docs:dev      # the documentation site (docs/), on http://localhost:3002
+pnpm docs:generate # its static build, as GitHub Pages serves it
 ```
+
+The repository is a pnpm workspace: the module at the root, `playground/` and `docs/` (the documentation site, made
+with Nuxt Content from the Nuxt UI docs template and published to GitHub Pages by `.github/workflows/docs.yml`).
 
 The browser tests (`test/browser/`) drive Chromium through the pages: signing up and in, magic links, password
 resets, the account tabs, two-factor end to end, passkeys with Chromium's virtual authenticator, and the admin. Any
