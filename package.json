@@ -28,8 +28,8 @@
             "import": "./dist/module.mjs"
         },
         "./emails": {
-            "types": "./dist/runtime/server/emails/index.d.ts",
-            "import": "./dist/runtime/server/emails/index.js"
+            "types": "./dist/emails.d.mts",
+            "import": "./dist/emails.mjs"
         }
     },
     "main": "./dist/module.mjs",
