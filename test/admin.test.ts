@@ -753,3 +753,70 @@ describe('custom roles', () => {
         expect((await post('/admin/impersonate-user', { userId: daveId }, adminCookie)).status).toBe(200);
     });
 });
+
+describe('resending verification emails', () => {
+    const resend = (userId: string, cookie = adminCookie) =>
+        fetch(`${base}/api/_better-auth-admin/users/${userId}/send-verification`, {
+            method: 'POST',
+            headers: { origin: base, cookie }
+        });
+    const outbox = async () =>
+        (await (await get('/api/_playground/outbox')).json()) as Array<{
+            to: string;
+            subject: string;
+            html?: string;
+            text: string;
+        }>;
+
+    it('emails an unverified user a new link, through the app', async () => {
+        const created = await fetch(`${base}/api/auth/admin/create-user`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie: adminCookie },
+            body: JSON.stringify({ name: 'Fay', email: 'fay@verify.test', password: 'password123' })
+        });
+        const fayId = (await created.json()).user.id;
+        expect((await resend(fayId)).status).toBe(200);
+        // Sent in the background, as Better Auth's docs advise.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        // The playground's template for this email, delivered through its sender.
+        expect((await outbox())[0]).toMatchObject({
+            to: 'fay@verify.test',
+            email: 'verify-email',
+            subject: 'Welcome to the playground: verify your email'
+        });
+        expect((await outbox())[0]!.html).toContain('Hi Fay, welcome!');
+        expect((await outbox())[0]!.text).toContain('/api/auth/verify-email?token=');
+        const { entries } = await (
+            await get(`/api/_better-auth-admin/audit?limit=1&userId=${fayId}`, adminCookie)
+        ).json();
+        expect(entries[0].action).toBe('user.send-verification');
+    });
+
+    it('refuses verified users and users without the permission', async () => {
+        const bob = (await (await get('/api/auth/get-session', adminCookie)).json()).user;
+        await fetch(`${base}/api/auth/admin/update-user`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie: adminCookie },
+            body: JSON.stringify({ userId: bob.id, data: { emailVerified: true } })
+        });
+        expect((await resend(bob.id)).status).toBe(400);
+        expect((await resend(bob.id, userCookie)).status).toBe(403);
+    });
+});
+
+describe('emails without a template', () => {
+    it('sends the plain-text default through the app sender', async () => {
+        const response = await fetch(`${base}/api/auth/request-password-reset`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base },
+            body: JSON.stringify({ email: 'bob@example.com', redirectTo: '/reset' })
+        });
+        expect(response.status).toBe(200);
+        // Sent in the background, as Better Auth's docs advise.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const [email] = await (await get('/api/_playground/outbox')).json();
+        expect(email).toMatchObject({ to: 'bob@example.com', email: 'reset-password', subject: 'Reset your password' });
+        expect(email.html).toBeUndefined();
+        expect(email.text).toMatch(/Hi bob,\n\nSomeone asked to reset your password/);
+    });
+});

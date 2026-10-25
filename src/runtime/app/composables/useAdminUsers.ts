@@ -80,6 +80,11 @@ export const useAdminUsers = () => {
         /** Signs in as the user; the admin's own session is kept to return to. */
         impersonate: (userId: string) => unwrap(admin().impersonateUser({ userId })),
         stopImpersonating: () => unwrap(admin().stopImpersonating()),
+        /** Emails an unverified user a new verification link, through the app's sendVerificationEmail. */
+        sendVerification: (userId: string) =>
+            $fetch(`${ADMIN_API}/users/${encodeURIComponent(userId)}/send-verification`, { method: 'POST' }).catch(
+                fetchError
+            ),
         /** Removes one sign-in method; the server refuses to remove a user's last one. */
         removeAccount: (userId: string, accountId: string) =>
             $fetch(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts/${encodeURIComponent(accountId)}`, {

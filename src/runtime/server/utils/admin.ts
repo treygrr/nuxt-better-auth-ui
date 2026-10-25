@@ -41,7 +41,9 @@ type AdminAuth = {
             count(query: { model: string; where?: Where[] }): Promise<number | string>;
         };
         internalAdapter: {
-            findUserById(id: string): Promise<{ id: string } | null>;
+            findUserById(
+                id: string
+            ): Promise<{ id: string; email: string; name: string; emailVerified?: boolean } | null>;
             findAccounts(userId: string): Promise<StoredAccount[]>;
             deleteAccount(id: string): Promise<void>;
         };
@@ -57,7 +59,7 @@ export async function requireAdminPermission(event: H3Event, permissions: Record
     const auth = serverAuth(event) as unknown as AdminAuth;
     const { success } = await auth.api.userHasPermission({ body: { userId: user.id, permissions } });
     if (!success) throw createError({ statusCode: 403, statusMessage: 'You are not allowed to do this' });
-    return { user, context: await auth.$context };
+    return { user, context: await auth.$context, auth };
 }
 
 export type AdminContext = Awaited<AdminAuth['$context']>;

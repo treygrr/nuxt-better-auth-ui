@@ -11,6 +11,7 @@ export const AUDIT_ACTIONS: Record<string, { label: string; icon: string; color:
     'user.ban': { label: 'Banned', icon: 'i-lucide-ban', color: 'error' },
     'user.unban': { label: 'Unbanned', icon: 'i-lucide-shield-check', color: 'success' },
     'user.set-password': { label: 'Set password', icon: 'i-lucide-key-round', color: 'warning' },
+    'user.send-verification': { label: 'Sent verification email', icon: 'i-lucide-mail-check', color: 'neutral' },
     'user.delete': { label: 'Deleted user', icon: 'i-lucide-trash', color: 'error' },
     'session.revoke': { label: 'Signed out a session', icon: 'i-lucide-log-out', color: 'neutral' },
     'session.revoke-all': { label: 'Signed out everywhere', icon: 'i-lucide-log-out', color: 'warning' },

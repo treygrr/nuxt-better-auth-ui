@@ -26,6 +26,10 @@
         ".": {
             "types": "./dist/types.d.mts",
             "import": "./dist/module.mjs"
+        },
+        "./emails": {
+            "types": "./dist/runtime/server/emails/index.d.ts",
+            "import": "./dist/runtime/server/emails/index.js"
         }
     },
     "main": "./dist/module.mjs",

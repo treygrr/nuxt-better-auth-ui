@@ -140,7 +140,14 @@ const actions = computed<DropdownMenuItem[][]>(() => {
                 disabled: isSelf.value,
                 onSelect: () => (modal.value = 'role')
             },
-            { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => (modal.value = 'password') }
+            { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => (modal.value = 'password') },
+            can({ user: ['update'] }) &&
+                !current.emailVerified && {
+                    label: 'Resend verification email',
+                    icon: 'i-lucide-mail',
+                    onSelect: () =>
+                        run(() => admin.sendVerification(current.id), `Verification email sent to ${current.email}`)
+                }
         ],
         [impersonateItem(current)],
         [

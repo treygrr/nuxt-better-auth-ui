@@ -4,6 +4,11 @@ export default defineNuxtConfig({
     // Sign in as a user from their page; the banner in app.vue offers the way back.
     betterAuthAdmin: {
         impersonation: true,
+        // Delivery to the playground outbox, and an HTML verification email; the rest are plain-text defaults.
+        emails: {
+            send: './server/emails/send.ts',
+            templates: { 'verify-email': './server/emails/verify-email.ts' }
+        },
         // A role with some of the admin's permissions: it sees only those actions in the admin pages.
         roles: {
             moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] }

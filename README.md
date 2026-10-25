@@ -16,6 +16,9 @@ settings pages and a notifications panel. Those pages still show the template's 
 - **Users list:** search by email or name, filter (admins, banned, unverified), sort, paginate; select rows to ban or
   delete several at once.
 - **Add user:** name, email, optional password, role.
+- **Resend verification email** to an unverified user, from their row menu or page. Better Auth only lets signed-in
+  users resend to themselves, so the module calls `auth.api.sendVerificationEmail` on the server, which sends through
+  the app's own email (and template).
 - **Per user** (row menu or the user's page): edit name, email, avatar and verification; change role; set a password
   or email a reset link; ban with a reason and an expiry, or unban; sign out of one session or everywhere; delete.
 - **User page:** profile, role and status, ban details, sign-in methods (email and password, Google, GitHub, …), and
@@ -108,10 +111,88 @@ export default defineNuxtConfig({
         // Record admin actions in an adminAuditLog table (added through Better Auth's migrations).
         auditLog: true,
         // Days the audit log keeps entries; 0 keeps them forever.
-        auditLogRetentionDays: 30
+        auditLogRetentionDays: 30,
+        // Auth emails: delivery and templates. See "Emails" below.
+        emails: {},
+
+        // Better Auth Admin plugin options, passed through as documented
+        // (https://better-auth.com/docs/plugins/admin#options). All optional.
+        defaultRole: 'user', // must be user, the admin role, or one of roles
+        defaultBanReason: 'Breaking the rules', // when an admin gives none
+        defaultBanExpiresIn: 60 * 60 * 24 * 7, // seconds; default: forever
+        bannedUserMessage: 'Your account is suspended. Contact support.',
+        impersonationSessionDuration: 60 * 60 // seconds
     }
 });
 ```
+
+## Emails
+
+Better Auth leaves sending auth emails to the app. The module does the sending: plain-text emails by default, or your
+own templates, delivered by your own function (Resend, SMTP, …).
+
+1. **Point the module at your files** in `nuxt.config.ts` (relative to the project root; `~~/` works too):
+
+    ```ts
+    betterAuthAdmin: {
+        emails: {
+            send: './server/emails/send.ts',
+            // Optional: emails without a template are sent as plain text.
+            templates: { 'verify-email': './server/emails/verify-email.ts' }
+        }
+    }
+    ```
+
+2. **Deliver** them, eg with Resend:
+
+    ```ts
+    // server/emails/send.ts
+    import { defineBetterAuthEmailSender } from '@treygrr/nuxt-better-auth-admin/emails';
+
+    export default defineBetterAuthEmailSender(async ({ to, subject, text, html }) => {
+        await resend.emails.send({ from: 'Neomons <hello@neomons.com>', to, subject, text, html });
+    });
+    ```
+
+3. **Template** any email you want to design. The input is typed by the email's name, so a wrong name or field is a
+   type error. Return HTML (sent with the default subject and the plain-text version), or
+   `{ subject, html, text }`:
+
+    ```ts
+    // server/emails/verify-email.ts
+    import { defineBetterAuthEmail } from '@treygrr/nuxt-better-auth-admin/emails';
+
+    export default defineBetterAuthEmail('verify-email', async ({ user, url }) => ({
+        subject: 'Verify your Neomons email',
+        html: `<p>Hi ${user.name}!</p><a href="${url}">Verify email</a>`
+    }));
+    ```
+
+4. **Hand them to Better Auth** in your auth config:
+
+    ```ts
+    // server/auth.config.ts
+    import { betterAuthEmails } from '@treygrr/nuxt-better-auth-admin/emails';
+
+    export default defineServerAuth({
+        emailAndPassword: {
+            enabled: true,
+            sendResetPassword: betterAuthEmails.resetPassword,
+            onExistingUserSignUp: betterAuthEmails.existingUserSignUp
+        },
+        emailVerification: { sendVerificationEmail: betterAuthEmails.verifyEmail }
+    });
+    ```
+
+| Email                   | Better Auth option                          | Template gets           |
+| ----------------------- | ------------------------------------------- | ----------------------- |
+| `verify-email`          | `emailVerification.sendVerificationEmail`   | `{ user, url, token }`  |
+| `reset-password`        | `emailAndPassword.sendResetPassword`        | `{ user, url, token }`  |
+| `existing-user-sign-up` | `emailAndPassword.onExistingUserSignUp`     | `{ user }`              |
+
+Emails are sent in the background, not awaited, as
+[Better Auth advises](https://better-auth.com/docs/concepts/email) (waiting would reveal through timing which emails
+have accounts); a failed send is logged. A missing file fails the build.
 
 ## Roles
 

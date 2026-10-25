@@ -177,6 +177,13 @@ function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
                 onSelect: () => openModal('role', [user])
             },
             { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => openModal('password', [user]) },
+            can({ user: ['update'] }) &&
+                !user.emailVerified && {
+                    label: 'Resend verification email',
+                    icon: 'i-lucide-mail',
+                    onSelect: () =>
+                        run(() => admin.sendVerification(user.id), `Verification email sent to ${user.email}`)
+                },
             can({ session: ['revoke'] }) && {
                 label: 'Sign out everywhere',
                 icon: 'i-lucide-log-out',

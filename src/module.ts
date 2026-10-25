@@ -1,6 +1,9 @@
+import { existsSync } from 'node:fs';
+
 import type { NuxtPage } from '@nuxt/schema';
 
 import { resolveRoles, rolesFile, rolesTypes, type AdminRolePermissions } from './roles';
+import type { BetterAuthEmailName } from './runtime/server/emails/types';
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
 import { ADMIN_API, DEMO_API } from './runtime/constants';
 import {
@@ -13,6 +16,7 @@ import {
     defineNuxtModule,
     extendPages,
     extendRouteRules,
+    resolvePath,
     useLogger
 } from '@nuxt/kit';
 
@@ -37,11 +41,38 @@ export type ModuleOptions = {
      */
     roles: Record<string, AdminRolePermissions>;
     /**
+     * Better Auth Admin plugin options, passed through as documented
+     * (https://better-auth.com/docs/plugins/admin#options).
+     */
+    /** The role new users get. Must be `user`, the admin role, or one of `roles`. @default 'user' */
+    defaultRole?: string;
+    /** The ban reason when an admin gives none. Better Auth's default: "No reason". */
+    defaultBanReason?: string;
+    /** Seconds a ban lasts when an admin gives no length. Better Auth's default: forever. */
+    defaultBanExpiresIn?: number;
+    /** What banned users see when they try to sign in. */
+    bannedUserMessage?: string;
+    /** Seconds an impersonation session lasts. Better Auth's default: 3600 (an hour). */
+    impersonationSessionDuration?: number;
+    /**
      * Let admins sign in as a user from their page, through Better Auth's impersonation. Off, Better Auth's
      * impersonate-user endpoint is refused too. Apps showing the banner add `<AdminImpersonationBanner />`.
      * @default false
      */
     impersonation: boolean;
+    /**
+     * Auth emails, sent through `betterAuthEmails` in the app's auth config. Paths are relative to the project
+     * root, eg `./server/emails/send.ts`; Nuxt aliases work too (`~~/server/…`).
+     */
+    emails: {
+        /** A file whose default export delivers emails: `defineBetterAuthEmailSender(async ({ to, subject, text, html }) => …)`. */
+        send?: string;
+        /**
+         * Files overriding the plain-text default for an email, each exporting
+         * `defineBetterAuthEmail('verify-email', async ({ user, url }) => html)`.
+         */
+        templates?: Partial<Record<BetterAuthEmailName, string>>;
+    };
     /**
      * Record admin actions (bans, role changes, deletions, impersonation, …) in an `adminAuditLog` table,
      * created by Better Auth's migrations, and show them in the admin pages.
@@ -69,6 +100,7 @@ export default defineNuxtModule<ModuleOptions>({
         role: 'admin',
         roles: {},
         impersonation: false,
+        emails: {},
         auditLog: true,
         auditLogRetentionDays: 30
     },
@@ -79,11 +111,31 @@ export default defineNuxtModule<ModuleOptions>({
         // useBreakpoints and friends, used by the dashboard template's pages.
         '@vueuse/nuxt': { version: '>=14.0.0' }
     },
-    setup(options, nuxt) {
+    async setup(options, nuxt) {
         const { resolve } = createResolver(import.meta.url);
         const route = `/${options.route.replace(/^\/+|\/+$/g, '')}`;
 
         const roles = resolveRoles(options.role, options.roles);
+        const roleNames = ['user', options.role, ...Object.keys(options.roles)];
+        if (options.defaultRole && !roleNames.includes(options.defaultRole)) {
+            throw new Error(
+                `[better-auth-admin] defaultRole "${options.defaultRole}" isn't a role. Use ${roleNames.join(', ')}.`
+            );
+        }
+        // Documented Admin plugin options the app set, passed straight through.
+        const adminOptions = Object.fromEntries(
+            (
+                [
+                    'defaultRole',
+                    'defaultBanReason',
+                    'defaultBanExpiresIn',
+                    'bannedUserMessage',
+                    'impersonationSessionDuration'
+                ] as const
+            )
+                .filter((key) => options[key] !== undefined)
+                .map((key) => [key, options[key]])
+        );
         if (roles.withoutAccess.length) {
             useLogger('better-auth-admin').warn(
                 `Role${roles.withoutAccess.length > 1 ? 's' : ''} ${roles.withoutAccess.join(', ')} can't list users, so can't open the admin pages.`
@@ -121,7 +173,7 @@ export default defineNuxtModule<ModuleOptions>({
                 [
                     "import { admin } from 'better-auth/plugins'",
                     "import { ac, roles } from './roles.mjs'",
-                    'export default admin({ ac, roles })'
+                    `export default admin({ ac, roles, ...${JSON.stringify(adminOptions)} })`
                 ].join('\n')
         });
         // Better Auth lets any admin impersonate. With the option off, this refuses the endpoint, so hiding the
@@ -172,6 +224,45 @@ export default defineNuxtModule<ModuleOptions>({
             (sources.client ??= []).push(clientPlugin.dst);
         });
 
+        // The app's email sender and templates, for `betterAuthEmails`. A virtual module, so Nitro bundles the
+        // app's files; the helper only imports it when it sends, since the auth config also loads at build time.
+        const EMAILS: BetterAuthEmailName[] = ['verify-email', 'reset-password', 'existing-user-sign-up'];
+        const unknownEmails = Object.keys(options.emails.templates ?? {}).filter(
+            (name) => !EMAILS.includes(name as BetterAuthEmailName)
+        );
+        if (unknownEmails.length) {
+            throw new Error(
+                `[better-auth-admin] Unknown email template ${unknownEmails.join(', ')}. Use ${EMAILS.join(', ')}.`
+            );
+        }
+        // Relative to the project root, like Nuxt's other paths; aliases work too (`~~/server/…`).
+        const emailFile = async (setting: string, file: string) => {
+            const path = await resolvePath(file, { cwd: nuxt.options.rootDir });
+            if (!existsSync(path)) {
+                throw new Error(`[better-auth-admin] ${setting}: can't find "${file}" (looked for ${path})`);
+            }
+            return path;
+        };
+        const emailFiles = {
+            send: options.emails.send && (await emailFile('emails.send', options.emails.send)),
+            templates: await Promise.all(
+                Object.entries(options.emails.templates ?? {}).map(
+                    async ([name, file]) => [name, await emailFile(`emails.templates['${name}']`, file!)] as const
+                )
+            )
+        };
+        nuxt.hook('nitro:config', (nitroConfig) => {
+            nitroConfig.virtual ??= {};
+            nitroConfig.virtual['#better-auth-admin/email-config'] = () =>
+                [
+                    emailFiles.send ? `import send from ${JSON.stringify(emailFiles.send)}` : 'const send = undefined',
+                    ...emailFiles.templates.map(([, file], i) => `import template${i} from ${JSON.stringify(file)}`),
+                    `export const emailConfig = { send, templates: { ${emailFiles.templates
+                        .map(([name], i) => `${JSON.stringify(name)}: template${i}`)
+                        .join(', ')} } }`
+                ].join('\n');
+        });
+
         // Module files live in node_modules, where Nuxt doesn't auto-import, so they import these
         // from #imports explicitly; registering them is what makes that work.
         addImports([
@@ -201,6 +292,11 @@ export default defineNuxtModule<ModuleOptions>({
             route: `${ADMIN_API}/accounts`,
             method: 'get',
             handler: resolve('./runtime/server/api/accounts.get')
+        });
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/send-verification`,
+            method: 'post',
+            handler: resolve('./runtime/server/api/users/send-verification.post')
         });
         addServerHandler({
             route: `${ADMIN_API}/users/:id/accounts`,
