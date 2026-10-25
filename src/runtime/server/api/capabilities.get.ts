@@ -46,7 +46,7 @@ export type AuthCapabilities = {
     /** Better Auth's Phone Number plugin: codes by text, this many digits long, and whether a new number signs up. */
     phoneNumber: { otpLength: number; signUp: boolean } | null;
     /** Better Auth's Organization plugin: whether users can create organizations (false only when the app said so). */
-    organization: { allowCreate: boolean } | null;
+    organization: OrganizationCapabilities | null;
     /** Better Auth's Stripe plugin, with subscriptions: the billing tab. */
     stripe: boolean;
     /** Better Auth's Bearer plugin: session tokens in an Authorization header. */
@@ -62,6 +62,84 @@ export type AuthCapabilities = {
     /** Ids of the Better Auth plugins in use, eg ['admin', 'two-factor']. */
     plugins: string[];
 };
+
+/** One of the app's own fields on an organization table (the plugin's `schema.<model>.additionalFields`). */
+export type OrganizationField = { name: string; type: string | string[]; required: boolean; editable: boolean };
+
+/** What the Organization plugin offers, read from its options, whether the module or the app added it. */
+export type OrganizationCapabilities = {
+    /** Whether users can create organizations (false only when the app said so; a function decides per user). */
+    allowCreate: boolean;
+    /** The static roles: Better Auth's owner, admin and member, and the app's. */
+    roles: string[];
+    /** Every resource and its actions, for permission checks and the dynamic roles' permission grid. */
+    statements: Record<string, string[]>;
+    /** Owners and admins create their own roles (dynamic access control). */
+    dynamicRoles: boolean;
+    /** Teams within organizations. */
+    teams: boolean;
+    /** Organizations can be deleted (`disableOrganizationDeletion` isn't set). */
+    deletion: boolean;
+    /** The app's own fields on each table. */
+    fields: Record<'organization' | 'member' | 'invitation' | 'team', OrganizationField[]>;
+};
+
+const DEFAULT_ORGANIZATION_STATEMENTS = {
+    organization: ['update', 'delete'],
+    member: ['create', 'update', 'delete'],
+    invitation: ['create', 'cancel'],
+    team: ['create', 'update', 'delete'],
+    ac: ['create', 'read', 'update', 'delete']
+};
+
+type OrganizationOptions = {
+    allowUserToCreateOrganization?: unknown;
+    roles?: Record<string, unknown>;
+    ac?: { statements?: Record<string, readonly string[]> };
+    dynamicAccessControl?: { enabled?: boolean };
+    teams?: { enabled?: boolean };
+    disableOrganizationDeletion?: boolean;
+    schema?: Record<
+        string,
+        {
+            additionalFields?: Record<
+                string,
+                { type: string | string[]; required?: boolean; input?: boolean; returned?: boolean }
+            >;
+        }
+    >;
+};
+
+function organizationCapabilities(options: OrganizationOptions): OrganizationCapabilities {
+    const fields = (model: string) =>
+        Object.entries(options.schema?.[model]?.additionalFields ?? {})
+            .filter(([, field]) => field.returned !== false)
+            .map(([name, field]) => ({
+                name,
+                type: field.type,
+                required: field.required === true,
+                editable: field.input !== false
+            }));
+    return {
+        allowCreate: options.allowUserToCreateOrganization !== false,
+        roles: options.roles ? Object.keys(options.roles) : ['owner', 'admin', 'member'],
+        statements: Object.fromEntries(
+            Object.entries(options.ac?.statements ?? DEFAULT_ORGANIZATION_STATEMENTS).map(([resource, actions]) => [
+                resource,
+                [...actions]
+            ])
+        ),
+        dynamicRoles: options.dynamicAccessControl?.enabled === true,
+        teams: options.teams?.enabled === true,
+        deletion: options.disableOrganizationDeletion !== true,
+        fields: {
+            organization: fields('organization'),
+            member: fields('member'),
+            invitation: fields('invitation'),
+            team: fields('team')
+        }
+    };
+}
 
 type Options = {
     appName?: string;
@@ -155,7 +233,7 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
             : null,
         // A function decides per user, so the page offers creating and lets Better Auth refuse.
         organization: organization
-            ? { allowCreate: organization.options?.allowUserToCreateOrganization !== false }
+            ? organizationCapabilities((organization.options ?? {}) as OrganizationOptions)
             : null,
         stripe: has('stripe'),
         bearer: has('bearer'),

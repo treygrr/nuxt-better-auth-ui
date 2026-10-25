@@ -36,7 +36,7 @@ beforeAll(async () => {
 describe('organizations', () => {
     it('show in the capabilities', async () => {
         const capabilities = await (await fetch(`${base}/api/_better-auth-ui/capabilities`)).json();
-        expect(capabilities.organization).toEqual({ allowCreate: true });
+        expect(capabilities.organization).toMatchObject({ allowCreate: true });
     });
 
     it('are created by users, who own them', async () => {

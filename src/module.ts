@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import type { NuxtPage } from '@nuxt/schema';
 
 import { resolveRoles, rolesFile, rolesTypes, type AdminRolePermissions } from './roles';
+import { organizationRolesFile, resolveOrganizationRoles } from './organization-roles';
 import { EMAIL_NAMES, type BetterAuthEmailName } from './runtime/server/emails/types';
 import type { SecurityAlerts } from './runtime/server/alerts/plugin';
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
@@ -335,8 +336,51 @@ export type OrganizationOptions = {
     invitationExpiresIn?: number;
     /** Invitations need a verified email to see, accept or decline. */
     requireEmailVerificationOnInvitation?: boolean;
-    /** Better Auth's teams within organizations (no UI for teams yet). */
-    teams?: boolean;
+    /** Pending invitations a user can send. Better Auth's default: 100. */
+    invitationLimit?: number;
+    /** Inviting someone again cancels their pending invitation. Better Auth's default: false. */
+    cancelPendingInvitationsOnReInvite?: boolean;
+    /** Nobody can delete an organization. Better Auth's default: false. */
+    disableOrganizationDeletion?: boolean;
+    /**
+     * The app's own resources and actions for organization permissions (Better Auth's access control), added to Better
+     * Auth's (organization, member, invitation, team, ac), eg `{ project: ['create', 'update', 'delete'] }`.
+     */
+    statements?: Record<string, string[]>;
+    /**
+     * Organization roles, by name, with their permissions, eg `{ editor: { project: ['create', 'update'] } }`. Naming
+     * `owner`, `admin` or `member` adds permissions to Better Auth's role of that name. Role pickers and permission
+     * checks use them all; the app checks them with Better Auth's `hasPermission`.
+     */
+    roles?: Record<string, Record<string, string[]>>;
+    /**
+     * Organizations' owners and admins create their own roles (Better Auth's dynamic access control), from the
+     * organization's page. Adds an `organizationRole` table: run Better Auth's migrations.
+     * @default false
+     */
+    dynamicRoles?: boolean | { maximumRolesPerOrganization?: number };
+    /**
+     * Better Auth's teams within organizations, managed from the organization's page. Adds `team` and `teamMember`
+     * tables and session and invitation columns: run Better Auth's migrations.
+     * @default false
+     */
+    teams?: boolean | { maximumTeams?: number; maximumMembersPerTeam?: number; allowRemovingAllTeams?: boolean };
+    /**
+     * Better Auth's schema options for the plugin's tables: table and field names, and the app's own fields
+     * (`additionalFields`) on `organization`, `member`, `invitation`, `team` and `organizationRole`, which the
+     * organization's page shows and edits.
+     */
+    schema?: Record<
+        string,
+        { modelName?: string; fields?: Record<string, string>; additionalFields?: Record<string, unknown> }
+    >;
+    /**
+     * A file whose default export is more of the plugin's options, for those that are functions: `organizationHooks`,
+     * `allowUserToCreateOrganization`, `organizationLimit` or `membershipLimit` as functions, and so on, eg
+     * `./server/auth/organization.ts`. They're added last, so they win. Loaded with the auth config (also at build
+     * time), so keep it free of Nitro-only imports at its top level.
+     */
+    serverOptions?: string;
 };
 
 /** A Stripe subscription plan, as Better Auth's Stripe plugin takes it (https://better-auth.com/docs/plugins/stripe). */
@@ -1113,27 +1157,69 @@ export default defineNuxtModule<ModuleOptions>({
                         'membershipLimit',
                         'creatorRole',
                         'invitationExpiresIn',
-                        'requireEmailVerificationOnInvitation'
+                        'requireEmailVerificationOnInvitation',
+                        'invitationLimit',
+                        'cancelPendingInvitationsOnReInvite',
+                        'disableOrganizationDeletion',
+                        'schema'
                     ] as const
                 )
                     .filter((key) => organizationOptions[key] !== undefined)
                     .map((key) => [key, organizationOptions[key]])
             );
-            const teams = organizationOptions.teams ? { teams: { enabled: true } } : {};
+            // Checked now, so a mistake fails the build with a readable error.
+            resolveOrganizationRoles(organizationOptions.statements, organizationOptions.roles);
+            const { teams, dynamicRoles } = organizationOptions;
+            const teamsOptions = teams ? { enabled: true, ...(teams === true ? {} : teams) } : undefined;
+            const dynamicOptions = dynamicRoles
+                ? { enabled: true, ...(dynamicRoles === true ? {} : dynamicRoles) }
+                : undefined;
+            // The roles, with Better Auth's access control: one file the server and client plugins share.
+            const orgRoles = addTemplate({
+                filename: 'better-auth-ui/organization-roles.mjs',
+                write: true,
+                getContents: () => organizationRolesFile(organizationOptions.statements, organizationOptions.roles)
+            });
+            const serverOptionsFile =
+                organizationOptions.serverOptions &&
+                (await emailFile('organization.serverOptions', organizationOptions.serverOptions));
+            const serverOptions = {
+                ...orgOptions,
+                ...(teamsOptions && { teams: teamsOptions }),
+                ...(dynamicOptions && { dynamicAccessControl: dynamicOptions })
+            };
+            const clientOptions = {
+                ...(teamsOptions && { teams: { enabled: true } }),
+                ...(dynamicOptions && { dynamicAccessControl: { enabled: true } }),
+                ...(organizationOptions.schema && { schema: organizationOptions.schema })
+            };
             addAuthPlugin(
                 'organization',
                 [
                     "import { organization } from 'better-auth/plugins'",
                     `import { betterAuthEmails } from ${emailsHelper}`,
-                    `export default organization({ ...${JSON.stringify({ ...orgOptions, ...teams })}${
-                        emails.send
-                            ? `, sendInvitationEmail: betterAuthEmails.organizationInvitation(${JSON.stringify(invitationPage)})`
-                            : ''
-                    } })`
+                    `import { ac, roles } from ${JSON.stringify(orgRoles.dst)}`,
+                    serverOptionsFile
+                        ? `import appOptions from ${JSON.stringify(serverOptionsFile)}`
+                        : 'const appOptions = {}',
+                    `const options = ${JSON.stringify(serverOptions)}`,
+                    // The app's options last; its teams, dynamic roles and schema add to the module's.
+                    'export default organization({',
+                    '    ...options,',
+                    '    ac,',
+                    '    roles,',
+                    emails.send
+                        ? `    sendInvitationEmail: betterAuthEmails.organizationInvitation(${JSON.stringify(invitationPage)}),`
+                        : '',
+                    '    ...appOptions,',
+                    '    ...(options.teams || appOptions.teams ? { teams: { ...options.teams, ...appOptions.teams } } : {}),',
+                    '    ...(options.dynamicAccessControl || appOptions.dynamicAccessControl ? { dynamicAccessControl: { ...options.dynamicAccessControl, ...appOptions.dynamicAccessControl } } : {})',
+                    '})'
                 ],
                 [
                     "import { organizationClient } from 'better-auth/client/plugins'",
-                    `export default organizationClient(${JSON.stringify(teams)})`
+                    `import { ac, roles } from ${JSON.stringify(orgRoles.dst)}`,
+                    `export default organizationClient({ ...${JSON.stringify(clientOptions)}, ac, roles })`
                 ]
             );
         }

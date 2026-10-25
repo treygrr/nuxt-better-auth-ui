@@ -525,10 +525,29 @@ betterAuthUi: {
         creatorRole: 'owner',
         invitationExpiresIn: 60 * 60 * 48, // seconds
         requireEmailVerificationOnInvitation: false,
-        teams: false // Better Auth's teams (no UI for them yet)
+        invitationLimit: 100,
+        cancelPendingInvitationsOnReInvite: false,
+        disableOrganizationDeletion: false,
+        // Your own resources, and roles with their permissions (Better Auth's access control). Naming owner, admin or
+        // member adds to Better Auth's role; owners also get every action on your resources.
+        statements: { project: ['create', 'update', 'delete'] },
+        roles: { editor: { project: ['create', 'update'] }, admin: { project: ['delete'] } },
+        // Owners and admins create their own roles per organization (dynamic access control).
+        dynamicRoles: true, // or { maximumRolesPerOrganization: 10 }
+        // Teams within organizations.
+        teams: true, // or { maximumTeams: 10, maximumMembersPerTeam: 20, allowRemovingAllTeams: false }
+        // Better Auth's schema options: table and field names, and your own fields on its tables.
+        schema: { organization: { additionalFields: { website: { type: 'string', required: false } } } },
+        // A file whose default export is more plugin options, for functions: organizationHooks, and
+        // allowUserToCreateOrganization, organizationLimit or membershipLimit as functions. Added last.
+        serverOptions: './server/auth/organization.ts'
     }
 }
 ```
+
+The module builds the roles with Better Auth's access control and passes them (`ac` and `roles`) to the server and
+client plugins, and checks them at build time: a permission on a resource or action that doesn't exist fails the
+build. Your API checks them with Better Auth's `auth.api.hasPermission({ headers, body: { permissions } })`.
 
 - **Account page:** an "Organizations" tab: their organizations, the active one marked, switching to another, and
   creating one (a name and a slug made from it). "Manage" opens one: its members (owners and admins change roles and

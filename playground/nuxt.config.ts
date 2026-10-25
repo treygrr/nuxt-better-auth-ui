@@ -34,7 +34,19 @@ export default defineNuxtConfig({
         phoneNumber: { enabled: true, signUp: true },
         sms: { send: './server/sms/send.ts' },
         // An "Organizations" tab on the account page, invitations by email (to the outbox), admin organization pages.
-        organization: { enabled: true },
+        organization: {
+            enabled: true,
+            // The app's own resource, a custom role, and a permission added to Better Auth's admin.
+            statements: { project: ['create', 'update', 'delete'] },
+            roles: { editor: { project: ['create', 'update'] }, admin: { project: ['create', 'update', 'delete'] } },
+            // Owners and admins create their own roles, and organize members into teams.
+            dynamicRoles: true,
+            teams: true,
+            // The app's own field on organizations, shown and edited on the organization's page.
+            schema: { organization: { additionalFields: { website: { type: 'string', required: false } } } },
+            // Hooks and other function options.
+            serverOptions: './server/auth/organization.ts'
+        },
         // A "Billing" tab and each user's subscription in the admin. The prices are made up: with STRIPE_SECRET_KEY and
         // your own test prices, Checkout and the billing portal work; without, the pages show and Stripe calls fail.
         stripe: {
