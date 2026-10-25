@@ -51,6 +51,8 @@ export type AuthCapabilities = {
     stripe: boolean;
     /** Better Auth's Bearer plugin: session tokens in an Authorization header. */
     bearer: boolean;
+    /** Better Auth's OAuth Popup plugin: provider sign-ins in a popup. */
+    oauthPopup: boolean;
     /** Better Auth's JWT plugin: where services find the public keys that verify its tokens. */
     jwt: { jwksUrl: string } | null;
     /** Better Auth's Have I Been Pwned plugin: breached passwords are refused. */
@@ -157,6 +159,7 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
             : null,
         stripe: has('stripe'),
         bearer: has('bearer'),
+        oauthPopup: has('oauth-popup'),
         jwt: jwt ? { jwksUrl: `${(await auth.$context).baseURL}${jwksPath}` } : null,
         haveIBeenPwned: has('have-i-been-pwned'),
         lastLoginMethod: has('last-login-method'),

@@ -547,6 +547,9 @@ export const authEs = {
         INVALID_OTP: 'Ese código no es correcto.',
         OTP_EXPIRED: 'Ese código caducó. Pide uno nuevo.',
         TOO_MANY_ATTEMPTS: 'Demasiados intentos. Pide un código nuevo.',
+        // Las de OAuth Popup.
+        POPUP_SIGN_IN_FAILED: 'No se pudo iniciar sesión. Inténtalo de nuevo.',
+        POPUP_TIMEOUT: 'La ventana de inicio de sesión tardó demasiado. Inténtalo de nuevo.',
         // Las de Phone Number.
         INVALID_PHONE_NUMBER: 'Ese número de teléfono no es válido. Incluye el prefijo del país, p. ej. +34.',
         PHONE_NUMBER_EXIST: 'Otra cuenta ya usa ese número de teléfono.',

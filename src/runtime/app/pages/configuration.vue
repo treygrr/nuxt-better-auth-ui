@@ -121,6 +121,7 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                             : undefined
                 },
                 { label: t('admin.configuration.rows.bearerTokens'), ...on(c.bearer) },
+                { label: t('admin.configuration.rows.oauthPopup'), ...on(c.oauthPopup) },
                 {
                     label: t('admin.configuration.rows.jwt'),
                     ...on(!!c.jwt),

@@ -448,6 +448,13 @@ export type ModuleOptions = {
      */
     bearer: boolean | { requireSignature?: boolean };
     /**
+     * Provider sign-ins (social and Generic OAuth) in a popup instead of leaving the page, through Better Auth's OAuth
+     * Popup plugin, so someone signing in from inside a running app keeps its state; where the browser blocks popups,
+     * the usual redirect. Adds the Bearer plugin too, which it pairs with. No migration.
+     * @default false
+     */
+    oauthPopup: boolean;
+    /**
      * JWTs for services that can't use the session, through Better Auth's JWT plugin: `/token` (and a `set-auth-jwt`
      * header on get-session) gives one, verified with the public keys at `/jwks`, which the configuration page shows.
      * Adds a `jwks` table: run Better Auth's migrations.
@@ -565,6 +572,7 @@ export default defineNuxtModule<ModuleOptions>({
         organization: { enabled: false },
         stripe: { enabled: false },
         bearer: false,
+        oauthPopup: false,
         jwt: false,
         captcha: false,
         haveIBeenPwned: false,
@@ -1159,8 +1167,16 @@ export default defineNuxtModule<ModuleOptions>({
                 ]
             );
         }
-        if (moduleOptions.bearer) {
-            const bearerOptions = moduleOptions.bearer === true ? {} : moduleOptions.bearer;
+        if (moduleOptions.oauthPopup) {
+            addAuthPlugin(
+                'oauth-popup',
+                ["import { oauthPopup } from 'better-auth/plugins'", 'export default oauthPopup()'],
+                ["import { oauthPopupClient } from 'better-auth/client/plugins'", 'export default oauthPopupClient()']
+            );
+        }
+        // The popup plugin hands embedded pages the session as a bearer token.
+        if (moduleOptions.bearer || moduleOptions.oauthPopup) {
+            const bearerOptions = moduleOptions.bearer === true || !moduleOptions.bearer ? {} : moduleOptions.bearer;
             addAuthPlugin('bearer', [
                 "import { bearer } from 'better-auth/plugins'",
                 `export default bearer(${JSON.stringify(bearerOptions)})`

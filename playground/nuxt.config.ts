@@ -53,6 +53,8 @@ export default defineNuxtConfig({
         // Session tokens in an Authorization header, and JWTs verified with /api/auth/jwks.
         bearer: true,
         jwt: true,
+        // Provider sign-ins (GitHub, the tests' mock) in a popup.
+        oauthPopup: true,
         lastLoginMethod: true,
         // Emails (to the outbox) about new-device sign-ins, password changes, two-factor and passkeys.
         securityAlerts: true,

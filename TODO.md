@@ -14,9 +14,9 @@ the app added it, the admin and configuration page show it, Spanish included.
    subscription card. Left: trying Checkout and the billing portal against Stripe's test mode; a plan filter on the
    users list (Better Auth's list-users can't filter by another table); a role while a plan is active (writing the
    Admin plugin's role from subscription hooks, without demoting staff); organization subscriptions.
-10. **OAuth popup** (`oauth-popup`). Provider sign-in in a popup instead of leaving the page, so someone signing in
-    from inside a running app (an editor, a game, a checkout) keeps their state. An option on the sign-in pages (and
-    a component apps can embed), falling back to the redirect where popups are blocked.
+10. **OAuth popup, what's left.** Done: `oauthPopup` on the sign-in pages, falling back to the redirect. Left: a
+    component apps can embed (provider buttons that sign in through the popup); two-factor users get the code page
+    inside the popup instead of the opener; Better Auth's docs for the plugin, when they appear.
 
 ### More sign-in providers
 

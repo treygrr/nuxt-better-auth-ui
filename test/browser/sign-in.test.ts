@@ -72,6 +72,37 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         expect(session.problems).toEqual([]);
     });
 
+    it('signs in with a provider in a popup, staying on the page', async () => {
+        const session = await browser.open();
+        await session.noPasskeyAutofill();
+        await session.go('/login?redirect=/account');
+        const [popup] = await Promise.all([
+            session.context.waitForEvent('page'),
+            session.page.getByRole('button', { name: 'Continue with mock', exact: true }).click()
+        ]);
+        // The popup goes through the provider and closes itself; the page then moves on, signed in.
+        await popup.waitForEvent('close', { timeout: 10_000 });
+        await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
+        await session.page.getByText('player@mock.test').first().waitFor();
+        expect(session.problems).toEqual([]);
+    });
+
+    it('sends accounts from a provider without an email to add one', async () => {
+        const session = await browser.open();
+        await session.noPasskeyAutofill();
+        await session.go('/login?redirect=/account');
+        const [popup] = await Promise.all([
+            session.context.waitForEvent('page'),
+            session.page.getByRole('button', { name: 'Continue with mock-no-email' }).click()
+        ]);
+        await popup.waitForEvent('close', { timeout: 10_000 });
+        await session.page.waitForURL((url) => url.pathname === '/finish-account', { timeout: 10_000 });
+        await session.page.getByLabel('Email').fill('player@finish.test');
+        await session.page.getByRole('button', { name: 'Send link' }).click();
+        await session.page.getByText('Check your email').waitFor();
+        expect(session.problems).toEqual([]);
+    });
+
     it('signs in with a code by text', async () => {
         const session = await browser.open();
         await session.noPasskeyAutofill();

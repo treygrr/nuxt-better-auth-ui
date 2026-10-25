@@ -515,6 +515,7 @@ export const adminEs = {
             organizationsNoCreate: 'Los usuarios no pueden crearlas',
             stripe: 'Suscripciones (Stripe)',
             bearerTokens: 'Tokens Bearer',
+            oauthPopup: 'Inicio de sesión con proveedores en una ventana emergente',
             jwt: 'JWT para otros servicios',
             jwksAt: 'Claves públicas (JWKS): {url}',
             usernames: 'Nombres de usuario',

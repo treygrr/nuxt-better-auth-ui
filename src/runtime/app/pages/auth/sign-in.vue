@@ -19,6 +19,7 @@ import Captcha from '../../components/auth/Captcha.vue';
 import { useCaptcha } from '../../utils/captcha';
 import { oauthErrorMessage } from '../../utils/oauth-errors';
 import { passkeyCancelled, type PasskeyClient } from '../../utils/passkey';
+import { useProviderSignIn } from '../../utils/provider-sign-in';
 import { providerInfo } from '../../utils/providers';
 
 const { t, errorMessage } = useAuthI18n();
@@ -41,7 +42,8 @@ const handle = <Input,>(name: string) =>
         (input: Input, options?: Options) => Result
     >;
 const email = useSignIn('email');
-const social = useSignIn('social');
+// Providers in a popup with the OAuth Popup plugin, else Better Auth's redirect.
+const { signInWith, social, popupError } = useProviderSignIn();
 const username = handle<{ username: string; password: string }>('username');
 const passkey = handle<{ autoFill?: boolean }>('passkey');
 const magicLink = handle<{ email: string; callbackURL: string; newUserCallbackURL: string; errorCallbackURL: string }>(
@@ -180,15 +182,13 @@ const providers = computed<ButtonProps[]>(() => [
         icon: providerInfo(provider).icon,
         loadingAuto: true,
         ...highlight(provider),
-        // Typed from the app's configured providers, which the module can't know: these come from the app's config.
         onClick: () =>
-            social.execute({
-                provider,
+            signInWith(provider, {
                 callbackURL: redirectTo,
                 // Brand-new accounts start on the account page; failures come back here with ?error=.
                 newUserCallbackURL: pages.account || redirectTo,
                 errorCallbackURL: route.fullPath
-            } as Parameters<typeof social.execute>[0])
+            })
     })),
     // A guest account (Anonymous plugin), last: the other ways sign in for good. Not for someone already a guest.
     ...(capabilities.value?.anonymous && !isGuest.value
@@ -233,7 +233,12 @@ const error = computed(() =>
     captchaMissing.value
         ? t('captcha.required')
         : errorMessage(
-              email.error.value ?? username.error.value ?? social.error.value ?? passkeyError.value ?? guest.error.value
+              email.error.value ??
+                  username.error.value ??
+                  social.error.value ??
+                  popupError.value ??
+                  passkeyError.value ??
+                  guest.error.value
           ) || oauthError.value
 );
 

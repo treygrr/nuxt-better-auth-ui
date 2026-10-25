@@ -431,6 +431,12 @@ emails), which emails them a link; opening it makes it theirs. Your own provider
 with `placeholderEmail(providerId, accountId)`. The helpers follow Epic's and Blizzard's published OpenID set-up, but
 haven't been tried against them.
 
+**Sign-in in a popup** (`oauthPopup: true`): the sign-in and sign-up pages open provider sign-ins in a popup instead of
+leaving the page, so someone signing in from inside a running app keeps its state; the popup closes itself and the
+page moves on, signed in. Where the browser blocks popups, the usual redirect. It's Better Auth's OAuth Popup plugin,
+which ships with Better Auth 1.7 but isn't in its documentation yet: the module relies on its code (`signIn.popup`, and
+the Bearer plugin it pairs with, which the option adds). Users with two-factor on finish signing in inside the popup.
+
 Not yet: Xbox gamertags (they need Xbox Live's own token exchange after the Microsoft sign-in); Steam (OpenID 2.0, which
 Better Auth doesn't support).
 

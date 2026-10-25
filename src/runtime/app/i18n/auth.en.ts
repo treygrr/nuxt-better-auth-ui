@@ -546,6 +546,9 @@ export const authEn = {
         INVALID_OTP: "That code isn't right.",
         OTP_EXPIRED: 'That code has expired. Ask for a new one.',
         TOO_MANY_ATTEMPTS: 'Too many tries. Ask for a new code.',
+        // OAuth Popup's.
+        POPUP_SIGN_IN_FAILED: "Couldn't sign you in. Try again.",
+        POPUP_TIMEOUT: 'The sign-in window took too long. Try again.',
         // Phone Number's.
         INVALID_PHONE_NUMBER: "That phone number isn't valid. Include the country code, eg +1.",
         PHONE_NUMBER_EXIST: 'Another account already uses that phone number.',

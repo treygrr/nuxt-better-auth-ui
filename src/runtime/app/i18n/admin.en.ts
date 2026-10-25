@@ -513,6 +513,7 @@ export const adminEn = {
             organizationsNoCreate: "Users can't create them",
             stripe: 'Subscriptions (Stripe)',
             bearerTokens: 'Bearer tokens',
+            oauthPopup: 'Provider sign-in in a popup',
             jwt: 'JWTs for other services',
             jwksAt: 'Public keys (JWKS): {url}',
             usernames: 'Usernames',
