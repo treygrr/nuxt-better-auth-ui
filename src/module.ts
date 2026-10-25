@@ -1780,6 +1780,22 @@ export default defineNuxtModule<ModuleOptions>({
                 method: 'post',
                 handler: resolve('./runtime/server/api/organizations/members.post')
             });
+            // Staff create organizations for a user, and teams: Better Auth's calls it allows without a session.
+            addServerHandler({
+                route: `${ADMIN_API}/organizations`,
+                method: 'post',
+                handler: resolve('./runtime/server/api/organizations/create.post')
+            });
+            addServerHandler({
+                route: `${ADMIN_API}/organizations/:id/teams`,
+                method: 'post',
+                handler: resolve('./runtime/server/api/organizations/teams.post')
+            });
+            addServerHandler({
+                route: `${ADMIN_API}/organizations/:id/teams/:teamId`,
+                method: 'delete',
+                handler: resolve('./runtime/server/api/organizations/teams.delete')
+            });
             addServerHandler({
                 route: `${ADMIN_API}/users/:id/organizations`,
                 method: 'get',

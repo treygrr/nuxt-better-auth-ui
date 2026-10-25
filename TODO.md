@@ -7,9 +7,9 @@ the app added it, the admin and configuration page show it, Spanish included.
 
 7. **More sign-in providers**, including game platforms. See below.
 8. **Organizations, what's left.** Every feature on Better Auth's Organization page is configurable and in the UI.
-   Left: staff changing organizations beyond adding members (Better Auth's other organization endpoints need a
-   member's session, and writing its tables directly would bypass its hooks); members' own organization actions in
-   the audit log; editing members' additional fields (Better Auth has no endpoint for it).
+   Staff create organizations, add members, and create and remove teams (Better Auth's server-side calls), and sign
+   in as the owner for the rest. Left: members' own organization actions in the audit log; editing members'
+   additional fields (Better Auth has no endpoint for it).
 9. **Stripe, what's left.** Done (and tested without reaching Stripe): the plugin, the billing tab, the admin's
    subscription card. Left: trying Checkout and the billing portal against Stripe's test mode; a plan filter on the
    users list (Better Auth's list-users can't filter by another table); a role while a plan is active (writing the

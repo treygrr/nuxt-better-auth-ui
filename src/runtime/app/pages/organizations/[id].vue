@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import { useUserSession } from '@nuxtjs/better-auth/composables';
 import {
     $fetch,
     computed,
+    navigateTo,
     reactive,
     ref,
     useAdminCan,
     useAdminPath,
+    useAdminUsers,
     useAuthCapabilities,
     useAuthI18n,
+    useBetterAuthAdminConfig,
     useFetch,
     useRoute,
+    useRuntimeConfig,
     useToast
 } from '#imports';
 import { upperFirst } from 'scule';
@@ -20,14 +25,16 @@ import { serverError } from '../../utils/server-error';
 
 /**
  * One organization, for staff: its members (linking to their user pages), pending invitations, teams and its own
- * roles. Staff who can update users add members (Better Auth's server-only addMember); everything else is changed by
- * the organization's members, as Better Auth's Organization plugin allows.
+ * roles. Staff who can update users add members and create and remove teams, through the calls Better Auth allows
+ * without a member's session (addMember, createTeam, removeTeam). For the rest, Better Auth needs a member: with
+ * impersonation on, staff make those changes as the owner, on the organization's own page.
  */
 const adminPath = useAdminPath();
 const { t, errorMessage } = useAuthI18n();
 const toast = useToast();
 const { capabilities } = useAuthCapabilities();
-const canAdd = useAdminCan()({ user: ['update'] });
+const can = useAdminCan();
+const canAdd = can({ user: ['update'] });
 const id = useRoute().params.id as string;
 
 const {
@@ -74,6 +81,77 @@ async function addMember() {
         adding.value = false;
     }
 }
+
+// Teams: created and removed through Better Auth's server-side createTeam and removeTeam.
+const teamName = ref('');
+const creatingTeam = ref(false);
+async function createTeam() {
+    creatingTeam.value = true;
+    try {
+        await $fetch(`${ADMIN_API}/organizations/${encodeURIComponent(id)}/teams`, {
+            method: 'POST',
+            body: { name: teamName.value }
+        });
+        toast.add({ title: t('admin.organizations.teamCreated', { name: teamName.value }), color: 'success' });
+        teamName.value = '';
+        await refresh();
+    } catch (failure) {
+        toast.add({
+            title: t('admin.organizations.teamFailed'),
+            description: errorMessage(serverError(failure)),
+            color: 'error'
+        });
+    } finally {
+        creatingTeam.value = false;
+    }
+}
+async function removeTeam(team: { id: string; name: string }) {
+    try {
+        await $fetch(`${ADMIN_API}/organizations/${encodeURIComponent(id)}/teams/${encodeURIComponent(team.id)}`, {
+            method: 'DELETE'
+        });
+        toast.add({ title: t('admin.organizations.teamRemoved', { name: team.name }), color: 'success' });
+        await refresh();
+    } catch (failure) {
+        toast.add({
+            title: t('admin.organizations.teamFailed'),
+            description: errorMessage(serverError(failure)),
+            color: 'error'
+        });
+    }
+}
+
+// Everything else needs a member's session: staff who can impersonate sign in as the owner (Better Auth's
+// impersonation, audit-logged) and land on the organization's own page.
+const { impersonation } = useBetterAuthAdminConfig();
+const { organizationPage } = useRuntimeConfig().public.betterAuthUi as { organizationPage: string | false };
+const session = useUserSession();
+const users = useAdminUsers();
+const owner = computed(() =>
+    organization.value?.members.find((member) => member.role.split(',').some((role) => role.trim() === 'owner'))
+);
+const canActAsOwner = computed(
+    () =>
+        impersonation &&
+        !!organizationPage &&
+        can({ user: ['impersonate'] }) &&
+        !!owner.value?.user &&
+        owner.value.user.id !== session.user.value?.id
+);
+async function actAsOwner() {
+    try {
+        await users.impersonate(owner.value!.user!.id);
+        // A full load, so the whole app picks up the owner's session.
+        await navigateTo(`${organizationPage}/${encodeURIComponent(id)}`, { external: true });
+    } catch (failure) {
+        toast.add({
+            title: t('admin.impersonation.failed'),
+            description: (failure as Error).message,
+            color: 'error'
+        });
+    }
+}
+
 const permissionList = (permissions: Record<string, string[]>) =>
     Object.entries(permissions).flatMap(([resource, actions]) => actions.map((action) => `${resource}:${action}`));
 /** "owner,admin" → "Owner, Admin": Better Auth stores several roles comma-separated. */
@@ -188,8 +266,15 @@ const roles = (role: string) =>
                     </template>
                 </UPageCard>
 
-                <UPageCard v-if="organization.teams.length" :title="t('admin.organizations.teams')" variant="subtle">
-                    <ul class="divide-y divide-default">
+                <UPageCard
+                    v-if="capabilities?.organization?.teams || organization.teams.length"
+                    :title="t('admin.organizations.teams')"
+                    variant="subtle"
+                >
+                    <p v-if="!organization.teams.length" class="text-sm text-muted">
+                        {{ t('admin.organizations.noTeams') }}
+                    </p>
+                    <ul v-else class="divide-y divide-default">
                         <li
                             v-for="team in organization.teams"
                             :key="team.id"
@@ -200,8 +285,36 @@ const roles = (role: string) =>
                             <span class="text-xs text-muted">
                                 {{ t('admin.organizations.teamMembers', { count: team.members }) }}
                             </span>
+                            <UButton
+                                v-if="canAdd"
+                                icon="i-lucide-trash"
+                                color="error"
+                                variant="ghost"
+                                size="sm"
+                                :aria-label="t('admin.organizations.removeTeam', { name: team.name })"
+                                loading-auto
+                                @click="removeTeam(team)"
+                            />
                         </li>
                     </ul>
+                    <template v-if="canAdd && capabilities?.organization?.teams" #footer>
+                        <form class="flex flex-wrap items-start gap-2 w-full" @submit.prevent="createTeam">
+                            <UInput
+                                v-model="teamName"
+                                required
+                                :placeholder="t('admin.organizations.teamName')"
+                                :aria-label="t('admin.organizations.teamName')"
+                                class="flex-1 min-w-48"
+                            />
+                            <UButton
+                                type="submit"
+                                :label="t('admin.organizations.createTeam')"
+                                icon="i-lucide-plus"
+                                :loading="creatingTeam"
+                                :disabled="!teamName.trim()"
+                            />
+                        </form>
+                    </template>
                 </UPageCard>
 
                 <UPageCard v-if="organization.roles.length" :title="t('admin.organizations.roles')" variant="subtle">
@@ -248,6 +361,24 @@ const roles = (role: string) =>
                             <UBadge :label="roles(invitation.role)" color="neutral" variant="subtle" />
                         </li>
                     </ul>
+                </UPageCard>
+
+                <UPageCard
+                    v-if="canActAsOwner"
+                    :title="t('admin.organizations.asOwnerTitle')"
+                    :description="t('admin.organizations.asOwnerDescription', { name: owner!.user!.name })"
+                    variant="subtle"
+                >
+                    <div>
+                        <UButton
+                            :label="t('admin.organizations.asOwner', { name: owner!.user!.name })"
+                            icon="i-lucide-venetian-mask"
+                            color="neutral"
+                            variant="outline"
+                            loading-auto
+                            @click="actAsOwner"
+                        />
+                    </div>
                 </UPageCard>
             </div>
         </template>

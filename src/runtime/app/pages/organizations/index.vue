@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui';
 import { refDebounced } from '@vueuse/core';
-import { computed, h, ref, resolveComponent, useAdminPath, useAuthI18n, useFetch, watch } from '#imports';
+import { computed, h, ref, resolveComponent, useAdminCan, useAdminPath, useAuthI18n, useFetch, watch } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
 import type { AdminOrganization } from '../../../server/api/organizations/index.get';
 
-/** Every organization (Better Auth's Organization plugin), for staff: read-only, a page at a time. */
+/**
+ * Every organization (Better Auth's Organization plugin), for staff, a page at a time. Staff who can update users
+ * create one for a user.
+ */
 const UAvatar = resolveComponent('UAvatar');
 const ULink = resolveComponent('ULink');
 const NuxtTime = resolveComponent('NuxtTime');
 
 const adminPath = useAdminPath();
 const { t } = useAuthI18n();
+const canCreate = useAdminCan()({ user: ['update'] });
 
 const page = ref(1);
 const search = ref('');
@@ -65,6 +69,9 @@ const columns = computed<TableColumn<AdminOrganization>[]>(() => [
             <UDashboardNavbar :title="t('admin.organizations.title')" :badge="total">
                 <template #leading>
                     <UDashboardSidebarCollapse />
+                </template>
+                <template #right>
+                    <AdminOrganizationsCreateModal v-if="canCreate" />
                 </template>
             </UDashboardNavbar>
         </template>

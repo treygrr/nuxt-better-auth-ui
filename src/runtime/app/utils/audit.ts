@@ -48,6 +48,21 @@ export const AUDIT_ACTIONS: Record<string, { label: MessageKey; icon: string; co
         icon: 'i-lucide-building-2',
         color: 'info'
     },
+    'organization.create': {
+        label: 'admin.audit.actions.organizationCreate',
+        icon: 'i-lucide-building-2',
+        color: 'success'
+    },
+    'organization.team-create': {
+        label: 'admin.audit.actions.organizationTeamCreate',
+        icon: 'i-lucide-users-round',
+        color: 'info'
+    },
+    'organization.team-remove': {
+        label: 'admin.audit.actions.organizationTeamRemove',
+        icon: 'i-lucide-users-round',
+        color: 'warning'
+    },
     'user.note-add': { label: 'admin.audit.actions.userNoteAdd', icon: 'i-lucide-sticky-note', color: 'neutral' },
     'users.export': { label: 'admin.audit.actions.usersExport', icon: 'i-lucide-download', color: 'warning' },
     'user.note-delete': {
@@ -157,6 +172,11 @@ export function auditDetails(entry: AdminAuditEntry, t: Translate): string {
             return details.reason ? String(details.reason).replaceAll('_', ' ').toLowerCase() : '';
         case 'account.remove':
             return details.providerId ? providerInfo(String(details.providerId)).label : '';
+        case 'organization.create':
+            return details.name ? String(details.name) : '';
+        case 'organization.team-create':
+        case 'organization.team-remove':
+            return details.team ? String(details.team) : '';
         case 'users.export':
             return typeof details.count === 'number' ? t('admin.audit.details.users', { count: details.count }) : '';
         case 'user.passkey-remove':

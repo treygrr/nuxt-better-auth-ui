@@ -727,6 +727,13 @@ export const authEs = {
         IMPORT_EMAIL_MISSING: 'Sin correo.',
         IMPORT_PASSWORD_LENGTH: 'La contraseña es demasiado corta o larga para las reglas de esta aplicación.',
         IMPORT_DUPLICATE_ROW: 'Este correo está en una fila anterior del archivo.',
+        ORGANIZATION_ALREADY_EXISTS: 'Ya existe una organización con ese identificador.',
+        ORGANIZATION_SLUG_ALREADY_TAKEN: 'Ese identificador ya está en uso.',
+        ORGANIZATION_DETAILS_INVALID: 'Ponle un nombre y un identificador de minúsculas, números y guiones.',
+        TEAM_NAME_REQUIRED: 'Ponle nombre al equipo.',
+        UNABLE_TO_REMOVE_LAST_TEAM:
+            'Una organización conserva al menos un equipo, así que no se puede quitar el último.',
+        YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_TEAMS: 'Esta organización ya tiene todos los equipos que puede tener.',
         USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: 'Ya existe una cuenta con ese correo. Usa otro.',
         PASSWORD_TOO_SHORT: 'Esa contraseña es demasiado corta.',
         PASSWORD_TOO_LONG: 'Esa contraseña es demasiado larga.',

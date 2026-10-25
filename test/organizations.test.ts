@@ -117,4 +117,52 @@ describe('organizations', () => {
             .get(newcomer.id) as { count: number };
         expect(logged.count).toBe(1);
     });
+
+    it('are created by staff for a user, who owns it, through Better Auth', async () => {
+        const create = (cookie: string, body: unknown) =>
+            fetch(`${base}/api/_better-auth-ui/organizations`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', origin: base, cookie },
+                body: JSON.stringify(body)
+            });
+        const body = { name: 'Staff Made', slug: 'staff-made', ownerEmail: invitee.email };
+        expect((await create(owner.cookie, body)).status).toBe(403);
+        expect((await create(adminCookie, { ...body, slug: 'Not A Slug' })).status).toBe(400);
+        expect((await create(adminCookie, { ...body, ownerEmail: 'nobody@orgs.test' })).status).toBe(404);
+        const created = await create(adminCookie, body);
+        expect(created.status).toBe(200);
+        const organization = await created.json();
+        const members = await (
+            await get(`/api/auth/organization/list-members?organizationId=${organization.id}`, invitee.cookie)
+        ).json();
+        expect(members.members).toEqual([expect.objectContaining({ userId: invitee.id, role: 'owner' })]);
+        // The slug is Better Auth's to keep unique.
+        const again = await create(adminCookie, body);
+        expect(again.status).toBe(400);
+    });
+
+    it('get teams from staff, created and removed through Better Auth', async () => {
+        const teams = (cookie: string, init: RequestInit & { path?: string } = {}) =>
+            fetch(`${base}/api/_better-auth-ui/organizations/${organizationId}/teams${init.path ?? ''}`, {
+                ...init,
+                headers: { 'content-type': 'application/json', origin: base, cookie }
+            });
+        expect((await teams(owner.cookie, { method: 'POST', body: JSON.stringify({ name: 'Ops' }) })).status).toBe(403);
+        const created = await teams(adminCookie, { method: 'POST', body: JSON.stringify({ name: 'Ops' }) });
+        expect(created.status).toBe(200);
+        const team = await created.json();
+        const detail = async () =>
+            (await (await get(`/api/_better-auth-ui/organizations/${organizationId}`, adminCookie)).json()) as {
+                teams: Array<{ name: string }>;
+            };
+        expect((await detail()).teams.map((item) => item.name)).toContain('Ops');
+
+        expect((await teams(adminCookie, { method: 'DELETE', path: `/${team.id}` })).status).toBe(200);
+        expect((await detail()).teams.map((item) => item.name)).not.toContain('Ops');
+        const logged = new Database(databasePath)
+            .prepare("select action from adminAuditLog where action like 'organization.team-%' order by createdAt")
+            .all()
+            .map((row: { action: string }) => row.action);
+        expect(logged).toEqual(['organization.team-create', 'organization.team-remove']);
+    });
 });
