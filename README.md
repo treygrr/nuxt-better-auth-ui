@@ -42,6 +42,14 @@ settings pages and a notifications panel. Those pages still show the template's 
   an **Activity** card on each user's page. It's a small Better Auth plugin that adds one table, `adminAuditLog`,
   through Better Auth's migrations (run them, or `npx @better-auth/cli generate` for Prisma or Drizzle); Better
   Auth's own tables aren't changed. A failed write is logged and never blocks the action.
+- **User activity** in the same log (on by default, `auditUserEvents: false` to turn off): sign-ups and sign-ins with
+  their method (email, GitHub, a verification link, …), failed sign-ins (for real accounts only; typed-in emails
+  without one aren't stored), sign-outs, password reset requests and changes, and email verification. Sign-ins are
+  caught through Better Auth's documented `ctx.context.newSession`, so every sign-in method counts. Events that look
+  an account up by email are recorded after the response, so they can't reveal through timing whether it exists.
+  One write per event.
+- **Last sign-in** on the users list and each user's page, from those events: no extra writes, so it only knows
+  sign-ins within the log's retention (older shows as "not in the last 30 days").
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
 
 > **Status: early.** The template's other pages (inbox, customers, settings) still show sample data.
@@ -112,6 +120,8 @@ export default defineNuxtConfig({
         auditLog: true,
         // Days the audit log keeps entries; 0 keeps them forever.
         auditLogRetentionDays: 30,
+        // Also log users' sign-ins, failed sign-ins, sign-outs and password changes; gives "last sign-in".
+        auditUserEvents: true,
         // Auth emails: delivery and templates. See "Emails" below.
         emails: {},
 

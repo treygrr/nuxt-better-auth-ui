@@ -98,6 +98,14 @@ const { data, status, error, refresh } = await useFetch<{ users: AdminUser[]; to
 
 const users = computed(() => data.value?.users ?? []);
 
+// When each listed user last signed in, from the audit log, when it records sign-ins.
+const { lastSignIn: knowsLastSignIn, auditLogRetentionDays } = useBetterAuthAdminConfig();
+const { data: lastSignIns } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-sign-in`, {
+    query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
+    default: () => ({}),
+    immediate: knowsLastSignIn
+});
+
 // Each listed user's sign-in methods, for the whole page in one request.
 const { data: providers, status: providersStatus } = await useFetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, {
     query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
@@ -328,6 +336,29 @@ const columns: TableColumn<AdminUser>[] = [
             );
         }
     },
+    ...(knowsLastSignIn
+        ? [
+              {
+                  id: 'lastSignIn',
+                  header: 'Last sign-in',
+                  cell: ({ row }: { row: Row<AdminUser> }) => {
+                      const at = lastSignIns.value[row.original.id];
+                      return at
+                          ? h(NuxtTime, { datetime: at, relative: true, title: true })
+                          : h(
+                                'span',
+                                {
+                                    class: 'text-dimmed',
+                                    title: auditLogRetentionDays
+                                        ? `Not in the last ${auditLogRetentionDays} days`
+                                        : 'Never'
+                                },
+                                '—'
+                            );
+                  }
+              } satisfies TableColumn<AdminUser>
+          ]
+        : []),
     {
         accessorKey: 'createdAt',
         header: sortHeader('Joined'),
@@ -353,7 +384,12 @@ const columns: TableColumn<AdminUser>[] = [
     }
 ];
 
-const columnLabels: Record<string, string> = { banned: 'Status', emailVerified: 'Email', signIn: 'Sign-in' };
+const columnLabels: Record<string, string> = {
+    banned: 'Status',
+    emailVerified: 'Email',
+    signIn: 'Sign-in',
+    lastSignIn: 'Last sign-in'
+};
 
 // One filter per staff role, eg "Admins", "Moderators".
 const filterItems = [

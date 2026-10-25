@@ -10,6 +10,8 @@ export type BetterAuthAdminPublicConfig = {
     staffRoles: string[];
     impersonation: boolean;
     auditLog: boolean;
+    /** Whether "last sign-in" is known: the audit log records users' sign-ins. */
+    lastSignIn: boolean;
     /** Days the audit log keeps entries; 0 keeps them forever. */
     auditLogRetentionDays: number;
 };

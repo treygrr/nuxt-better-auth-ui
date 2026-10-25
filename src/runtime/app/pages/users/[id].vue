@@ -49,6 +49,14 @@ const {
     error: accountsError,
     refresh: refreshAccounts
 } = await useFetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`);
+// When they last signed in, from the audit log, when it records sign-ins.
+const { lastSignIn: knowsLastSignIn, auditLogRetentionDays } = useBetterAuthAdminConfig();
+const { data: lastSignIns } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-sign-in`, {
+    query: { userIds: userId },
+    default: () => ({}),
+    immediate: knowsLastSignIn
+});
+
 // The latest audit log entries about this user, when the log is on.
 const ACTIVITY_SIZE = 10;
 const { data: activity, refresh: refreshActivity } = await useFetch<{ entries: AdminAuditEntry[]; total: number }>(
@@ -313,6 +321,20 @@ const thisSession = computed(() => session.session.value?.id);
                         <dd><NuxtTime :datetime="user.createdAt" date-style="medium" time-style="short" /></dd>
                         <dt class="text-muted">Last updated</dt>
                         <dd><NuxtTime :datetime="user.updatedAt" date-style="medium" time-style="short" /></dd>
+                        <template v-if="knowsLastSignIn">
+                            <dt class="text-muted">Last sign-in</dt>
+                            <dd>
+                                <NuxtTime
+                                    v-if="lastSignIns[user.id]"
+                                    :datetime="lastSignIns[user.id]!"
+                                    date-style="medium"
+                                    time-style="short"
+                                />
+                                <span v-else class="text-dimmed">{{
+                                    auditLogRetentionDays ? `Not in the last ${auditLogRetentionDays} days` : 'Never'
+                                }}</span>
+                            </dd>
+                        </template>
                     </dl>
                 </UPageCard>
 
@@ -425,7 +447,7 @@ const thisSession = computed(() => session.session.value?.id);
                 <UPageCard
                     v-if="auditLog"
                     title="Activity"
-                    :description="`Admin actions on or by ${user.name}.`"
+                    :description="`Sign-ins and changes to ${user.name}'s account, and who made them.`"
                     variant="subtle"
                 >
                     <template #footer v-if="(activity?.total ?? 0) > ACTIVITY_SIZE">

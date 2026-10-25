@@ -84,6 +84,12 @@ export type ModuleOptions = {
      * @default 30
      */
     auditLogRetentionDays: number;
+    /**
+     * Also record users' own sign-ins (any method), failed sign-ins, sign-outs, password resets and changes, and
+     * email verification in the audit log. One write per event.
+     * @default true
+     */
+    auditUserEvents: boolean;
 };
 
 /** The layout the admin pages use: a Nuxt UI dashboard, separate from the app's own layouts. */
@@ -102,7 +108,8 @@ export default defineNuxtModule<ModuleOptions>({
         impersonation: false,
         emails: {},
         auditLog: true,
-        auditLogRetentionDays: 30
+        auditLogRetentionDays: 30,
+        auditUserEvents: true
     },
     // Installed before this module, in order, and checked against these versions.
     moduleDependencies: {
@@ -149,6 +156,7 @@ export default defineNuxtModule<ModuleOptions>({
             staffRoles: roles.staff,
             impersonation: options.impersonation,
             auditLog: options.auditLog,
+            lastSignIn: options.auditLog && options.auditUserEvents,
             auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays))
         } satisfies BetterAuthAdminPublicConfig;
 
@@ -203,7 +211,7 @@ export default defineNuxtModule<ModuleOptions>({
             getContents: () =>
                 [
                     `import { adminAuditLog } from ${JSON.stringify(resolve('./runtime/server/audit/plugin'))}`,
-                    `export default adminAuditLog(${JSON.stringify({ retentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)) })})`
+                    `export default adminAuditLog(${JSON.stringify({ retentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)), userEvents: options.auditUserEvents })})`
                 ].join('\n')
         });
         const clientPlugin = addTemplate({
@@ -276,6 +284,13 @@ export default defineNuxtModule<ModuleOptions>({
         addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
 
         // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoints for.
+        if (options.auditLog && options.auditUserEvents) {
+            addServerHandler({
+                route: `${ADMIN_API}/last-sign-in`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/last-sign-in.get')
+            });
+        }
         if (options.auditLog) {
             addServerHandler({
                 route: `${ADMIN_API}/audit`,

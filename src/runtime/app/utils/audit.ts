@@ -17,7 +17,15 @@ export const AUDIT_ACTIONS: Record<string, { label: string; icon: string; color:
     'session.revoke-all': { label: 'Signed out everywhere', icon: 'i-lucide-log-out', color: 'warning' },
     'user.impersonate': { label: 'Signed in as user', icon: 'i-lucide-venetian-mask', color: 'warning' },
     'user.stop-impersonating': { label: 'Stopped impersonating', icon: 'i-lucide-venetian-mask', color: 'neutral' },
-    'account.remove': { label: 'Removed sign-in method', icon: 'i-lucide-unlink', color: 'warning' }
+    'account.remove': { label: 'Removed sign-in method', icon: 'i-lucide-unlink', color: 'warning' },
+    // Users' own activity
+    'auth.sign-up': { label: 'Signed up', icon: 'i-lucide-user-plus', color: 'success' },
+    'auth.sign-in': { label: 'Signed in', icon: 'i-lucide-log-in', color: 'neutral' },
+    'auth.sign-in-failed': { label: 'Failed sign-in', icon: 'i-lucide-shield-alert', color: 'warning' },
+    'auth.sign-out': { label: 'Signed out', icon: 'i-lucide-log-out', color: 'neutral' },
+    'auth.email-verified': { label: 'Verified email', icon: 'i-lucide-mail-check', color: 'success' },
+    'auth.password-reset-requested': { label: 'Asked to reset password', icon: 'i-lucide-key-round', color: 'neutral' },
+    'auth.password-changed': { label: 'Changed password', icon: 'i-lucide-key-round', color: 'info' }
 };
 
 export const auditAction = (action: string) =>
@@ -49,6 +57,11 @@ export function auditDetails(entry: AdminAuditEntry): string {
                     ? `for ${duration(details.expiresIn)}`
                     : 'permanently'
             ].join(' · ');
+        case 'auth.sign-in':
+        case 'auth.sign-up':
+            return details.method ? `With ${details.method}` : '';
+        case 'auth.sign-in-failed':
+            return details.reason ? String(details.reason).replaceAll('_', ' ').toLowerCase() : '';
         case 'account.remove':
             return details.providerId ? providerInfo(String(details.providerId)).label : '';
         default:

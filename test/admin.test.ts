@@ -820,3 +820,93 @@ describe('emails without a template', () => {
         expect(email.text).toMatch(/Hi bob,\n\nSomeone asked to reset your password/);
     });
 });
+
+describe("users' own activity", () => {
+    type Entry = {
+        action: string;
+        actorEmail: string;
+        targetEmail: string | null;
+        details: Record<string, unknown> | null;
+    };
+    const events = async (email: string) => {
+        const { entries } = await (await get('/api/_better-auth-admin/audit?limit=100', adminCookie)).json();
+        return (entries as Entry[]).filter((entry) => entry.targetEmail === email && entry.action.startsWith('auth.'));
+    };
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+    const signInAs = (email: string, password: string) =>
+        fetch(`${base}/api/auth/sign-in/email`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base },
+            body: JSON.stringify({ email, password })
+        });
+
+    it('records sign-ups, sign-ins with their method, and sign-outs', async () => {
+        const cookie = await signIn('gina', 'sign-up');
+        const signedOut = await fetch(`${base}/api/auth/sign-out`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie },
+            body: '{}'
+        });
+        expect(signedOut.status).toBe(200);
+        await signIn('gina', 'sign-in');
+        const actions = (await events('gina@example.com')).map((entry) => [
+            entry.action,
+            entry.details?.method ?? null
+        ]);
+        expect(actions).toEqual([
+            ['auth.sign-in', 'email'],
+            ['auth.sign-out', null],
+            ['auth.sign-up', 'email']
+        ]);
+        const [latest] = await events('gina@example.com');
+        expect(latest!.actorEmail).toBe('gina@example.com');
+    });
+
+    it('records failed sign-ins for real accounts only', async () => {
+        expect((await signInAs('gina@example.com', 'wrong-password')).status).toBe(401);
+        expect((await signInAs('nobody@nowhere.test', 'wrong-password')).status).toBe(401);
+        await settle();
+        const [failed] = await events('gina@example.com');
+        expect(failed).toMatchObject({
+            action: 'auth.sign-in-failed',
+            details: { reason: 'INVALID_EMAIL_OR_PASSWORD' }
+        });
+        expect(await events('nobody@nowhere.test')).toEqual([]);
+    });
+
+    it('records password reset requests', async () => {
+        await fetch(`${base}/api/auth/request-password-reset`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base },
+            body: JSON.stringify({ email: 'gina@example.com', redirectTo: '/reset' })
+        });
+        await settle();
+        expect((await events('gina@example.com'))[0]!.action).toBe('auth.password-reset-requested');
+    });
+
+    it('records password changes', async () => {
+        const cookie = await signIn('gina', 'sign-in');
+        const response = await fetch(`${base}/api/auth/change-password`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie },
+            body: JSON.stringify({ currentPassword: 'password123', newPassword: 'password123' })
+        });
+        expect(response.status).toBe(200);
+        expect((await events('gina@example.com'))[0]!.action).toBe('auth.password-changed');
+    });
+});
+
+describe('last sign-in', () => {
+    it('comes from the latest sign-in event, and is null for users who have none', async () => {
+        const idOf = async (name: string) =>
+            (await (await get(`/api/auth/admin/list-users?searchValue=${name}@&searchField=email`, adminCookie)).json())
+                .users[0].id;
+        const [gina, carol] = [await idOf('gina'), 'no-such-user'];
+        const latest = await (
+            await get(`/api/_better-auth-admin/last-sign-in?userIds=${gina},${carol}`, adminCookie)
+        ).json();
+        expect(Date.now() - new Date(latest[gina]).getTime()).toBeLessThan(60_000);
+        expect(latest[carol]).toBeNull();
+        expect((await get(`/api/_better-auth-admin/last-sign-in?userIds=${gina}`, userCookie)).status).toBe(403);
+    });
+});

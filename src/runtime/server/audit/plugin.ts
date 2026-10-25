@@ -109,16 +109,38 @@ const ACTIONS: Record<string, { action: string; details?: (body: Body) => Record
     '/admin/stop-impersonating': { action: 'user.stop-impersonating' }
 };
 
+/** How someone signed in, from the endpoint that created their session. */
+function signInMethod(path: string, body: Body) {
+    if (path.startsWith('/callback/')) return path.slice('/callback/'.length);
+    if (path === '/sign-in/social' && typeof body.provider === 'string') return body.provider;
+    if (path === '/verify-email') return 'verification link';
+    const [, kind, method] = path.split('/');
+    return kind === 'sign-in' || kind === 'sign-up' ? method : path;
+}
+
+type Background = { runInBackground?: (task: Promise<unknown>) => void };
+/** Runs a task after the response, where Better Auth supports it, so lookups can't reveal anything by timing. */
+const inBackground = (context: Background, task: () => Promise<unknown>) =>
+    context.runInBackground ? context.runInBackground(task()) : void task();
+
 /** What the before hook learns, while the session and the user still exist. */
 type Pending = { actor: AuditPerson; target: AuditPerson | null };
 
 /**
  * Records the Admin plugin's successful actions in the `adminAuditLog` table: who, what, to whom, when and
- * from where, for `retentionDays` (0 keeps them forever). Reads the actor and target before the action (a
+ * from where, for `retentionDays` (0 keeps them forever). With `userEvents`, users' own sign-ins and account
+ * changes too. Reads the actor and target before the action (a
  * deleted user, an ended impersonation), writes after it, only when it succeeded.
  */
-export const adminAuditLog = ({ retentionDays = DEFAULT_RETENTION_DAYS }: { retentionDays?: number } = {}) =>
-    ({
+export const adminAuditLog = ({
+    retentionDays = DEFAULT_RETENTION_DAYS,
+    userEvents = true
+}: {
+    retentionDays?: number;
+    /** Also record sign-ins, failed sign-ins, sign-outs, password resets and changes, and email verification. */
+    userEvents?: boolean;
+} = {}) => {
+    return {
         id: 'better-auth-admin-audit-log',
         schema: {
             [AUDIT_MODEL]: {
@@ -162,6 +184,16 @@ export const adminAuditLog = ({ retentionDays = DEFAULT_RETENTION_DAYS }: { rete
                         if (!actor) return;
                         return { context: { betterAuthAdminAudit: { actor, target } satisfies Pending } };
                     })
+                },
+                // Sign-outs, recorded before the session is gone.
+                {
+                    matcher: (ctx) => userEvents && ctx.path === '/sign-out',
+                    handler: createAuthMiddleware(async (ctx) => {
+                        const session = await getSessionFromCtx(ctx);
+                        if (!session) return;
+                        const user = person(session.user as AuditPerson)!;
+                        await writeUserEvent(ctx, 'auth.sign-out', user);
+                    })
                 }
             ],
             after: [
@@ -189,7 +221,81 @@ export const adminAuditLog = ({ retentionDays = DEFAULT_RETENTION_DAYS }: { rete
                             retentionDays
                         );
                     })
+                },
+                {
+                    matcher: (ctx) => userEvents && !!ctx.path && !(ctx.path in ACTIONS),
+                    handler: createAuthMiddleware(async (ctx) => {
+                        const path = ctx.path!;
+                        const body = (ctx.body ?? {}) as Body;
+                        const failed = isAPIError(ctx.context.returned);
+                        const internal = ctx.context.internalAdapter as unknown as InternalAdapter & {
+                            findUserByEmail(email: string): Promise<{ user: AuditPerson } | null>;
+                        };
+
+                        // Any endpoint that created a session signed someone in: email, social, verification…
+                        const newSession = ctx.context.newSession as { user: AuditPerson } | null | undefined;
+                        if (newSession && !failed) {
+                            const user = person(newSession.user)!;
+                            if (path === '/verify-email') await writeUserEvent(ctx, 'auth.email-verified', user);
+                            await writeUserEvent(
+                                ctx,
+                                path.startsWith('/sign-up') ? 'auth.sign-up' : 'auth.sign-in',
+                                user,
+                                {
+                                    method: signInMethod(path, body)
+                                }
+                            );
+                            return;
+                        }
+                        if (path === '/change-password' && !failed) {
+                            const session = await getSessionFromCtx(ctx);
+                            if (session)
+                                await writeUserEvent(
+                                    ctx,
+                                    'auth.password-changed',
+                                    person(session.user as AuditPerson)!
+                                );
+                            return;
+                        }
+                        // These look the account up by email: in the background, so the response time is the same
+                        // whether it exists. Emails without an account aren't recorded.
+                        const byEmail = (action: string, details?: Record<string, unknown>) =>
+                            inBackground(ctx.context as unknown as Background, async () => {
+                                if (typeof body.email !== 'string') return;
+                                const found = await internal.findUserByEmail(body.email.toLowerCase());
+                                if (found) await writeUserEvent(ctx, action, person(found.user)!, details);
+                            });
+                        if (path === '/sign-in/email' && failed) {
+                            const error = ctx.context.returned as { message?: string; body?: { code?: string } };
+                            byEmail('auth.sign-in-failed', { reason: error.body?.code ?? error.message ?? null });
+                        } else if (path === '/request-password-reset' && !failed) {
+                            byEmail('auth.password-reset-requested');
+                        }
+                    })
                 }
             ]
         }
-    }) satisfies BetterAuthPlugin;
+    } satisfies BetterAuthPlugin;
+
+    /** A user's own action: they're both who did it and who it's about. */
+    async function writeUserEvent(
+        ctx: { context: unknown; headers?: Headers },
+        action: string,
+        user: AuditPerson,
+        details?: Record<string, unknown>
+    ) {
+        const context = ctx.context as { adapter: Adapter; logger: Logger; options: Parameters<typeof getIP>[1] };
+        await writeAuditEntry(
+            context,
+            {
+                action,
+                actor: user,
+                target: user,
+                details: details ?? null,
+                ipAddress: ctx.headers ? getIP(ctx.headers, context.options) : null,
+                userAgent: ctx.headers?.get('user-agent') ?? null
+            },
+            retentionDays
+        );
+    }
+};

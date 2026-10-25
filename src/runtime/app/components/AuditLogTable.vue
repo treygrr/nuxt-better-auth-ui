@@ -44,7 +44,7 @@ const columns: TableColumn<AdminAuditEntry>[] = [
     },
     {
         id: 'actor',
-        header: 'Admin',
+        header: 'By',
         cell: ({ row }) => person(row.original.actorId, row.original.actorName, row.original.actorEmail)
     },
     {

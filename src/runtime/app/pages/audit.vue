@@ -52,7 +52,9 @@ const total = computed(() => data.value?.total ?? 0);
                     <ULink :to="adminPath(`/users/${userId}`)" class="text-highlighted">one user</ULink>.
                     <ULink :to="adminPath('/audit')" class="text-primary">Show everyone</ULink>
                 </p>
-                <p v-else class="text-sm text-muted">Every change an admin made to a user, newest first. {{ kept }}</p>
+                <p v-else class="text-sm text-muted">
+                    Admin actions, and users signing in and changing their accounts, newest first. {{ kept }}
+                </p>
                 <USelect
                     v-model="action"
                     :items="actions"
