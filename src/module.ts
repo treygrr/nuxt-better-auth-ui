@@ -156,6 +156,47 @@ export type PasskeyOptions = {
     origin?: string;
 };
 
+/** Usernames, through Better Auth's Username plugin (https://better-auth.com/docs/plugins/username). */
+export type UsernameOptions = {
+    /**
+     * Adds the plugin: a username at sign-up, signing in with it or the email, and changing it on the account page.
+     * It adds `username` and `displayUsername` columns to the user table: run Better Auth's migrations.
+     * @default false
+     */
+    enabled: boolean;
+    /** Better Auth's defaults: 3 and 30. */
+    minLength?: number;
+    maxLength?: number;
+    /** Usernames can be set once, then not changed. @default false */
+    immutable?: boolean;
+};
+
+/** Magic links, through Better Auth's Magic Link plugin (https://better-auth.com/docs/plugins/magic-link). */
+export type MagicLinkOptions = {
+    /**
+     * Adds the plugin: "Email me a sign-in link" on the sign-in page, sent through `emails.send` with the
+     * `magic-link` template. Needs no migration.
+     * @default false
+     */
+    enabled: boolean;
+    /** Seconds a link lasts. Better Auth's default: 300 (5 minutes). */
+    expiresIn?: number;
+    /** Links only sign existing users in; they don't create accounts. Better Auth's default: false. */
+    disableSignUp?: boolean;
+};
+
+/** Bot protection, through Better Auth's Captcha plugin (https://better-auth.com/docs/plugins/captcha). */
+export type CaptchaOptions = {
+    provider: 'cloudflare-turnstile' | 'hcaptcha' | 'google-recaptcha';
+    /** The provider's site key (public). The secret key is read from `BETTER_AUTH_CAPTCHA_SECRET_KEY` at runtime. */
+    siteKey: string;
+    /**
+     * The Better Auth paths it guards. Default: signing up, and asking for a magic link (which can create an
+     * account too). Better Auth's own default also guards signing in and password resets.
+     */
+    endpoints?: string[];
+};
+
 export type ModuleOptions = {
     /** The admin dashboard for managing users (`/admin`). */
     admin: AdminOptions;
@@ -169,10 +210,34 @@ export type ModuleOptions = {
      * @default '/'
      */
     signOutRedirect: string;
+    /**
+     * The language of the pages and default emails: `en` or `es`. When the app uses @nuxtjs/i18n, the pages follow its
+     * current language instead (when supported). Nuxt UI's own labels follow `<UApp :locale>`.
+     * @default 'en'
+     */
+    locale: 'en' | 'es';
     /** Two-factor authentication, off by default. */
     twoFactor: TwoFactorOptions;
     /** Passkeys, off by default. */
     passkey: PasskeyOptions;
+    /** Usernames, off by default. */
+    username: UsernameOptions;
+    /** Magic links, off by default. */
+    magicLink: MagicLinkOptions;
+    /** Captcha on signing up, off by default (false). */
+    captcha: CaptchaOptions | false;
+    /**
+     * Refuse passwords found in data breaches, through Better Auth's Have I Been Pwned plugin, at sign-up, password
+     * changes and resets. Only the first 5 characters of the password's SHA-1 hash leave the server.
+     * @default false
+     */
+    haveIBeenPwned: boolean;
+    /**
+     * "Last used" on the sign-in page's method people used last time, through Better Auth's Last Login Method plugin.
+     * It sets a cookie (non-essential, under GDPR); no migration.
+     * @default false
+     */
+    lastLoginMethod: boolean;
     /**
      * Auth emails, sent through `betterAuthEmails` in the app's auth config. Paths are relative to the project
      * root, eg `./server/emails/send.ts`; Nuxt aliases work too (`~~/server/…`).
@@ -187,6 +252,10 @@ export type ModuleOptions = {
         templates?: Partial<Record<BetterAuthEmailName, string>>;
     };
 };
+
+/** The Better Auth paths the captcha guards: signing up and asking for a magic link (which can sign up), by default. */
+const captchaEndpoints = ({ captcha, magicLink }: ModuleOptions) =>
+    (captcha && captcha.endpoints) || ['/sign-up/email', ...(magicLink.enabled ? ['/sign-in/magic-link'] : [])];
 
 /** The layout the admin pages use: a Nuxt UI dashboard, separate from the app's own layouts. */
 const LAYOUT = 'better-auth-ui';
@@ -218,8 +287,14 @@ export default defineNuxtModule<ModuleOptions>({
             twoFactor: '/two-factor'
         },
         signOutRedirect: '/',
+        locale: 'en',
         twoFactor: { enabled: false, otp: false, required: false },
         passkey: { enabled: false },
+        username: { enabled: false },
+        magicLink: { enabled: false },
+        captcha: false,
+        haveIBeenPwned: false,
+        lastLoginMethod: false,
         emails: {}
     },
     // Installed before this module, in order, and checked against these versions.
@@ -266,7 +341,7 @@ export default defineNuxtModule<ModuleOptions>({
                 [
                     emailFiles.send ? `import send from ${JSON.stringify(emailFiles.send)}` : 'const send = undefined',
                     ...emailFiles.templates.map(([, file], i) => `import template${i} from ${JSON.stringify(file)}`),
-                    `export const emailConfig = { send, templates: { ${emailFiles.templates
+                    `export const emailConfig = { send, locale: ${JSON.stringify(moduleOptions.locale)}, templates: { ${emailFiles.templates
                         .map(([name], i) => `${JSON.stringify(name)}: template${i}`)
                         .join(', ')} } }`
                 ].join('\n');
@@ -332,7 +407,8 @@ export default defineNuxtModule<ModuleOptions>({
         addImports([
             { name: 'useAuthCapabilities', from: resolve('./runtime/app/composables/useAuthCapabilities') },
             { name: 'useAuthPages', from: resolve('./runtime/app/composables/useAuthPages') },
-            { name: 'useRedirectTarget', from: resolve('./runtime/app/composables/useAuthPages') }
+            { name: 'useRedirectTarget', from: resolve('./runtime/app/composables/useAuthPages') },
+            { name: 'useAuthI18n', from: resolve('./runtime/app/i18n/index') }
         ]);
 
         if (!safeLocalPath(moduleOptions.signOutRedirect)) {
@@ -343,7 +419,16 @@ export default defineNuxtModule<ModuleOptions>({
         (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = {
             pages: pagePaths,
             signOutRedirect: moduleOptions.signOutRedirect,
-            twoFactorRequired: twoFactor.required
+            twoFactorRequired: twoFactor.required,
+            locale: moduleOptions.locale,
+            // The widget's public half; the secret key stays on the server (BETTER_AUTH_CAPTCHA_SECRET_KEY).
+            captcha: moduleOptions.captcha
+                ? {
+                      provider: moduleOptions.captcha.provider,
+                      siteKey: moduleOptions.captcha.siteKey,
+                      endpoints: captchaEndpoints(moduleOptions)
+                  }
+                : false
         };
 
         // Better Auth's Two-Factor plugin, with codes by email through the module's emails when `otp` is on.
@@ -452,6 +537,88 @@ export default defineNuxtModule<ModuleOptions>({
                 (sources.server ??= []).push(passkeyServer.dst);
                 (sources.client ??= []).push(passkeyClient.dst);
             });
+        }
+
+        // More of Better Auth's own plugins, each added to the app's auth config (and client, where it has one).
+        const addAuthPlugin = (name: string, server: string[], client?: string[]) => {
+            const serverFile = addTemplate({
+                filename: `better-auth-ui/${name}-server.mjs`,
+                write: true,
+                getContents: () => server.join('\n')
+            });
+            const clientFile =
+                client &&
+                addTemplate({
+                    filename: `better-auth-ui/${name}-client.mjs`,
+                    write: true,
+                    getContents: () => client.join('\n')
+                });
+            nuxt.hook('better-auth:plugins:extend', (sources) => {
+                (sources.server ??= []).push(serverFile.dst);
+                if (clientFile) (sources.client ??= []).push(clientFile.dst);
+            });
+        };
+        const emailsHelper = JSON.stringify(resolve('./runtime/server/emails/index'));
+
+        const { username, magicLink, captcha } = moduleOptions;
+        if (username.enabled) {
+            const usernameOptions = {
+                ...(username.minLength !== undefined && { minUsernameLength: username.minLength }),
+                ...(username.maxLength !== undefined && { maxUsernameLength: username.maxLength }),
+                ...(username.immutable && { immutableUsername: true })
+            };
+            addAuthPlugin(
+                'username',
+                [
+                    "import { username } from 'better-auth/plugins'",
+                    `export default username(${JSON.stringify(usernameOptions)})`
+                ],
+                ["import { usernameClient } from 'better-auth/client/plugins'", 'export default usernameClient()']
+            );
+        }
+        if (magicLink.enabled) {
+            if (!emails.send) throw new Error('[better-auth-ui] magicLink sends links by email: set emails.send too.');
+            const magicLinkOptions = {
+                ...(magicLink.expiresIn !== undefined && { expiresIn: magicLink.expiresIn }),
+                ...(magicLink.disableSignUp !== undefined && { disableSignUp: magicLink.disableSignUp })
+            };
+            addAuthPlugin(
+                'magic-link',
+                [
+                    "import { magicLink } from 'better-auth/plugins'",
+                    `import { betterAuthEmails } from ${emailsHelper}`,
+                    `export default magicLink({ ...${JSON.stringify(magicLinkOptions)}, sendMagicLink: betterAuthEmails.magicLink })`
+                ],
+                ["import { magicLinkClient } from 'better-auth/client/plugins'", 'export default magicLinkClient()']
+            );
+        }
+        if (captcha) {
+            const endpoints = captchaEndpoints(moduleOptions);
+            addAuthPlugin('captcha', [
+                "import { captcha } from 'better-auth/plugins'",
+                // The secret key comes from the environment at runtime, never from nuxt.config.
+                `export default captcha({ provider: ${JSON.stringify(captcha.provider)}, secretKey: process.env.BETTER_AUTH_CAPTCHA_SECRET_KEY ?? '', endpoints: ${JSON.stringify(endpoints)}${captcha.provider === 'hcaptcha' ? `, siteKey: ${JSON.stringify(captcha.siteKey)}` : ''} })`
+            ]);
+        }
+        if (moduleOptions.haveIBeenPwned) {
+            addAuthPlugin('have-i-been-pwned', [
+                "import { haveIBeenPwned } from 'better-auth/plugins'",
+                'export default haveIBeenPwned()'
+            ]);
+        }
+        if (moduleOptions.lastLoginMethod) {
+            addAuthPlugin(
+                'last-login-method',
+                [
+                    "import { lastLoginMethod } from 'better-auth/plugins'",
+                    // Username sign-ins use the password form too, which Better Auth calls "email".
+                    "export default lastLoginMethod({ customResolveMethod: (ctx) => (ctx.path === '/sign-in/username' ? 'email' : null) })"
+                ],
+                [
+                    "import { lastLoginMethodClient } from 'better-auth/client/plugins'",
+                    'export default lastLoginMethodClient()'
+                ]
+            );
         }
         if (!options.enabled) return;
 
@@ -645,6 +812,22 @@ export default defineNuxtModule<ModuleOptions>({
             route: `${ADMIN_API}/users/:id/accounts/:accountId`,
             method: 'delete',
             handler: resolve('./runtime/server/api/users/accounts.delete')
+        });
+        // Helping someone who lost a device: turning their two-factor off, listing and removing their passkeys.
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/two-factor/reset`,
+            method: 'post',
+            handler: resolve('./runtime/server/api/users/two-factor-reset.post')
+        });
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/passkeys`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/users/passkeys.get')
+        });
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/passkeys/:passkeyId`,
+            method: 'delete',
+            handler: resolve('./runtime/server/api/users/passkeys.delete')
         });
 
         addLayout({ src: resolve('./runtime/app/layouts/admin.vue') }, LAYOUT);

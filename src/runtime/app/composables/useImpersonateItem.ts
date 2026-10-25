@@ -1,6 +1,6 @@
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { navigateTo, useAdminCan, useAdminUsers, useBetterAuthAdminConfig, useToast } from '#imports';
+import { navigateTo, useAdminCan, useAdminUsers, useAuthI18n, useBetterAuthAdminConfig, useToast } from '#imports';
 
 import type { AdminUser } from '../types';
 
@@ -15,6 +15,7 @@ export const useImpersonateItem = () => {
     const session = useUserSession();
     const admin = useAdminUsers();
     const toast = useToast();
+    const { t } = useAuthI18n();
 
     return (user: AdminUser): DropdownMenuItem | null => {
         if (!impersonation || !can({ user: ['impersonate'] })) return null;
@@ -22,14 +23,16 @@ export const useImpersonateItem = () => {
         const isAdmin = (user.role ?? 'user').split(',').includes('admin');
         const reason =
             user.id === session.user.value?.id
-                ? 'you'
+                ? t('admin.impersonation.reasons.you')
                 : isAdmin && !can({ user: ['impersonate-admins'] })
-                  ? 'an admin'
+                  ? t('admin.impersonation.reasons.admin')
                   : user.banned
-                    ? 'banned'
+                    ? t('admin.impersonation.reasons.banned')
                     : null;
         return {
-            label: reason ? `Sign in as ${user.name} (${reason})` : `Sign in as ${user.name}`,
+            label: reason
+                ? t('admin.impersonation.signInAsUnavailable', { name: user.name, reason })
+                : t('admin.impersonation.signInAs', { name: user.name }),
             icon: 'i-lucide-venetian-mask',
             disabled: !!reason,
             onSelect: async () => {
@@ -39,7 +42,7 @@ export const useImpersonateItem = () => {
                     await navigateTo('/', { external: true });
                 } catch (error) {
                     toast.add({
-                        title: "Couldn't sign in as them",
+                        title: t('admin.impersonation.failed'),
                         description: (error as Error).message,
                         color: 'error'
                     });

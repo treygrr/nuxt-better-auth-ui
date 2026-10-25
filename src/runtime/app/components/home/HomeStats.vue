@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, useAdminPath } from '#imports';
+import { computed, useAdminPath, useAuthI18n } from '#imports';
 
 import type { AdminStats, Stat } from '../../types';
 
 const props = defineProps<{ stats: AdminStats | null | undefined }>();
 
 const adminPath = useAdminPath();
+const { t } = useAuthI18n();
 const number = new Intl.NumberFormat('en').format;
 
 /** Percent change, or undefined when there's nothing to compare with. */
@@ -16,7 +17,7 @@ const cards = computed<Stat[]>(() => {
     if (!stats) return [];
     return [
         {
-            title: 'Users',
+            title: t('admin.home.stats.users'),
             icon: 'i-lucide-users',
             value: number(stats.users),
             // Growth over the range: new users against everyone who was already here.
@@ -24,7 +25,7 @@ const cards = computed<Stat[]>(() => {
             to: adminPath('/users')
         },
         {
-            title: 'Sign-ups',
+            title: t('admin.home.stats.signUps'),
             icon: 'i-lucide-user-plus',
             value: number(stats.newUsers),
             variation: change(stats.newUsers, stats.previousNewUsers),
@@ -34,19 +35,19 @@ const cards = computed<Stat[]>(() => {
             ? []
             : [
                   {
-                      title: 'Online now',
+                      title: t('admin.home.stats.onlineNow'),
                       icon: 'i-lucide-radio',
                       value: number(stats.online),
                       to: adminPath('/sessions')
                   }
               ]),
         {
-            title: 'Active sessions',
+            title: t('admin.home.stats.activeSessions'),
             icon: 'i-lucide-monitor-smartphone',
             value: stats.sessions === null ? '—' : number(stats.sessions)
         },
         {
-            title: 'Banned',
+            title: t('admin.home.stats.banned'),
             icon: 'i-lucide-ban',
             value: number(stats.banned),
             to: adminPath('/users?filter=banned')

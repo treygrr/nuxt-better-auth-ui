@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, navigateTo, ref, useAuthPages, useRedirectTarget, useRoute, useSeoMeta } from '#imports';
+import {
+    computed,
+    navigateTo,
+    ref,
+    useAuthI18n,
+    useAuthPages,
+    useRedirectTarget,
+    useRoute,
+    useSeoMeta
+} from '#imports';
 
 import { useTwoFactorAction } from '../../utils/two-factor';
 
@@ -8,7 +17,8 @@ import { useTwoFactorAction } from '../../utils/two-factor';
  * The second step of signing in with a password, for users with two-factor on: a code from their authenticator
  * app, by email, or a backup code. Better Auth keeps the half-finished sign-in in a cookie for a few minutes.
  */
-useSeoMeta({ title: 'Two-factor authentication' });
+const { t, errorMessage } = useAuthI18n();
+useSeoMeta({ title: () => t('twoFactorPage.title') });
 
 const pages = useAuthPages();
 const redirectTo = useRedirectTarget();
@@ -61,23 +71,23 @@ async function verify() {
     await navigateTo(redirectTo);
 }
 
-const titles: Record<Mode, { title: string; description: string; icon: string }> = {
+const titles = computed<Record<Mode, { title: string; description: string; icon: string }>>(() => ({
     totp: {
-        title: 'Enter your code',
-        description: 'Open your authenticator app and enter the 6-digit code for this account.',
+        title: t('twoFactorPage.totp.title'),
+        description: t('twoFactorPage.totp.description'),
         icon: 'i-lucide-smartphone'
     },
     otp: {
-        title: 'Check your email',
-        description: 'We can email you a 6-digit code to finish signing in.',
+        title: t('twoFactorPage.otp.title'),
+        description: t('twoFactorPage.otp.description'),
         icon: 'i-lucide-mail'
     },
     backup: {
-        title: 'Use a backup code',
-        description: 'Enter one of the backup codes you saved when you set up two-factor. Each works once.',
+        title: t('twoFactorPage.backup.title'),
+        description: t('twoFactorPage.backup.description'),
         icon: 'i-lucide-life-buoy'
     }
-};
+}));
 </script>
 
 <template>
@@ -92,7 +102,7 @@ const titles: Record<Mode, { title: string; description: string; icon: string }>
 
                 <div v-if="mode === 'otp' && !otpSent" class="flex justify-center">
                     <UButton
-                        label="Email me a code"
+                        :label="t('twoFactorPage.otp.send')"
                         icon="i-lucide-send"
                         :loading="sendOtp.status.value === 'pending'"
                         @click="send"
@@ -103,7 +113,7 @@ const titles: Record<Mode, { title: string; description: string; icon: string }>
                         v-model="backupCode"
                         placeholder="xxxxx-xxxxx"
                         autocomplete="one-time-code"
-                        aria-label="Backup code"
+                        :aria-label="t('twoFactorPage.backup.label')"
                         autofocus
                         class="w-full"
                     />
@@ -116,29 +126,29 @@ const titles: Record<Mode, { title: string; description: string; icon: string }>
                         otp
                         autofocus
                         size="xl"
-                        aria-label="Code"
+                        :aria-label="t('twoFactorPage.codeLabel')"
                         @complete="verify"
                     />
                 </div>
 
                 <UCheckbox
                     v-model="trustDevice"
-                    label="Trust this device"
-                    description="Don't ask for a code here again for a while."
+                    :label="t('twoFactorPage.trust.label')"
+                    :description="t('twoFactorPage.trust.description')"
                 />
 
                 <UAlert
                     v-if="error"
                     color="error"
                     icon="i-lucide-circle-alert"
-                    :title="expired ? 'This sign-in has expired' : 'That didn\'t work'"
-                    :description="expired ? 'Sign in again to get a new code.' : error.message"
+                    :title="expired ? t('twoFactorPage.expired.title') : t('twoFactorPage.failed')"
+                    :description="expired ? t('twoFactorPage.expired.description') : errorMessage(error)"
                 />
 
                 <UButton
                     v-if="!(mode === 'otp' && !otpSent)"
                     type="submit"
-                    label="Verify"
+                    :label="t('common.verify')"
                     block
                     :loading="action.status.value === 'pending'"
                 />
@@ -146,21 +156,21 @@ const titles: Record<Mode, { title: string; description: string; icon: string }>
                 <div class="flex flex-col items-center gap-1 text-sm">
                     <UButton
                         v-if="mode !== 'totp' && methods.includes('totp')"
-                        label="Use your authenticator app"
+                        :label="t('twoFactorPage.useApp')"
                         variant="link"
                         color="neutral"
                         @click="choose('totp')"
                     />
                     <UButton
                         v-if="mode !== 'otp' && methods.includes('otp')"
-                        label="Email me a code instead"
+                        :label="t('twoFactorPage.useEmail')"
                         variant="link"
                         color="neutral"
                         @click="choose('otp')"
                     />
                     <UButton
                         v-if="mode !== 'backup' && methods.includes('totp')"
-                        label="Use a backup code"
+                        :label="t('twoFactorPage.useBackup')"
                         variant="link"
                         color="neutral"
                         @click="choose('backup')"
@@ -169,7 +179,7 @@ const titles: Record<Mode, { title: string; description: string; icon: string }>
                         v-if="pages.signIn"
                         :to="{ path: pages.signIn, query: { ...$route.query, methods: undefined } }"
                         class="text-muted"
-                        >Back to sign in</ULink
+                        >{{ t('common.backToSignIn') }}</ULink
                     >
                 </div>
             </form>

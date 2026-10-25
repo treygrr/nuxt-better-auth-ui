@@ -35,15 +35,18 @@ export const defineBetterAuthEmailSender = (send: EmailSender): EmailSender => s
 type EmailConfig = {
     send?: EmailSender;
     templates: { [Name in BetterAuthEmailName]?: BetterAuthEmailTemplate<Name> };
+    /** betterAuthUi.locale: the language of the plain-text defaults. */
+    locale?: keyof typeof defaultEmails;
 };
 
-/** Renders an email: the app's template if it has one, otherwise the plain-text default. */
+/** Renders an email: the app's template if it has one, otherwise the plain-text default in the given language. */
 export async function renderEmail<Name extends BetterAuthEmailName>(
     name: Name,
     data: BetterAuthEmails[Name],
-    template?: BetterAuthEmailTemplate<Name>
+    template?: BetterAuthEmailTemplate<Name>,
+    locale: keyof typeof defaultEmails = 'en'
 ): Promise<Omit<EmailMessage, 'to' | 'email'>> {
-    const fallback = defaultEmails[name](data);
+    const fallback = (defaultEmails[locale] ?? defaultEmails.en)[name](data);
     if (!template) return fallback;
     if (template.name !== name) {
         throw new Error(`[better-auth-ui] The template for "${name}" is declared as "${template.name}"`);
@@ -53,10 +56,10 @@ export async function renderEmail<Name extends BetterAuthEmailName>(
     return { subject: rendered.subject ?? fallback.subject, text: rendered.text ?? fallback.text, html: rendered.html };
 }
 
-async function deliver<Name extends BetterAuthEmailName>(
-    name: Name,
-    data: BetterAuthEmails[Name] & { user: { email: string } }
-) {
+/** Who an email goes to: its user's address, or (for sign-in links, which may not have an account yet) its own. */
+const recipient = (data: { user?: { email: string }; email?: string }) => data.user?.email ?? data.email!;
+
+async function deliver<Name extends BetterAuthEmailName>(name: Name, data: BetterAuthEmails[Name]) {
     // Loaded here, not at the top: the config only exists inside the built server.
     const { emailConfig } = (await import('#better-auth-ui/email-config')) as { emailConfig: EmailConfig };
     if (!emailConfig.send) {
@@ -65,19 +68,17 @@ async function deliver<Name extends BetterAuthEmailName>(
     const message = await renderEmail(
         name,
         data,
-        emailConfig.templates[name] as BetterAuthEmailTemplate<Name> | undefined
+        emailConfig.templates[name] as BetterAuthEmailTemplate<Name> | undefined,
+        emailConfig.locale
     );
-    await emailConfig.send({ ...message, to: data.user.email, email: name });
+    await emailConfig.send({ ...message, to: recipient(data), email: name });
 }
 
 /**
  * Sends an email without waiting for it, as Better Auth's docs advise (waiting would reveal through timing
  * which emails have accounts). Failures are logged.
  */
-function sendInBackground<Name extends BetterAuthEmailName>(
-    name: Name,
-    data: BetterAuthEmails[Name] & { user: { email: string } }
-) {
+function sendInBackground<Name extends BetterAuthEmailName>(name: Name, data: BetterAuthEmails[Name]) {
     deliver(name, data).catch((error) => console.error(`[better-auth-ui] Couldn't send the "${name}" email`, error));
 }
 
@@ -102,5 +103,8 @@ export const betterAuthEmails = {
         sendInBackground('change-email-confirmation', data),
     deleteAccount: async (data: BetterAuthEmails['delete-account']) => sendInBackground('delete-account', data),
     /** Added by the module itself when `betterAuthUi.twoFactor.otp` is on. */
-    twoFactorCode: async (data: BetterAuthEmails['two-factor-code']) => sendInBackground('two-factor-code', data)
+    twoFactorCode: async (data: BetterAuthEmails['two-factor-code']) => sendInBackground('two-factor-code', data),
+    /** Added by the module itself when `betterAuthUi.magicLink` is on. */
+    magicLink: async ({ email, url, token }: BetterAuthEmails['magic-link']) =>
+        sendInBackground('magic-link', { email, url, token })
 };

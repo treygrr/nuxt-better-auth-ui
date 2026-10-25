@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, resolveComponent, useAdminPath } from '#imports';
+import { computed, h, resolveComponent, useAdminPath, useAuthI18n } from '#imports';
 import type { TableColumn } from '@nuxt/ui';
 
 import type { AdminAuditEntry } from '../types';
@@ -20,6 +20,7 @@ const UBadge = resolveComponent('UBadge');
 const ULink = resolveComponent('ULink');
 const NuxtTime = resolveComponent('NuxtTime');
 const adminPath = useAdminPath();
+const { t } = useAuthI18n();
 
 /** A person as recorded, linking to their page; their account may since have been deleted. */
 const person = (id: string | null, name: string | null, email: string | null) =>
@@ -34,42 +35,42 @@ const person = (id: string | null, name: string | null, email: string | null) =>
           ])
         : h('span', { class: 'text-dimmed' }, '—');
 
-const columns: TableColumn<AdminAuditEntry>[] = [
+const columns = computed<TableColumn<AdminAuditEntry>[]>(() => [
     {
         accessorKey: 'createdAt',
-        header: 'When',
+        header: t('admin.audit.columns.when'),
         cell: ({ row }) =>
             // Relative, with the full date and time as its title.
             h(NuxtTime, { datetime: row.original.createdAt, relative: true, title: true, class: 'whitespace-nowrap' })
     },
     {
         id: 'actor',
-        header: 'By',
+        header: t('admin.audit.columns.by'),
         cell: ({ row }) => person(row.original.actorId, row.original.actorName, row.original.actorEmail)
     },
     {
         accessorKey: 'action',
-        header: 'Action',
+        header: t('admin.audit.columns.action'),
         cell: ({ row }) => {
-            const action = auditAction(row.original.action);
+            const action = auditAction(row.original.action, t);
             return h(UBadge, { label: action.label, icon: action.icon, color: action.color, variant: 'subtle' });
         }
     },
     {
         id: 'target',
-        header: 'User',
+        header: t('admin.audit.columns.user'),
         cell: ({ row }) => person(row.original.targetId, row.original.targetName, row.original.targetEmail)
     },
     {
         id: 'details',
-        header: 'Details',
+        header: t('admin.audit.columns.details'),
         cell: ({ row }) =>
             h('div', { class: 'min-w-0' }, [
-                h('p', { class: 'truncate' }, auditDetails(row.original) || '—'),
+                h('p', { class: 'truncate' }, auditDetails(row.original, t) || '—'),
                 row.original.ipAddress && h('p', { class: 'text-xs text-dimmed truncate' }, row.original.ipAddress)
             ])
     }
-];
+]);
 </script>
 
 <template>
@@ -79,7 +80,7 @@ const columns: TableColumn<AdminAuditEntry>[] = [
         :loading="loading"
         :column-visibility="columnVisibility"
         class="shrink-0"
-        empty="Nothing recorded yet."
+        :empty="t('admin.audit.empty')"
         :ui="{
             base: 'table-fixed border-separate border-spacing-0',
             thead: '[&>tr]:bg-elevated/50 [&>tr]:after:content-none',

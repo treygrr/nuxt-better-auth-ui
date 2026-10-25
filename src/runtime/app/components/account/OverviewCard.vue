@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, navigateTo } from '#imports';
+import { computed, navigateTo, useAuthI18n } from '#imports';
 import { upperFirst } from 'scule';
 
 import { useSignOutTarget } from '../../composables/useAuthPages';
@@ -21,6 +21,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ open: [tab: string] }>();
 
+const { t, locale } = useAuthI18n();
 const { user, signOut } = useUserSession();
 const signOutTarget = useSignOutTarget();
 const signOutAndLeave = () =>
@@ -37,8 +38,12 @@ type Profile = {
     emailVerified?: boolean;
     role?: string | null;
     createdAt?: string;
+    username?: string | null;
+    displayUsername?: string | null;
 };
 const profile = computed(() => user.value as unknown as Profile | null);
+// With the Username plugin: their handle, as they typed it.
+const handle = computed(() => profile.value?.displayUsername || profile.value?.username);
 // The Admin plugin's role; plain users aren't labelled.
 const roles = computed(() =>
     (profile.value?.role ?? '')
@@ -60,8 +65,8 @@ const tiles = computed<Tile[]>(() => {
     const verified = profile.value?.emailVerified === true;
     const list: Tile[] = [
         {
-            label: 'Email',
-            value: verified ? 'Verified' : 'Unverified',
+            label: t('account.overview.email'),
+            value: verified ? t('account.overview.verified') : t('account.overview.unverified'),
             icon: verified ? 'i-lucide-mail-check' : 'i-lucide-mail-warning',
             color: verified ? 'success' : 'warning',
             tab: 'profile'
@@ -69,8 +74,12 @@ const tiles = computed<Tile[]>(() => {
     ];
     if (props.twoFactor) {
         list.push({
-            label: 'Two-factor',
-            value: props.twoFactor.enabled ? 'On' : props.twoFactor.required ? 'Required' : 'Off',
+            label: t('account.overview.twoFactor'),
+            value: props.twoFactor.enabled
+                ? t('common.on')
+                : props.twoFactor.required
+                  ? t('account.overview.required')
+                  : t('common.off'),
             icon: props.twoFactor.enabled ? 'i-lucide-shield-check' : 'i-lucide-shield-off',
             color: props.twoFactor.enabled ? 'success' : props.twoFactor.required ? 'warning' : 'neutral',
             tab: 'security'
@@ -78,8 +87,8 @@ const tiles = computed<Tile[]>(() => {
     }
     if (props.passkeys !== null) {
         list.push({
-            label: 'Passkeys',
-            value: props.passkeys ? String(props.passkeys) : 'None yet',
+            label: t('account.overview.passkeys'),
+            value: props.passkeys ? String(props.passkeys) : t('account.overview.noneYet'),
             icon: 'i-lucide-fingerprint',
             color: props.passkeys ? 'primary' : 'neutral',
             tab: 'security'
@@ -87,7 +96,7 @@ const tiles = computed<Tile[]>(() => {
     }
     list.push(
         {
-            label: 'Sign-in methods',
+            label: t('account.overview.methods'),
             value: String(methods.value.length),
             icon: 'i-lucide-log-in',
             color: 'primary',
@@ -95,8 +104,8 @@ const tiles = computed<Tile[]>(() => {
             providers: methods.value
         },
         {
-            label: 'Devices',
-            value: `${props.sessions.length} signed in`,
+            label: t('account.overview.devices'),
+            value: t('account.overview.signedIn', { count: props.sessions.length }),
             icon: 'i-lucide-monitor-smartphone',
             color: 'primary',
             tab: 'devices'
@@ -130,7 +139,7 @@ const columns: Record<number, string> = { 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-
                     class="size-20 text-2xl ring-4 ring-(--ui-bg) shadow-sm"
                 />
                 <UButton
-                    label="Sign out"
+                    :label="t('account.signOut')"
                     icon="i-lucide-log-out"
                     color="neutral"
                     variant="outline"
@@ -139,7 +148,9 @@ const columns: Record<number, string> = { 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-
             </div>
             <div class="-mt-2 min-w-0">
                 <h1 class="text-xl font-semibold text-highlighted truncate">{{ profile?.name }}</h1>
-                <p class="text-sm text-muted truncate">{{ profile?.email }}</p>
+                <p class="text-sm text-muted truncate">
+                    <template v-if="handle">@{{ handle }} · </template>{{ profile?.email }}
+                </p>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 text-sm text-muted">
@@ -153,7 +164,8 @@ const columns: Record<number, string> = { 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-
                 />
                 <span v-if="profile?.createdAt" class="inline-flex items-center gap-1.5">
                     <UIcon name="i-lucide-calendar-heart" class="size-4" />
-                    Member since <NuxtTime :datetime="profile.createdAt" month="long" year="numeric" />
+                    {{ t('account.overview.memberSince') }}
+                    <NuxtTime :datetime="profile.createdAt" month="long" year="numeric" :locale="locale" />
                 </span>
             </div>
 

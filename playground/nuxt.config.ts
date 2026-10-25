@@ -17,6 +17,18 @@ export default defineNuxtConfig({
         passkey: { enabled: true, rpName: 'Better Auth UI playground' },
         // Moderators must have it on.
         twoFactor: { enabled: true, otp: true, issuer: 'Better Auth UI playground', required: ['moderator'] },
+        // Usernames at sign-up and on the account page; sign-in links by email (to the outbox); "last used" on sign-in.
+        username: { enabled: true },
+        magicLink: { enabled: true },
+        lastLoginMethod: true,
+        // Refuses breached passwords: off unless PLAYGROUND_HIBP=1, since the seeded and test accounts use one.
+        haveIBeenPwned: process.env.PLAYGROUND_HIBP === '1',
+        // Captcha on signing up, when .env has keys (Cloudflare's test keys always pass; see .env.example).
+        captcha: process.env.PLAYGROUND_CAPTCHA_SITE_KEY
+            ? { provider: 'cloudflare-turnstile', siteKey: process.env.PLAYGROUND_CAPTCHA_SITE_KEY }
+            : false,
+        // The pages' language: en or es.
+        locale: process.env.PLAYGROUND_LOCALE === 'es' ? 'es' : 'en',
         // Delivery to the playground outbox, and an HTML verification email; the rest are plain-text defaults.
         emails: {
             send: './server/emails/send.ts',

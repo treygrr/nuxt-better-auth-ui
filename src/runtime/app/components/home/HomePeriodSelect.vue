@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from '#imports';
+import { computed, useAuthI18n, watch } from '#imports';
 import { eachDayOfInterval } from 'date-fns';
 import type { Period, Range } from '../../types';
 
@@ -9,6 +9,7 @@ const props = defineProps<{
     range: Range;
 }>();
 
+const { t } = useAuthI18n();
 const days = computed(() => eachDayOfInterval(props.range));
 
 const periods = computed<Period[]>(() => {
@@ -23,6 +24,13 @@ const periods = computed<Period[]>(() => {
     return ['weekly', 'monthly'];
 });
 
+const PERIOD_LABELS = {
+    daily: 'admin.home.periods.daily',
+    weekly: 'admin.home.periods.weekly',
+    monthly: 'admin.home.periods.monthly'
+} as const;
+const items = computed(() => periods.value.map((value) => ({ label: t(PERIOD_LABELS[value]), value })));
+
 // Ensure the model value is always a valid period
 watch(periods, () => {
     if (!periods.value.includes(model.value)) {
@@ -34,7 +42,7 @@ watch(periods, () => {
 <template>
     <USelect
         v-model="model"
-        :items="periods"
+        :items="items"
         variant="ghost"
         class="data-[state=open]:bg-elevated"
         :ui="{

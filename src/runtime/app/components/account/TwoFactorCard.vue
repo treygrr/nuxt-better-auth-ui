@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, ref, useAuthCapabilities, useToast } from '#imports';
+import { computed, ref, useAuthCapabilities, useAuthI18n, useToast } from '#imports';
 import { renderSVG } from 'uqr';
 
 import { useAccountTwoFactor } from '../../utils/account-data';
@@ -14,6 +14,7 @@ import { totpSecret, useTwoFactorAction } from '../../utils/two-factor';
 const props = defineProps<{ hasPassword: boolean; required?: boolean }>();
 const emit = defineEmits<{ changed: [] }>();
 
+const { t, errorMessage } = useAuthI18n();
 const { fetchSession } = useUserSession();
 const { capabilities } = useAuthCapabilities();
 const toast = useToast();
@@ -71,8 +72,8 @@ async function confirm() {
         await enable.execute({ ...input, method: 'otp' });
         if (enable.error.value) return;
         toast.add({
-            title: 'Two-factor is on',
-            description: "We'll email you a code when you sign in.",
+            title: t('account.twoFactor.onToast'),
+            description: t('account.twoFactor.onByEmail'),
             color: 'success'
         });
         start('idle');
@@ -86,7 +87,7 @@ async function confirm() {
     } else if (step.value === 'confirm-off') {
         await disable.execute(input);
         if (disable.error.value) return;
-        toast.add({ title: 'Two-factor is off', color: 'success' });
+        toast.add({ title: t('account.twoFactor.offToast'), color: 'success' });
         start('idle');
         await changed();
     }
@@ -98,7 +99,7 @@ async function verify() {
         pin.value = [];
         return;
     }
-    toast.add({ title: 'Authenticator app set up', color: 'success' });
+    toast.add({ title: t('account.twoFactor.appSetUp'), color: 'success' });
     totpURI.value = '';
     start('codes');
     await changed();
@@ -106,7 +107,7 @@ async function verify() {
 
 function copyCodes() {
     navigator.clipboard.writeText(backupCodes.value.join('\n'));
-    toast.add({ title: 'Backup codes copied', color: 'success' });
+    toast.add({ title: t('account.twoFactor.codesCopied'), color: 'success' });
 }
 
 function downloadCodes() {
@@ -117,49 +118,50 @@ function downloadCodes() {
     URL.revokeObjectURL(link.href);
 }
 
-const confirmLabels: Partial<Record<Step, string>> = {
-    'confirm-app': 'Continue',
-    'confirm-email': 'Turn on',
-    'confirm-codes': 'Make new codes',
-    'confirm-off': 'Turn off'
-};
+const confirmLabels = computed<Partial<Record<Step, string>>>(() => ({
+    'confirm-app': t('common.continue'),
+    'confirm-email': t('account.twoFactor.turnOn'),
+    'confirm-codes': t('account.twoFactor.makeCodes'),
+    'confirm-off': t('account.twoFactor.turnOff')
+}));
 
 const description = computed(() => {
     if (!status.value?.enabled) {
-        return props.required
-            ? 'Your account requires a code as well when you sign in.'
-            : 'Ask for a code as well when you sign in.';
+        return props.required ? t('account.twoFactor.requiredDescription') : t('account.twoFactor.description');
     }
-    return status.value.app
-        ? 'On: you sign in with a code from your authenticator app.'
-        : 'On: we email you a code when you sign in.';
+    return status.value.app ? t('account.twoFactor.onWithApp') : t('account.twoFactor.onWithEmail');
 });
 </script>
 
 <template>
-    <UPageCard title="Two-factor authentication" :description="description" variant="subtle">
-        <template #title><CardTitle icon="i-lucide-shield-check" title="Two-factor authentication" /></template>
-        <p v-if="!canUse" class="text-sm text-muted">Set a password first to turn on two-factor.</p>
+    <UPageCard :title="t('account.twoFactor.title')" :description="description" variant="subtle">
+        <template #title><CardTitle icon="i-lucide-shield-check" :title="t('account.twoFactor.title')" /></template>
+        <p v-if="!canUse" class="text-sm text-muted">{{ t('account.twoFactor.needsPassword') }}</p>
 
         <!-- Scanning the QR code, then confirming with a code from the app. -->
         <div v-else-if="step === 'scan'" class="space-y-4">
-            <p class="text-sm">
-                Scan this with your authenticator app (Google Authenticator, 1Password, Authy, …), then enter the
-                6-digit code it shows.
-            </p>
+            <p class="text-sm">{{ t('account.twoFactor.scan') }}</p>
             <div class="flex flex-wrap items-center gap-6">
                 <!-- eslint-disable-next-line vue/no-v-html -- an SVG generated here from the URI, not user HTML -->
                 <div class="size-44 rounded-md overflow-hidden bg-white" v-html="qrCode" />
                 <div class="space-y-2 text-sm min-w-0 flex-1">
-                    <p class="text-muted">Can't scan it? Enter this key instead:</p>
+                    <p class="text-muted">{{ t('account.twoFactor.cantScan') }}</p>
                     <code class="block break-all font-mono text-highlighted">{{ totpSecret(totpURI) }}</code>
                 </div>
             </div>
             <form class="flex flex-wrap items-center gap-3" @submit.prevent="verify">
-                <UPinInput v-model="pin" :length="6" type="number" otp aria-label="Code" @complete="verify" />
-                <UButton type="submit" label="Verify" :loading="pending" />
-                <UButton label="Cancel" color="neutral" variant="ghost" @click="start('idle')" />
+                <UPinInput
+                    v-model="pin"
+                    :length="6"
+                    type="number"
+                    otp
+                    :aria-label="t('twoFactorPage.codeLabel')"
+                    @complete="verify"
+                />
+                <UButton type="submit" :label="t('common.verify')" :loading="pending" />
+                <UButton :label="t('common.cancel')" color="neutral" variant="ghost" @click="start('idle')" />
             </form>
+            <p v-if="error" class="text-sm text-error">{{ errorMessage(error) }}</p>
         </div>
 
         <!-- New backup codes, shown once. -->
@@ -168,8 +170,8 @@ const description = computed(() => {
                 color="warning"
                 variant="subtle"
                 icon="i-lucide-life-buoy"
-                title="Save your backup codes"
-                description="Each one signs you in once if you lose your authenticator app. They won't be shown again."
+                :title="t('account.twoFactor.saveCodes')"
+                :description="t('account.twoFactor.saveCodesDescription')"
             />
             <ul class="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono text-sm">
                 <li v-for="code in backupCodes" :key="code" class="rounded-md bg-elevated px-3 py-1.5 text-center">
@@ -177,21 +179,27 @@ const description = computed(() => {
                 </li>
             </ul>
             <div class="flex flex-wrap justify-end gap-2">
-                <UButton label="Copy" icon="i-lucide-copy" color="neutral" variant="outline" @click="copyCodes" />
                 <UButton
-                    label="Download"
+                    :label="t('account.twoFactor.copy')"
+                    icon="i-lucide-copy"
+                    color="neutral"
+                    variant="outline"
+                    @click="copyCodes"
+                />
+                <UButton
+                    :label="t('account.twoFactor.download')"
                     icon="i-lucide-download"
                     color="neutral"
                     variant="outline"
                     @click="downloadCodes"
                 />
-                <UButton label="I've saved them" @click="start('idle')" />
+                <UButton :label="t('account.twoFactor.saved')" @click="start('idle')" />
             </div>
         </div>
 
         <!-- Confirming with the password before a change. -->
         <form v-else-if="step !== 'idle'" class="space-y-4" @submit.prevent="confirm">
-            <UFormField v-if="needsPassword" label="Your password" required>
+            <UFormField v-if="needsPassword" :label="t('account.twoFactor.yourPassword')" required>
                 <UInput
                     v-model="password"
                     type="password"
@@ -201,12 +209,10 @@ const description = computed(() => {
                     class="w-full"
                 />
             </UFormField>
-            <p v-if="step === 'confirm-codes'" class="text-sm text-muted">
-                Your current backup codes will stop working.
-            </p>
-            <p v-if="error" class="text-sm text-error">{{ error.message }}</p>
+            <p v-if="step === 'confirm-codes'" class="text-sm text-muted">{{ t('account.twoFactor.oldCodesStop') }}</p>
+            <p v-if="error" class="text-sm text-error">{{ errorMessage(error) }}</p>
             <div class="flex justify-end gap-2">
-                <UButton label="Cancel" color="neutral" variant="ghost" @click="start('idle')" />
+                <UButton :label="t('common.cancel')" color="neutral" variant="ghost" @click="start('idle')" />
                 <UButton
                     type="submit"
                     :label="confirmLabels[step]"
@@ -219,7 +225,7 @@ const description = computed(() => {
         <div v-else-if="status?.enabled" class="flex flex-wrap justify-end gap-2">
             <UButton
                 v-if="!status.app"
-                label="Use an authenticator app"
+                :label="t('account.twoFactor.useApp')"
                 icon="i-lucide-smartphone"
                 color="neutral"
                 variant="outline"
@@ -227,7 +233,7 @@ const description = computed(() => {
             />
             <UButton
                 v-else
-                label="New backup codes"
+                :label="t('account.twoFactor.newCodes')"
                 icon="i-lucide-refresh-cw"
                 color="neutral"
                 variant="outline"
@@ -235,7 +241,7 @@ const description = computed(() => {
             />
             <UButton
                 v-if="!props.required"
-                label="Turn off"
+                :label="t('account.twoFactor.turnOff')"
                 color="error"
                 variant="outline"
                 @click="start('confirm-off')"
@@ -245,13 +251,17 @@ const description = computed(() => {
         <div v-else class="flex flex-wrap justify-end gap-2">
             <UButton
                 v-if="capabilities?.twoFactor?.otp"
-                label="Email me codes"
+                :label="t('account.twoFactor.emailCodes')"
                 icon="i-lucide-mail"
                 color="neutral"
                 variant="outline"
                 @click="start('confirm-email')"
             />
-            <UButton label="Set up an authenticator app" icon="i-lucide-smartphone" @click="start('confirm-app')" />
+            <UButton
+                :label="t('account.twoFactor.setUpApp')"
+                icon="i-lucide-smartphone"
+                @click="start('confirm-app')"
+            />
         </div>
     </UPageCard>
 </template>

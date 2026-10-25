@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, reactive, ref, useAuthCapabilities, useAuthPages, useToast } from '#imports';
+import { computed, reactive, ref, useAuthCapabilities, useAuthI18n, useAuthPages, useToast } from '#imports';
 
 import CardTitle from './CardTitle.vue';
 
@@ -11,6 +11,7 @@ import CardTitle from './CardTitle.vue';
 const props = defineProps<{ hasPassword: boolean }>();
 const emit = defineEmits<{ changed: [] }>();
 
+const { t, errorMessage } = useAuthI18n();
 const { user } = useUserSession();
 const { capabilities } = useAuthCapabilities();
 const pages = useAuthPages();
@@ -30,8 +31,8 @@ async function change() {
     });
     if (changePassword.error.value) return;
     toast.add({
-        title: 'Password changed',
-        description: state.signOutOthers ? 'Your other devices have been signed out.' : undefined,
+        title: t('account.password.changed'),
+        description: state.signOutOthers ? t('account.password.othersSignedOut') : undefined,
         color: 'success'
     });
     Object.assign(state, { current: '', next: '' });
@@ -46,15 +47,13 @@ async function sendSetLink() {
 
 <template>
     <UPageCard
-        title="Password"
-        :description="
-            props.hasPassword ? 'Change the password you sign in with.' : 'You sign in with a connected account.'
-        "
+        :title="t('common.password')"
+        :description="props.hasPassword ? t('account.password.description') : t('account.password.connectedOnly')"
         variant="subtle"
     >
-        <template #title><CardTitle icon="i-lucide-lock-keyhole" title="Password" /></template>
+        <template #title><CardTitle icon="i-lucide-lock-keyhole" :title="t('common.password')" /></template>
         <form v-if="props.hasPassword" class="space-y-4" @submit.prevent="change">
-            <UFormField label="Current password" required>
+            <UFormField :label="t('account.password.current')" required>
                 <UInput
                     v-model="state.current"
                     type="password"
@@ -63,7 +62,15 @@ async function sendSetLink() {
                     class="w-full"
                 />
             </UFormField>
-            <UFormField label="New password" :help="`At least ${min} characters.`" required>
+            <UFormField
+                :label="t('resetPassword.newPassword')"
+                :help="
+                    capabilities?.haveIBeenPwned
+                        ? `${t('password.minimum', { min })} ${t('password.breachChecked')}`
+                        : t('password.minimum', { min })
+                "
+                required
+            >
                 <UInput
                     v-model="state.next"
                     type="password"
@@ -74,10 +81,16 @@ async function sendSetLink() {
                     class="w-full"
                 />
             </UFormField>
-            <UCheckbox v-model="state.signOutOthers" label="Sign out of my other devices" />
-            <p v-if="changePassword.error.value" class="text-sm text-error">{{ changePassword.error.value.message }}</p>
+            <UCheckbox v-model="state.signOutOthers" :label="t('account.password.signOutOthers')" />
+            <p v-if="changePassword.error.value" class="text-sm text-error">
+                {{ errorMessage(changePassword.error.value) }}
+            </p>
             <div class="flex justify-end">
-                <UButton type="submit" label="Change password" :loading="changePassword.status.value === 'pending'" />
+                <UButton
+                    type="submit"
+                    :label="t('resetPassword.submit')"
+                    :loading="changePassword.status.value === 'pending'"
+                />
             </div>
         </form>
         <template v-else-if="capabilities?.resetPassword && pages.resetPassword">
@@ -86,13 +99,13 @@ async function sendSetLink() {
                 color="success"
                 variant="subtle"
                 icon="i-lucide-mail-check"
-                title="Check your email"
-                :description="`We've sent ${user?.email} a link to set a password.`"
+                :title="t('account.email.checkTitle')"
+                :description="t('account.password.setLinkSent', { email: user?.email ?? '' })"
             />
             <div v-else class="flex flex-wrap items-center gap-3">
-                <p class="text-sm text-muted flex-1">Add a password to sign in with your email too.</p>
+                <p class="text-sm text-muted flex-1">{{ t('account.password.addHint') }}</p>
                 <UButton
-                    label="Email me a link to set one"
+                    :label="t('account.password.sendSetLink')"
                     icon="i-lucide-mail"
                     color="neutral"
                     variant="outline"

@@ -9,6 +9,7 @@ import {
     useAdminPath,
     useAdminUsers,
     useAuthCapabilities,
+    useAuthI18n,
     useBetterAuthAdminConfig,
     useFetch,
     useLazyFetch,
@@ -32,6 +33,7 @@ const session = useUserSession();
 const admin = useAdminUsers();
 const toast = useToast();
 const can = useAdminCan();
+const { t } = useAuthI18n();
 
 // Fetched during server rendering, with the admin's cookies, and handed to the browser in the payload.
 const {
@@ -95,17 +97,17 @@ const accountItems = (account: AdminAccount): DropdownMenuItem[][] => {
     return shownItems([
         [
             {
-                label: 'Copy account ID',
+                label: t('admin.user.signInMethods.copyId'),
                 icon: 'i-lucide-copy',
                 onSelect: async () => {
                     await navigator.clipboard.writeText(account.accountId);
-                    toast.add({ title: 'Copied to clipboard', description: account.accountId });
+                    toast.add({ title: t('admin.common.copied'), description: account.accountId });
                 }
             }
         ],
         [
             can({ user: ['update'] }) && {
-                label: onlyOne ? 'Remove (their only sign-in method)' : 'Remove',
+                label: onlyOne ? t('admin.user.signInMethods.removeOnly') : t('admin.common.remove'),
                 icon: 'i-lucide-unlink',
                 color: 'error',
                 disabled: onlyOne,
@@ -123,11 +125,11 @@ const { twoFactorRequired } = useRuntimeConfig().public.betterAuthUi as { twoFac
 const twoFactorBadge = computed(() => {
     if (!capabilities.value?.twoFactor || !user.value) return null;
     if (user.value.twoFactorEnabled) {
-        return { label: 'Two-factor on', color: 'success' as const, icon: 'i-lucide-shield-check' };
+        return { label: t('admin.common.twoFactorOn'), color: 'success' as const, icon: 'i-lucide-shield-check' };
     }
     return requiresTwoFactor(user.value, twoFactorRequired)
-        ? { label: 'Two-factor required, not set up', color: 'warning' as const, icon: 'i-lucide-shield-alert' }
-        : { label: 'Two-factor off', color: 'neutral' as const, icon: 'i-lucide-shield-off' };
+        ? { label: t('admin.user.twoFactorRequired'), color: 'warning' as const, icon: 'i-lucide-shield-alert' }
+        : { label: t('admin.common.twoFactorOff'), color: 'neutral' as const, icon: 'i-lucide-shield-off' };
 });
 
 const modal = ref<'role' | 'ban' | 'delete' | 'password' | 'edit' | null>(null);
@@ -150,7 +152,11 @@ async function run(action: () => Promise<unknown>, success: string) {
         toast.add({ title: success, color: 'success' });
         await refresh();
     } catch (error) {
-        toast.add({ title: 'Something went wrong', description: (error as Error).message, color: 'error' });
+        toast.add({
+            title: t('admin.common.somethingWentWrong'),
+            description: (error as Error).message,
+            color: 'error'
+        });
     }
 }
 
@@ -163,23 +169,30 @@ const actions = computed<DropdownMenuItem[][]>(() => {
     return shownItems([
         [
             can({ user: ['update'] }) && {
-                label: 'Edit',
+                label: t('admin.common.edit'),
                 icon: 'i-lucide-pencil',
                 onSelect: () => (modal.value = 'edit')
             },
             can({ user: ['set-role'] }) && {
-                label: 'Change role',
+                label: t('admin.common.changeRole'),
                 icon: 'i-lucide-shield',
                 disabled: isSelf.value,
                 onSelect: () => (modal.value = 'role')
             },
-            { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => (modal.value = 'password') },
+            {
+                label: t('admin.common.password'),
+                icon: 'i-lucide-key-round',
+                onSelect: () => (modal.value = 'password')
+            },
             can({ user: ['update'] }) &&
                 !current.emailVerified && {
-                    label: 'Resend verification email',
+                    label: t('admin.common.resendVerification'),
                     icon: 'i-lucide-mail',
                     onSelect: () =>
-                        run(() => admin.sendVerification(current.id), `Verification email sent to ${current.email}`)
+                        run(
+                            () => admin.sendVerification(current.id),
+                            t('admin.common.verificationSent', { email: current.email })
+                        )
                 }
         ],
         [impersonateItem(current)],
@@ -187,19 +200,20 @@ const actions = computed<DropdownMenuItem[][]>(() => {
             can({ user: ['ban'] }) &&
                 (current.banned
                     ? {
-                          label: 'Unban',
+                          label: t('admin.common.unban'),
                           icon: 'i-lucide-shield-check',
-                          onSelect: () => run(() => admin.unban(current.id), `${current.name} was unbanned`)
+                          onSelect: () =>
+                              run(() => admin.unban(current.id), t('admin.common.unbanned', { name: current.name }))
                       }
                     : {
-                          label: 'Ban',
+                          label: t('admin.common.ban'),
                           icon: 'i-lucide-ban',
                           color: 'error',
                           disabled: isSelf.value,
                           onSelect: () => (modal.value = 'ban')
                       }),
             can({ user: ['delete'] }) && {
-                label: 'Delete',
+                label: t('admin.common.delete'),
                 icon: 'i-lucide-trash',
                 color: 'error',
                 disabled: isSelf.value,
@@ -209,9 +223,10 @@ const actions = computed<DropdownMenuItem[][]>(() => {
     ]);
 });
 
-const revokeSession = (item: AdminSession) => run(() => admin.revokeSession(item.token), 'Session signed out');
+const revokeSession = (item: AdminSession) =>
+    run(() => admin.revokeSession(item.token), t('admin.common.sessionSignedOut'));
 const revokeAll = (current: AdminUser) =>
-    run(() => admin.revokeSessions(current.id), `${current.name} was signed out everywhere`);
+    run(() => admin.revokeSessions(current.id), t('admin.common.signedOutEverywhere', { name: current.name }));
 // The client session omits the token, so match on the session id.
 const thisSession = computed(() => session.session.value?.id);
 </script>
@@ -219,7 +234,7 @@ const thisSession = computed(() => session.session.value?.id);
 <template>
     <UDashboardPanel id="better-auth-ui-user">
         <template #header>
-            <UDashboardNavbar :title="user?.name ?? 'User'">
+            <UDashboardNavbar :title="user?.name ?? t('admin.user.title')">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
@@ -227,12 +242,17 @@ const thisSession = computed(() => session.session.value?.id);
                     <UButton
                         :to="adminPath('/users')"
                         icon="i-lucide-arrow-left"
-                        label="Users"
+                        :label="t('admin.user.users')"
                         color="neutral"
                         variant="ghost"
                     />
                     <UDropdownMenu v-if="user" :items="actions" :content="{ align: 'end' }">
-                        <UButton label="Actions" icon="i-lucide-ellipsis" color="neutral" variant="outline" />
+                        <UButton
+                            :label="t('admin.user.actions')"
+                            icon="i-lucide-ellipsis"
+                            color="neutral"
+                            variant="outline"
+                        />
                     </UDropdownMenu>
                 </template>
             </UDashboardNavbar>
@@ -243,11 +263,16 @@ const thisSession = computed(() => session.session.value?.id);
                 v-if="error"
                 color="error"
                 icon="i-lucide-circle-alert"
-                title="Couldn't load this user"
+                :title="t('admin.user.loadFailed')"
                 :description="errorText(error)"
             >
                 <template #actions>
-                    <UButton :to="adminPath('/users')" label="Back to users" color="neutral" variant="outline" />
+                    <UButton
+                        :to="adminPath('/users')"
+                        :label="t('admin.user.backToUsers')"
+                        color="neutral"
+                        variant="outline"
+                    />
                 </template>
             </UAlert>
 
@@ -258,21 +283,28 @@ const thisSession = computed(() => session.session.value?.id);
             </div>
 
             <div v-else-if="user" class="flex flex-col gap-4 sm:gap-6 lg:gap-8 w-full lg:max-w-3xl mx-auto">
-                <UAlert v-if="user.banned" color="error" variant="subtle" icon="i-lucide-ban" title="Banned">
+                <UAlert
+                    v-if="user.banned"
+                    color="error"
+                    variant="subtle"
+                    icon="i-lucide-ban"
+                    :title="t('admin.user.banned')"
+                >
                     <template #description>
-                        {{ user.banReason || 'No reason given' }} ·
+                        {{ user.banReason || t('admin.user.noReason') }} ·
                         <template v-if="user.banExpires">
-                            until <NuxtTime :datetime="user.banExpires" date-style="medium" time-style="short" />
+                            {{ t('admin.user.until') }}
+                            <NuxtTime :datetime="user.banExpires" date-style="medium" time-style="short" />
                         </template>
-                        <template v-else>until unbanned</template>
+                        <template v-else>{{ t('admin.user.untilUnbanned') }}</template>
                     </template>
                     <template v-if="can({ user: ['ban'] })" #actions>
                         <UButton
-                            label="Unban"
+                            :label="t('admin.common.unban')"
                             color="error"
                             variant="outline"
                             loading-auto
-                            @click="run(() => admin.unban(user!.id), `${user!.name} was unbanned`)"
+                            @click="run(() => admin.unban(user!.id), t('admin.common.unbanned', { name: user!.name }))"
                         />
                     </template>
                 </UAlert>
@@ -285,13 +317,18 @@ const thisSession = computed(() => session.session.value?.id);
                                 {{ user.name }}
                                 <UBadge
                                     v-if="isSelf"
-                                    label="You"
+                                    :label="t('admin.common.you')"
                                     color="neutral"
                                     variant="outline"
                                     class="ms-1 align-middle"
                                 />
                             </p>
-                            <p class="text-muted truncate">{{ user.email }}</p>
+                            <p class="text-muted truncate">
+                                <template v-if="user.username"
+                                    >@{{ user.displayUsername || user.username }} ·
+                                </template>
+                                {{ user.email }}
+                            </p>
                             <div class="flex flex-wrap gap-1.5 mt-2">
                                 <UBadge
                                     :label="user.role ?? 'user'"
@@ -300,11 +337,20 @@ const thisSession = computed(() => session.session.value?.id);
                                     class="capitalize"
                                 />
                                 <UBadge
-                                    :label="user.emailVerified ? 'Email verified' : 'Email unverified'"
+                                    :label="
+                                        user.emailVerified
+                                            ? t('admin.user.emailVerified')
+                                            : t('admin.user.emailUnverified')
+                                    "
                                     :color="user.emailVerified ? 'success' : 'warning'"
                                     variant="outline"
                                 />
-                                <UBadge v-if="user.banned" label="Banned" color="error" variant="subtle" />
+                                <UBadge
+                                    v-if="user.banned"
+                                    :label="t('admin.common.banned')"
+                                    color="error"
+                                    variant="subtle"
+                                />
                                 <UBadge
                                     v-if="twoFactorBadge"
                                     :label="twoFactorBadge.label"
@@ -317,23 +363,23 @@ const thisSession = computed(() => session.session.value?.id);
                     </div>
                 </UPageCard>
 
-                <UPageCard title="Details" variant="subtle">
+                <UPageCard :title="t('admin.user.details.title')" variant="subtle">
                     <dl class="grid grid-cols-[auto_1fr] gap-x-8 gap-y-3 text-sm">
-                        <dt class="text-muted">User ID</dt>
+                        <dt class="text-muted">{{ t('admin.user.details.userId') }}</dt>
                         <dd class="font-mono truncate">{{ user.id }}</dd>
-                        <dt class="text-muted">Joined</dt>
+                        <dt class="text-muted">{{ t('admin.common.joined') }}</dt>
                         <dd><NuxtTime :datetime="user.createdAt" date-style="medium" time-style="short" /></dd>
-                        <dt class="text-muted">Last updated</dt>
+                        <dt class="text-muted">{{ t('admin.user.details.lastUpdated') }}</dt>
                         <dd><NuxtTime :datetime="user.updatedAt" date-style="medium" time-style="short" /></dd>
                         <template v-if="activityTracking">
-                            <dt class="text-muted">Last active</dt>
+                            <dt class="text-muted">{{ t('admin.common.lastActive') }}</dt>
                             <dd>
                                 <NuxtTime v-if="lastActive[user.id]" :datetime="lastActive[user.id]!" relative title />
-                                <span v-else class="text-dimmed">Not since tracking started</span>
+                                <span v-else class="text-dimmed">{{ t('admin.user.details.notSinceTracking') }}</span>
                             </dd>
                         </template>
                         <template v-if="knowsLastSignIn">
-                            <dt class="text-muted">Last sign-in</dt>
+                            <dt class="text-muted">{{ t('admin.common.lastSignIn') }}</dt>
                             <dd>
                                 <NuxtTime
                                     v-if="lastSignIns[user.id]"
@@ -342,14 +388,20 @@ const thisSession = computed(() => session.session.value?.id);
                                     time-style="short"
                                 />
                                 <span v-else class="text-dimmed">{{
-                                    auditLogRetentionDays ? `Not in the last ${auditLogRetentionDays} days` : 'Never'
+                                    auditLogRetentionDays
+                                        ? t('admin.common.notInLastDays', { days: auditLogRetentionDays })
+                                        : t('admin.common.never')
                                 }}</span>
                             </dd>
                         </template>
                     </dl>
                 </UPageCard>
 
-                <UPageCard title="Sign-in methods" :description="`How ${user.name} signs in.`" variant="subtle">
+                <UPageCard
+                    :title="t('admin.user.signInMethods.title')"
+                    :description="t('admin.user.signInMethods.description', { name: user.name })"
+                    variant="subtle"
+                >
                     <UAlert
                         v-if="accountsError"
                         color="error"
@@ -358,7 +410,7 @@ const thisSession = computed(() => session.session.value?.id);
                         :description="errorText(accountsError)"
                     />
                     <p v-else-if="!accounts?.length" class="text-sm text-muted">
-                        No sign-in methods. They can't sign in until they reset their password.
+                        {{ t('admin.user.signInMethods.none') }}
                     </p>
                     <ul v-else class="divide-y divide-default">
                         <li
@@ -370,9 +422,16 @@ const thisSession = computed(() => session.session.value?.id);
                             <div class="min-w-0">
                                 <p class="text-sm font-medium text-highlighted">{{ provider(account).label }}</p>
                                 <p class="text-xs text-muted truncate">
-                                    Connected <NuxtTime :datetime="account.createdAt" date-style="medium" />
+                                    {{ t('admin.user.signInMethods.connected') }}
+                                    <NuxtTime :datetime="account.createdAt" date-style="medium" />
                                     <template v-if="account.providerId !== 'credential'"
-                                        >· {{ account.providerId }} ID {{ account.accountId }}</template
+                                        >·
+                                        {{
+                                            t('admin.user.signInMethods.accountId', {
+                                                provider: account.providerId,
+                                                id: account.accountId
+                                            })
+                                        }}</template
                                     >
                                 </p>
                             </div>
@@ -381,22 +440,30 @@ const thisSession = computed(() => session.session.value?.id);
                                     icon="i-lucide-ellipsis-vertical"
                                     color="neutral"
                                     variant="ghost"
-                                    :aria-label="`${provider(account).label} actions`"
+                                    :aria-label="
+                                        t('admin.user.signInMethods.menu', { provider: provider(account).label })
+                                    "
                                 />
                             </UDropdownMenu>
                         </li>
                     </ul>
                 </UPageCard>
 
+                <AdminUsersSecurityCard
+                    v-if="capabilities?.twoFactor || capabilities?.passkey"
+                    :user="user"
+                    @changed="refresh"
+                />
+
                 <UPageCard
                     v-if="can({ session: ['list'] })"
-                    title="Sessions"
-                    :description="`Where ${user.name} is signed in.`"
+                    :title="t('admin.user.sessions.title')"
+                    :description="t('admin.user.sessions.description', { name: user.name })"
                     variant="subtle"
                 >
                     <template #footer v-if="sessions?.length && !isSelf && can({ session: ['revoke'] })">
                         <UButton
-                            label="Sign out everywhere"
+                            :label="t('admin.common.signOutEverywhere')"
                             icon="i-lucide-log-out"
                             color="error"
                             variant="outline"
@@ -406,7 +473,7 @@ const thisSession = computed(() => session.session.value?.id);
                     </template>
 
                     <USkeleton v-if="sessions === undefined" class="h-12 w-full" />
-                    <p v-else-if="!sessions?.length" class="text-sm text-muted">No active sessions.</p>
+                    <p v-else-if="!sessions?.length" class="text-sm text-muted">{{ t('admin.user.sessions.none') }}</p>
                     <ul v-else class="divide-y divide-default">
                         <li
                             v-for="item in sessions"
@@ -417,10 +484,10 @@ const thisSession = computed(() => session.session.value?.id);
                                 <UIcon name="i-lucide-monitor-smartphone" class="size-5 shrink-0 text-muted" />
                                 <div class="min-w-0">
                                     <p class="text-sm font-medium text-highlighted truncate">
-                                        {{ device(item.userAgent) }}
+                                        {{ device(item.userAgent, t) }}
                                         <UBadge
                                             v-if="item.id === thisSession"
-                                            label="This session"
+                                            :label="t('admin.user.sessions.thisSession')"
                                             color="primary"
                                             variant="subtle"
                                             size="sm"
@@ -428,7 +495,7 @@ const thisSession = computed(() => session.session.value?.id);
                                         />
                                         <UBadge
                                             v-if="item.impersonatedBy"
-                                            label="Impersonated"
+                                            :label="t('admin.common.impersonated')"
                                             color="warning"
                                             variant="subtle"
                                             size="sm"
@@ -436,15 +503,17 @@ const thisSession = computed(() => session.session.value?.id);
                                         />
                                     </p>
                                     <p class="text-xs text-muted truncate">
-                                        {{ item.ipAddress || 'Unknown IP' }} · active
-                                        <NuxtTime :datetime="item.updatedAt" relative /> · expires
+                                        {{ item.ipAddress || t('admin.common.unknownIp') }} ·
+                                        {{ t('admin.user.sessions.active') }}
+                                        <NuxtTime :datetime="item.updatedAt" relative /> ·
+                                        {{ t('admin.user.sessions.expires') }}
                                         <NuxtTime :datetime="item.expiresAt" date-style="medium" time-style="short" />
                                     </p>
                                 </div>
                             </div>
                             <UButton
                                 v-if="item.id !== thisSession && can({ session: ['revoke'] })"
-                                label="Sign out"
+                                :label="t('admin.common.signOut')"
                                 color="neutral"
                                 variant="outline"
                                 size="sm"
@@ -457,13 +526,13 @@ const thisSession = computed(() => session.session.value?.id);
 
                 <UPageCard
                     v-if="auditLog"
-                    title="Activity"
-                    :description="`Sign-ins and changes to ${user.name}'s account, and who made them.`"
+                    :title="t('admin.user.activity.title')"
+                    :description="t('admin.user.activity.description', { name: user.name })"
                     variant="subtle"
                 >
                     <template #footer v-if="(activity?.total ?? 0) > ACTIVITY_SIZE">
                         <UButton
-                            :label="`All ${activity!.total} entries`"
+                            :label="t('admin.user.activity.all', { count: activity!.total })"
                             :to="adminPath(`/audit?userId=${user.id}`)"
                             color="neutral"
                             variant="subtle"

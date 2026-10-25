@@ -24,6 +24,8 @@ export type BetterAuthEmails = {
     'delete-account': { user: EmailUser; url: string; token: string };
     /** Two-Factor plugin `otpOptions.sendOTP`: a sign-in code, when `betterAuthUi.twoFactor.otp` is on. */
     'two-factor-code': { user: EmailUser; otp: string };
+    /** Magic Link plugin `sendMagicLink`, when `betterAuthUi.magicLink` is on. There may be no account yet. */
+    'magic-link': { email: string; url: string; token: string };
 };
 
 export type BetterAuthEmailName = keyof BetterAuthEmails;
@@ -35,7 +37,8 @@ export const EMAIL_NAMES: BetterAuthEmailName[] = [
     'existing-user-sign-up',
     'change-email-confirmation',
     'delete-account',
-    'two-factor-code'
+    'two-factor-code',
+    'magic-link'
 ];
 
 /** What a template returns: an HTML body (with the default subject), or the parts it wants to set. */

@@ -1,6 +1,15 @@
 import type { H3Event } from 'h3';
 // Nitro's own imports: h3 v1, which the auth module's server utilities are typed against.
-import { createError, requireUserSession, serverAuth } from '#imports';
+import {
+    createError,
+    getRequestHeader,
+    getRequestIP,
+    requireUserSession,
+    serverAuth,
+    useRuntimeConfig
+} from '#imports';
+
+import { writeAuditEntry, type AuditPerson } from '../audit/plugin';
 
 /** A user's sign-in method as Better Auth stores it, including fields that must never be returned. */
 export type StoredAccount = {
@@ -39,6 +48,8 @@ type AdminAuth = {
         adapter: {
             findMany<T>(query: FindMany): Promise<T[]>;
             count(query: { model: string; where?: Where[] }): Promise<number | string>;
+            delete(query: { model: string; where: Where[] }): Promise<void>;
+            deleteMany(query: { model: string; where: Where[] }): Promise<number>;
         };
         internalAdapter: {
             findUserById(
@@ -46,7 +57,9 @@ type AdminAuth = {
             ): Promise<{ id: string; email: string; name: string; emailVerified?: boolean } | null>;
             findAccounts(userId: string): Promise<StoredAccount[]>;
             deleteAccount(id: string): Promise<void>;
+            updateUser(id: string, data: Record<string, unknown>): Promise<unknown>;
         };
+        getPlugin(id: string): { options?: Record<string, unknown> } | undefined;
     }>;
 };
 
@@ -83,6 +96,28 @@ export async function findAll<T>(context: AdminContext, query: Omit<FindMany, 'l
         rows.push(...page);
         if (page.length < PAGE) return rows;
     }
+}
+
+/** Records an admin action in the audit log, when it's on. Like the log's other writes, a failure never throws. */
+export async function recordAdminAction(
+    event: H3Event,
+    context: AdminContext,
+    entry: { action: string; actor: AuditPerson; target: AuditPerson; details?: Record<string, unknown> }
+) {
+    const config = (
+        useRuntimeConfig().public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }
+    ).admin;
+    if (!config.auditLog) return;
+    await writeAuditEntry(
+        context as never,
+        {
+            ...entry,
+            details: entry.details ?? null,
+            ipAddress: getRequestIP(event, { xForwardedFor: true }) ?? null,
+            userAgent: getRequestHeader(event, 'user-agent') ?? null
+        },
+        config.auditLogRetentionDays
+    );
 }
 
 /** The user in the route's `:id`, or a 404. */

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useAdminUsers, useBetterAuthAdminConfig, useToast, watch } from '#imports';
+import { computed, ref, useAdminUsers, useAuthI18n, useBetterAuthAdminConfig, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -17,32 +17,34 @@ watch(open, (isOpen) => {
 
 const users = useAdminUsers();
 const toast = useToast();
+const { t } = useAuthI18n();
 
 async function onSubmit() {
     try {
         await users.setRole(props.user.id, role.value);
-        toast.add({ title: 'Role changed', description: `${props.user.name} is now ${role.value}`, color: 'success' });
+        toast.add({
+            title: t('admin.modals.role.changed'),
+            description: t('admin.modals.role.now', { name: props.user.name, role: role.value }),
+            color: 'success'
+        });
         open.value = false;
         emit('updated');
     } catch (error) {
-        toast.add({ title: "Couldn't change the role", description: (error as Error).message, color: 'error' });
+        toast.add({ title: t('admin.modals.role.failed'), description: (error as Error).message, color: 'error' });
     }
 }
 </script>
 
 <template>
-    <UModal v-model:open="open" title="Change role" :description="user.email">
+    <UModal v-model:open="open" :title="t('admin.common.changeRole')" :description="user.email">
         <template #body>
             <div class="space-y-4">
-                <UFormField
-                    label="Role"
-                    :help="`${adminRole} can do everything here; other roles only what they're allowed.`"
-                >
+                <UFormField :label="t('admin.common.role')" :help="t('admin.modals.role.help', { role: adminRole })">
                     <USelect v-model="role" :items="roles" class="w-full" />
                 </UFormField>
                 <div class="flex justify-end gap-2">
-                    <UButton label="Cancel" color="neutral" variant="subtle" @click="open = false" />
-                    <UButton label="Save" loading-auto @click="onSubmit" />
+                    <UButton :label="t('admin.common.cancel')" color="neutral" variant="subtle" @click="open = false" />
+                    <UButton :label="t('admin.common.save')" loading-auto @click="onSubmit" />
                 </div>
             </div>
         </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, resolveComponent, useAdminPath, useFetch } from '#imports';
+import { computed, h, resolveComponent, useAdminPath, useAuthI18n, useFetch } from '#imports';
 import type { TableColumn } from '@nuxt/ui';
 
 import type { AdminUser } from '../../types';
@@ -10,16 +10,17 @@ const ULink = resolveComponent('ULink');
 const NuxtTime = resolveComponent('NuxtTime');
 
 const adminPath = useAdminPath();
+const { t } = useAuthI18n();
 
 // The newest users, from Better Auth's own list-users.
 const { data } = await useFetch<{ users: AdminUser[]; total: number }>('/api/auth/admin/list-users', {
     query: { limit: 5, sortBy: 'createdAt', sortDirection: 'desc' }
 });
 
-const columns: TableColumn<AdminUser>[] = [
+const columns = computed<TableColumn<AdminUser>[]>(() => [
     {
         accessorKey: 'name',
-        header: 'New users',
+        header: t('admin.home.newUsers'),
         cell: ({ row }) =>
             h(ULink, { to: adminPath(`/users/${row.original.id}`), class: 'flex items-center gap-3' }, () => [
                 h(UAvatar, { src: row.original.image ?? undefined, alt: row.original.name, size: 'md' }),
@@ -31,7 +32,7 @@ const columns: TableColumn<AdminUser>[] = [
     },
     {
         accessorKey: 'createdAt',
-        header: 'Joined',
+        header: t('admin.common.joined'),
         cell: ({ row }) =>
             h(NuxtTime, {
                 datetime: row.original.createdAt,
@@ -44,13 +45,13 @@ const columns: TableColumn<AdminUser>[] = [
     },
     {
         accessorKey: 'emailVerified',
-        header: 'Email',
+        header: t('admin.common.email'),
         cell: ({ row }) =>
             row.original.emailVerified
-                ? h(UBadge, { label: 'Verified', color: 'success', variant: 'subtle' })
-                : h(UBadge, { label: 'Unverified', color: 'warning', variant: 'subtle' })
+                ? h(UBadge, { label: t('admin.common.verified'), color: 'success', variant: 'subtle' })
+                : h(UBadge, { label: t('admin.common.unverified'), color: 'warning', variant: 'subtle' })
     }
-];
+]);
 </script>
 
 <template>

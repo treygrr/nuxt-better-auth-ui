@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { computed, useAdminPath, useAuthCapabilities } from '#imports';
+import { computed, useAdminPath, useAuthCapabilities, useAuthI18n } from '#imports';
 
 /** The sidebar's header: the app's name (Better Auth's `appName`) over "Admin", leading to the admin home. */
 defineProps<{ collapsed?: boolean }>();
 
 const adminPath = useAdminPath();
 const { capabilities } = useAuthCapabilities();
-const name = computed(() => capabilities.value?.appName ?? 'Admin');
+const { t } = useAuthI18n();
+const name = computed(() => capabilities.value?.appName ?? t('admin.brand.admin'));
 </script>
 
 <template>
@@ -16,7 +17,7 @@ const name = computed(() => capabilities.value?.appName ?? 'Admin');
         </span>
         <span v-if="!collapsed" class="min-w-0 leading-tight">
             <span class="block truncate font-semibold text-highlighted">{{ name }}</span>
-            <span class="block text-xs text-muted">Admin</span>
+            <span class="block text-xs text-muted">{{ t('admin.brand.admin') }}</span>
         </span>
     </ULink>
 </template>

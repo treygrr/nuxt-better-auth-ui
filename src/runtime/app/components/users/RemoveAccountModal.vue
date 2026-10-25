@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useAdminUsers, useToast } from '#imports';
+import { computed, useAdminUsers, useAuthI18n, useToast } from '#imports';
 
 import type { AdminAccount, AdminUser } from '../../types';
 
@@ -7,10 +7,11 @@ const props = defineProps<{ user: AdminUser; account: AdminAccount; label: strin
 const open = defineModel<boolean>('open', { default: false });
 const emit = defineEmits<{ removed: [] }>();
 
+const { t } = useAuthI18n();
 const description = computed(() =>
     props.account.providerId === 'credential'
-        ? `${props.user.name}'s password will stop working. They can still sign in another way, or set a new password with "Forgot password".`
-        : `${props.user.name} won't be able to sign in with ${props.label} until they connect it again.`
+        ? t('admin.modals.removeAccount.credential', { name: props.user.name })
+        : t('admin.modals.removeAccount.other', { name: props.user.name, provider: props.label })
 );
 
 const admin = useAdminUsers();
@@ -19,21 +20,33 @@ const toast = useToast();
 async function onSubmit() {
     try {
         await admin.removeAccount(props.user.id, props.account.id);
-        toast.add({ title: `${props.label} removed`, description: props.user.email, color: 'success' });
+        toast.add({
+            title: t('admin.modals.removeAccount.removed', { provider: props.label }),
+            description: props.user.email,
+            color: 'success'
+        });
         open.value = false;
         emit('removed');
     } catch (error) {
-        toast.add({ title: `Couldn't remove ${props.label}`, description: (error as Error).message, color: 'error' });
+        toast.add({
+            title: t('admin.modals.removeAccount.failed', { provider: props.label }),
+            description: (error as Error).message,
+            color: 'error'
+        });
     }
 }
 </script>
 
 <template>
-    <UModal v-model:open="open" :title="`Remove ${label}?`" :description="description">
+    <UModal
+        v-model:open="open"
+        :title="t('admin.modals.removeAccount.title', { provider: label })"
+        :description="description"
+    >
         <template #body>
             <div class="flex justify-end gap-2">
-                <UButton label="Cancel" color="neutral" variant="subtle" @click="open = false" />
-                <UButton label="Remove" color="error" loading-auto @click="onSubmit" />
+                <UButton :label="t('admin.common.cancel')" color="neutral" variant="subtle" @click="open = false" />
+                <UButton :label="t('admin.common.remove')" color="error" loading-auto @click="onSubmit" />
             </div>
         </template>
     </UModal>

@@ -1,5 +1,7 @@
 import { useAuthClientAction, type ActionHandleFor } from '@nuxtjs/better-auth/composables';
 
+import type { MessageKey } from '../i18n';
+
 type Result<T> = { data: T | null; error: { message?: string; code?: string } | null };
 
 /** A passkey as Better Auth's list-user-passkeys returns it (no key material). */
@@ -47,13 +49,11 @@ const CANCELLED = new Set(['ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY', 'ERROR_CEREMO
 export const passkeyCancelled = (error: PasskeyError) => !!error?.code && CANCELLED.has(error.code);
 
 /** What to tell someone whose passkey couldn't be added, in words rather than the browser's. */
-export const passkeyAddError = (error: PasskeyError) => {
+export const passkeyAddError = (error: PasskeyError, t: (key: MessageKey) => string) => {
     if (!error) return null;
-    if (passkeyCancelled(error)) return 'No passkey was added: the prompt was closed or timed out.';
-    if (error.code === 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED') {
-        return 'That device or password manager already has a passkey for your account.';
-    }
-    return error.message ?? "Couldn't add the passkey.";
+    if (passkeyCancelled(error)) return t('account.passkeys.cancelled');
+    if (error.code === 'ERROR_AUTHENTICATOR_PREVIOUSLY_REGISTERED') return t('account.passkeys.alreadyRegistered');
+    return error.message ?? t('account.passkeys.addFailed');
 };
 
 /** Whether this browser can use passkeys at all. */

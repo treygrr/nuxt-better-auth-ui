@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, useAdminCan, useAdminPath, useLazyFetch } from '#imports';
+import { computed, ref, shallowRef, useAdminCan, useAdminPath, useAuthI18n, useLazyFetch } from '#imports';
 import { addDays, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, max, startOfDay, sub } from 'date-fns';
 import { ADMIN_API } from '../../constants';
 import type { AdminStats, Period, Range } from '../types';
 
 const adminPath = useAdminPath();
 const canCreate = useAdminCan()({ user: ['create'] });
+const { t } = useAuthI18n();
 
 const range = shallowRef<Range>({
     start: sub(new Date(), { days: 14 }),
@@ -44,7 +45,7 @@ const { data: stats } = useLazyFetch<AdminStats>(`${ADMIN_API}/stats`, {
 <template>
     <UDashboardPanel id="home">
         <template #header>
-            <UDashboardNavbar title="Home" :ui="{ right: 'gap-3' }">
+            <UDashboardNavbar :title="t('admin.home.title')" :ui="{ right: 'gap-3' }">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
@@ -55,7 +56,7 @@ const { data: stats } = useLazyFetch<AdminStats>(`${ADMIN_API}/stats`, {
                         v-if="canCreate"
                         :to="adminPath('/users?create=1')"
                         icon="i-lucide-user-plus"
-                        label="New user"
+                        :label="t('admin.home.newUser')"
                     />
                 </template>
             </UDashboardNavbar>

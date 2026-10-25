@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import type { TabsItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, useAuthCapabilities, useRoute, useRouter, useRuntimeConfig, useSeoMeta } from '#imports';
+import {
+    computed,
+    useAuthCapabilities,
+    useAuthI18n,
+    useRoute,
+    useRouter,
+    useRuntimeConfig,
+    useSeoMeta
+} from '#imports';
 
 import { needsTwoFactorSetUp, requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 
@@ -21,7 +29,8 @@ import {
     useAccountTwoFactor
 } from '../../utils/account-data';
 
-useSeoMeta({ title: 'Your account' });
+const { t } = useAuthI18n();
+useSeoMeta({ title: () => t('account.title') });
 
 const { user } = useUserSession();
 const route = useRoute();
@@ -61,16 +70,18 @@ const showConnections = computed(
 );
 
 const tabs = computed<TabsItem[]>(() => [
-    { label: 'Profile', icon: 'i-lucide-user-round', value: 'profile', slot: 'profile' },
+    { label: t('account.tabs.profile'), icon: 'i-lucide-user-round', value: 'profile', slot: 'profile' },
     {
-        label: 'Security',
+        label: t('account.tabs.security'),
         icon: 'i-lucide-shield-check',
         value: 'security',
         slot: 'security',
-        badge: twoFactorSetUpNeeded.value ? { label: 'Action needed', color: 'warning', variant: 'subtle' } : undefined
+        badge: twoFactorSetUpNeeded.value
+            ? { label: t('account.tabs.actionNeeded'), color: 'warning', variant: 'subtle' }
+            : undefined
     },
     {
-        label: 'Devices',
+        label: t('account.tabs.devices'),
         icon: 'i-lucide-monitor-smartphone',
         value: 'devices',
         slot: 'devices',
@@ -80,7 +91,7 @@ const tabs = computed<TabsItem[]>(() => [
                 : undefined
     },
     ...(capabilities.value?.deleteUser
-        ? [{ label: 'Delete', icon: 'i-lucide-trash-2', value: 'delete', slot: 'delete' }]
+        ? [{ label: t('account.tabs.delete'), icon: 'i-lucide-trash-2', value: 'delete', slot: 'delete' }]
         : [])
 ]);
 
@@ -116,18 +127,25 @@ const open = (value: string) => {
                 color="warning"
                 variant="subtle"
                 icon="i-lucide-shield-alert"
-                title="Set up two-factor authentication"
-                description="Your account requires it. Set it up under Security to keep using the site."
-                :actions="[{ label: 'Set it up', color: 'warning', onClick: () => open('security') }]"
+                :title="t('account.required.title')"
+                :description="t('account.required.description')"
+                :actions="[{ label: t('account.required.action'), color: 'warning', onClick: () => open('security') }]"
             />
             <UAlert
                 v-else-if="twoFactorMissing && passkeySession"
                 color="info"
                 variant="subtle"
                 icon="i-lucide-fingerprint"
-                title="Signed in with your passkey"
-                description="That's all you need. To sign in with your password too, set up two-factor: your account asks for a code after a password."
-                :actions="[{ label: 'Set it up', color: 'info', variant: 'outline', onClick: () => open('security') }]"
+                :title="t('account.passkeySession.title')"
+                :description="t('account.passkeySession.description')"
+                :actions="[
+                    {
+                        label: t('account.required.action'),
+                        color: 'info',
+                        variant: 'outline',
+                        onClick: () => open('security')
+                    }
+                ]"
             />
 
             <!-- On phones only the open tab shows its label (the others' stay readable to screen readers). -->

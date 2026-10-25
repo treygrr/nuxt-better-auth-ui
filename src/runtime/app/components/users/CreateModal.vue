@@ -8,6 +8,7 @@ import {
     ref,
     useAdminPath,
     useAdminUsers,
+    useAuthI18n,
     useBetterAuthAdminConfig,
     useRoute,
     useRouter,
@@ -18,15 +19,17 @@ const emit = defineEmits<{ created: [] }>();
 const adminPath = useAdminPath();
 const route = useRoute();
 const router = useRouter();
+const { t } = useAuthI18n();
 
 const { roles: allRoles } = useBetterAuthAdminConfig();
 const roles = computed(() => allRoles);
 
 const schema = z.object({
-    name: z.string().min(1, 'Required'),
-    email: z.email('Invalid email'),
+    // Messages as functions, so they follow the language.
+    name: z.string().min(1, { error: () => t('admin.validation.required') }),
+    email: z.email({ error: () => t('admin.validation.invalidEmail') }),
     // Optional: without one the user signs in another way, or uses "Forgot password".
-    password: z.union([z.literal(''), z.string().min(8, 'At least 8 characters')]),
+    password: z.union([z.literal(''), z.string().min(8, { error: () => t('admin.validation.passwordLength') })]),
     role: z.string()
 });
 type Schema = z.output<typeof schema>;
@@ -49,41 +52,56 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         const { password, ...rest } = event.data;
         const created = await users.create({ ...rest, ...(password && { password }) });
         toast.add({
-            title: 'User created',
+            title: t('admin.modals.create.created'),
             description: event.data.email,
             color: 'success',
-            actions: [{ label: 'Open', color: 'neutral', variant: 'outline', to: adminPath(`/users/${created.id}`) }]
+            actions: [
+                {
+                    label: t('admin.modals.create.open'),
+                    color: 'neutral',
+                    variant: 'outline',
+                    to: adminPath(`/users/${created.id}`)
+                }
+            ]
         });
         Object.assign(state, { name: '', email: '', password: '', role: 'user' });
         open.value = false;
         emit('created');
     } catch (error) {
-        toast.add({ title: "Couldn't create the user", description: (error as Error).message, color: 'error' });
+        toast.add({ title: t('admin.modals.create.failed'), description: (error as Error).message, color: 'error' });
     }
 }
 </script>
 
 <template>
-    <UModal v-model:open="open" title="Add user" description="Create an account. They can sign in straight away.">
-        <UButton label="Add user" icon="i-lucide-plus" />
+    <UModal
+        v-model:open="open"
+        :title="t('admin.modals.create.title')"
+        :description="t('admin.modals.create.description')"
+    >
+        <UButton :label="t('admin.modals.create.title')" icon="i-lucide-plus" />
 
         <template #body>
             <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="Name" name="name">
+                <UFormField :label="t('admin.common.name')" name="name">
                     <UInput v-model="state.name" class="w-full" />
                 </UFormField>
-                <UFormField label="Email" name="email">
+                <UFormField :label="t('admin.common.email')" name="email">
                     <UInput v-model="state.email" type="email" class="w-full" />
                 </UFormField>
-                <UFormField label="Password" name="password" help="Optional. At least 8 characters.">
+                <UFormField
+                    :label="t('admin.common.password')"
+                    name="password"
+                    :help="t('admin.modals.create.passwordHelp')"
+                >
                     <UInput v-model="state.password" type="password" autocomplete="new-password" class="w-full" />
                 </UFormField>
-                <UFormField label="Role" name="role">
+                <UFormField :label="t('admin.common.role')" name="role">
                     <USelect v-model="state.role" :items="roles" class="w-full" />
                 </UFormField>
                 <div class="flex justify-end gap-2">
-                    <UButton label="Cancel" color="neutral" variant="subtle" @click="open = false" />
-                    <UButton label="Create" type="submit" loading-auto />
+                    <UButton :label="t('admin.common.cancel')" color="neutral" variant="subtle" @click="open = false" />
+                    <UButton :label="t('admin.modals.create.create')" type="submit" loading-auto />
                 </div>
             </UForm>
         </template>

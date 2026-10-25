@@ -15,6 +15,7 @@ import {
     useAdminPath,
     useAdminUsers,
     useAuthCapabilities,
+    useAuthI18n,
     useBetterAuthAdminConfig,
     useFetch,
     useRoute,
@@ -44,6 +45,7 @@ const can = useAdminCan();
 const session = useUserSession();
 const admin = useAdminUsers();
 const toast = useToast();
+const { t } = useAuthI18n();
 const table = useTemplateRef('table');
 
 const PAGE_SIZE = 20;
@@ -160,7 +162,11 @@ async function run(action: () => Promise<unknown>, success: string) {
         toast.add({ title: success, color: 'success' });
         await refresh();
     } catch (error) {
-        toast.add({ title: 'Something went wrong', description: (error as Error).message, color: 'error' });
+        toast.add({
+            title: t('admin.common.somethingWentWrong'),
+            description: (error as Error).message,
+            color: 'error'
+        });
     }
 }
 
@@ -174,44 +180,52 @@ function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
         [
             { type: 'label', label: user.email },
             {
-                label: 'View details',
+                label: t('admin.users.viewDetails'),
                 icon: 'i-lucide-user',
                 onSelect: () => navigateTo(adminPath(`/users/${user.id}`))
             },
             {
-                label: 'Copy user ID',
+                label: t('admin.users.copyId'),
                 icon: 'i-lucide-copy',
                 onSelect: async () => {
                     await navigator.clipboard.writeText(user.id);
-                    toast.add({ title: 'Copied to clipboard', description: user.id });
+                    toast.add({ title: t('admin.common.copied'), description: user.id });
                 }
             }
         ],
         [
             can({ user: ['update'] }) && {
-                label: 'Edit',
+                label: t('admin.common.edit'),
                 icon: 'i-lucide-pencil',
                 onSelect: () => openModal('edit', [user])
             },
             can({ user: ['set-role'] }) && {
-                label: 'Change role',
+                label: t('admin.common.changeRole'),
                 icon: 'i-lucide-shield',
                 disabled: self,
                 onSelect: () => openModal('role', [user])
             },
-            { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => openModal('password', [user]) },
+            {
+                label: t('admin.common.password'),
+                icon: 'i-lucide-key-round',
+                onSelect: () => openModal('password', [user])
+            },
             can({ user: ['update'] }) &&
                 !user.emailVerified && {
-                    label: 'Resend verification email',
+                    label: t('admin.common.resendVerification'),
                     icon: 'i-lucide-mail',
                     onSelect: () =>
-                        run(() => admin.sendVerification(user.id), `Verification email sent to ${user.email}`)
+                        run(
+                            () => admin.sendVerification(user.id),
+                            t('admin.common.verificationSent', { email: user.email })
+                        )
                 },
             can({ session: ['revoke'] }) && {
-                label: 'Sign out everywhere',
+                label: t('admin.common.signOutEverywhere'),
                 icon: 'i-lucide-log-out',
                 disabled: self,
-                onSelect: () => run(() => admin.revokeSessions(user.id), `${user.name} was signed out everywhere`)
+                onSelect: () =>
+                    run(() => admin.revokeSessions(user.id), t('admin.common.signedOutEverywhere', { name: user.name }))
             }
         ],
         [impersonateItem(user)],
@@ -219,19 +233,20 @@ function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
             can({ user: ['ban'] }) &&
                 (user.banned
                     ? {
-                          label: 'Unban',
+                          label: t('admin.common.unban'),
                           icon: 'i-lucide-shield-check',
-                          onSelect: () => run(() => admin.unban(user.id), `${user.name} was unbanned`)
+                          onSelect: () =>
+                              run(() => admin.unban(user.id), t('admin.common.unbanned', { name: user.name }))
                       }
                     : {
-                          label: 'Ban',
+                          label: t('admin.common.ban'),
                           icon: 'i-lucide-ban',
                           color: 'error',
                           disabled: self,
                           onSelect: () => openModal('ban', [user])
                       }),
             can({ user: ['delete'] }) && {
-                label: 'Delete',
+                label: t('admin.common.delete'),
                 icon: 'i-lucide-trash',
                 color: 'error',
                 disabled: self,
@@ -259,7 +274,7 @@ const sortHeader =
         });
     };
 
-const columns: TableColumn<AdminUser>[] = [
+const columns = computed<TableColumn<AdminUser>[]>(() => [
     {
         id: 'select',
         enableHiding: false,
@@ -267,18 +282,18 @@ const columns: TableColumn<AdminUser>[] = [
             h(UCheckbox, {
                 modelValue: table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
                 'onUpdate:modelValue': (value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!value),
-                'aria-label': 'Select all'
+                'aria-label': t('admin.users.selectAll')
             }),
         cell: ({ row }) =>
             h(UCheckbox, {
                 modelValue: row.getIsSelected(),
                 'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
-                'aria-label': 'Select row'
+                'aria-label': t('admin.users.selectRow')
             })
     },
     {
         accessorKey: 'name',
-        header: sortHeader('User'),
+        header: sortHeader(t('admin.users.columns.user')),
         enableHiding: false,
         cell: ({ row }) =>
             h('div', { class: 'flex items-center gap-3' }, [
@@ -296,13 +311,20 @@ const columns: TableColumn<AdminUser>[] = [
                         },
                         row.original.name
                     ),
-                    h('p', { class: 'text-muted' }, row.original.email)
+                    // With the Username plugin: their handle, as they typed it.
+                    h(
+                        'p',
+                        { class: 'text-muted' },
+                        row.original.username
+                            ? `@${row.original.displayUsername || row.original.username} · ${row.original.email}`
+                            : row.original.email
+                    )
                 ])
             ])
     },
     {
         accessorKey: 'role',
-        header: 'Role',
+        header: t('admin.users.columns.role'),
         cell: ({ row }) =>
             h(UBadge, {
                 label: row.original.role ?? 'user',
@@ -315,27 +337,27 @@ const columns: TableColumn<AdminUser>[] = [
     },
     {
         accessorKey: 'banned',
-        header: 'Status',
+        header: t('admin.users.columns.status'),
         cell: ({ row }) =>
             row.original.banned
-                ? h(UBadge, { label: 'Banned', color: 'error', variant: 'subtle' })
-                : h(UBadge, { label: 'Active', color: 'success', variant: 'subtle' })
+                ? h(UBadge, { label: t('admin.common.banned'), color: 'error', variant: 'subtle' })
+                : h(UBadge, { label: t('admin.common.active'), color: 'success', variant: 'subtle' })
     },
     {
         accessorKey: 'emailVerified',
-        header: 'Email',
+        header: t('admin.users.columns.email'),
         cell: ({ row }) =>
             row.original.emailVerified
-                ? h(UBadge, { label: 'Verified', color: 'success', variant: 'outline' })
-                : h(UBadge, { label: 'Unverified', color: 'warning', variant: 'outline' })
+                ? h(UBadge, { label: t('admin.common.verified'), color: 'success', variant: 'outline' })
+                : h(UBadge, { label: t('admin.common.unverified'), color: 'warning', variant: 'outline' })
     },
     {
         id: 'signIn',
-        header: 'Sign-in',
+        header: t('admin.users.columns.signIn'),
         cell: ({ row }) => {
             const ids = providers.value[row.original.id];
             if (!ids) return providersStatus.value === 'pending' ? h('span', { class: 'text-dimmed' }, '…') : null;
-            if (!ids.length) return h(UBadge, { label: 'None', color: 'warning', variant: 'outline' });
+            if (!ids.length) return h(UBadge, { label: t('admin.users.none'), color: 'warning', variant: 'outline' });
             return h('div', { class: 'flex items-center gap-1.5' }, [
                 ...sortProviders(ids).map((id) =>
                     h(UTooltip, { text: providerInfo(id).label }, () =>
@@ -348,11 +370,11 @@ const columns: TableColumn<AdminUser>[] = [
                 ),
                 // Two-factor, from the user's own record (the Two-Factor plugin's column).
                 row.original.twoFactorEnabled
-                    ? h(UTooltip, { text: 'Two-factor on' }, () =>
+                    ? h(UTooltip, { text: t('admin.common.twoFactorOn') }, () =>
                           h(UIcon, {
                               name: 'i-lucide-shield-check',
                               class: 'size-4.5 text-success',
-                              'aria-label': 'Two-factor on'
+                              'aria-label': t('admin.common.twoFactorOn')
                           })
                       )
                     : null
@@ -363,7 +385,7 @@ const columns: TableColumn<AdminUser>[] = [
         ? [
               {
                   id: 'lastActive',
-                  header: 'Last active',
+                  header: t('admin.common.lastActive'),
                   cell: ({ row }: { row: Row<AdminUser> }) => {
                       const at = lastActive.value[row.original.id];
                       return at
@@ -377,7 +399,7 @@ const columns: TableColumn<AdminUser>[] = [
         ? [
               {
                   id: 'lastSignIn',
-                  header: 'Last sign-in',
+                  header: t('admin.common.lastSignIn'),
                   cell: ({ row }: { row: Row<AdminUser> }) => {
                       const at = lastSignIns.value[row.original.id];
                       return at
@@ -387,8 +409,8 @@ const columns: TableColumn<AdminUser>[] = [
                                 {
                                     class: 'text-dimmed',
                                     title: auditLogRetentionDays
-                                        ? `Not in the last ${auditLogRetentionDays} days`
-                                        : 'Never'
+                                        ? t('admin.common.notInLastDays', { days: auditLogRetentionDays })
+                                        : t('admin.common.never')
                                 },
                                 '—'
                             );
@@ -398,7 +420,7 @@ const columns: TableColumn<AdminUser>[] = [
         : []),
     {
         accessorKey: 'createdAt',
-        header: sortHeader('Joined'),
+        header: sortHeader(t('admin.users.columns.joined')),
         cell: ({ row }) => h(NuxtTime, { datetime: row.original.createdAt, dateStyle: 'medium' })
     },
     {
@@ -414,28 +436,33 @@ const columns: TableColumn<AdminUser>[] = [
                         color: 'neutral',
                         variant: 'ghost',
                         class: 'ml-auto',
-                        'aria-label': 'Actions'
+                        'aria-label': t('admin.common.actions')
                     })
                 )
             )
     }
-];
+]);
 
-const columnLabels: Record<string, string> = {
-    banned: 'Status',
-    emailVerified: 'Email',
-    signIn: 'Sign-in',
-    lastSignIn: 'Last sign-in',
-    lastActive: 'Last active'
-};
+const columnLabels = computed<Record<string, string>>(() => ({
+    role: t('admin.users.columns.role'),
+    banned: t('admin.users.columns.status'),
+    emailVerified: t('admin.users.columns.email'),
+    signIn: t('admin.users.columns.signIn'),
+    lastSignIn: t('admin.common.lastSignIn'),
+    lastActive: t('admin.common.lastActive'),
+    createdAt: t('admin.users.columns.joined')
+}));
 
 // One filter per staff role, eg "Admins", "Moderators"; "Two-factor off" when the app uses two-factor.
 const filterItems = computed(() => [
-    { label: 'All users', value: 'all' },
-    ...staffRoles.map((role) => ({ label: `${upperFirst(role)}s`, value: `role:${role}` })),
-    { label: 'Banned', value: 'banned' },
-    { label: 'Unverified', value: 'unverified' },
-    ...(capabilities.value?.twoFactor ? [{ label: 'Two-factor off', value: 'no-two-factor' }] : [])
+    { label: t('admin.users.filters.all'), value: 'all' },
+    ...staffRoles.map((role) => ({
+        label: t('admin.users.filters.role', { role: upperFirst(role) }),
+        value: `role:${role}`
+    })),
+    { label: t('admin.users.filters.banned'), value: 'banned' },
+    { label: t('admin.users.filters.unverified'), value: 'unverified' },
+    ...(capabilities.value?.twoFactor ? [{ label: t('admin.users.filters.noTwoFactor'), value: 'no-two-factor' }] : [])
 ]);
 
 const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));
@@ -444,7 +471,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
 <template>
     <UDashboardPanel id="better-auth-ui-users">
         <template #header>
-            <UDashboardNavbar title="Users" :badge="data?.total">
+            <UDashboardNavbar :title="t('admin.users.title')" :badge="data?.total">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
@@ -461,8 +488,8 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                     <USelect
                         v-model="searchField"
                         :items="[
-                            { label: 'Email', value: 'email' },
-                            { label: 'Name', value: 'name' }
+                            { label: t('admin.common.email'), value: 'email' },
+                            { label: t('admin.common.name'), value: 'name' }
                         ]"
                         class="w-24"
                     />
@@ -470,7 +497,9 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                         v-model="search"
                         class="max-w-sm"
                         icon="i-lucide-search"
-                        :placeholder="`Search by ${searchField}…`"
+                        :placeholder="
+                            t(searchField === 'name' ? 'admin.users.searchByName' : 'admin.users.searchByEmail')
+                        "
                     />
                 </UFieldGroup>
 
@@ -478,7 +507,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                     <template v-if="bulkTargets.length">
                         <UButton
                             v-if="can({ user: ['ban'] })"
-                            label="Ban"
+                            :label="t('admin.common.ban')"
                             color="error"
                             variant="subtle"
                             icon="i-lucide-ban"
@@ -490,7 +519,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                         </UButton>
                         <UButton
                             v-if="can({ user: ['delete'] })"
-                            label="Delete"
+                            :label="t('admin.common.delete')"
                             color="error"
                             variant="subtle"
                             icon="i-lucide-trash"
@@ -529,7 +558,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                         :content="{ align: 'end' }"
                     >
                         <UButton
-                            label="Display"
+                            :label="t('admin.users.display')"
                             color="neutral"
                             variant="outline"
                             trailing-icon="i-lucide-settings-2"
@@ -542,7 +571,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                 v-if="error"
                 color="error"
                 icon="i-lucide-circle-alert"
-                title="Couldn't load users"
+                :title="t('admin.users.loadFailed')"
                 :description="
                     (error.data as { message?: string } | undefined)?.message || error.statusMessage || error.message
                 "
@@ -571,7 +600,13 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
 
             <div class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto">
                 <div class="text-sm text-muted">
-                    {{ selected.length }} of {{ users.length }} on this page selected · {{ data?.total ?? 0 }} users
+                    {{
+                        t('admin.users.footer', {
+                            selected: selected.length,
+                            count: users.length,
+                            total: data?.total ?? 0
+                        })
+                    }}
                 </div>
                 <UPagination v-model:page="page" :items-per-page="PAGE_SIZE" :total="data?.total ?? 0" />
             </div>

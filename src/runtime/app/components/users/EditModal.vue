@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { reactive, useAdminCan, useAdminUsers, useToast, watch } from '#imports';
+import { reactive, useAdminCan, useAdminUsers, useAuthI18n, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -9,10 +9,12 @@ const props = defineProps<{ user: AdminUser }>();
 const open = defineModel<boolean>('open', { default: false });
 const emit = defineEmits<{ updated: [] }>();
 
+const { t } = useAuthI18n();
+// Messages as functions, so they follow the language.
 const schema = z.object({
-    name: z.string().min(1, 'Required'),
-    email: z.email('Invalid email'),
-    image: z.union([z.literal(''), z.url('Must be a URL')]),
+    name: z.string().min(1, { error: () => t('admin.validation.required') }),
+    email: z.email({ error: () => t('admin.validation.invalidEmail') }),
+    image: z.union([z.literal(''), z.url({ error: () => t('admin.validation.url') })]),
     emailVerified: z.boolean()
 });
 type Schema = z.output<typeof schema>;
@@ -51,34 +53,42 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
             Object.entries(next).filter(([key, value]) => value !== current[key as keyof typeof current])
         );
         if (Object.keys(changed).length) await users.update(props.user.id, changed);
-        toast.add({ title: 'User updated', color: 'success' });
+        toast.add({ title: t('admin.modals.edit.updated'), color: 'success' });
         open.value = false;
         emit('updated');
     } catch (error) {
-        toast.add({ title: "Couldn't update the user", description: (error as Error).message, color: 'error' });
+        toast.add({ title: t('admin.modals.edit.failed'), description: (error as Error).message, color: 'error' });
     }
 }
 </script>
 
 <template>
-    <UModal v-model:open="open" title="Edit user" :description="user.email">
+    <UModal v-model:open="open" :title="t('admin.modals.edit.title')" :description="user.email">
         <template #body>
             <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-                <UFormField label="Name" name="name">
+                <UFormField :label="t('admin.common.name')" name="name">
                     <UInput v-model="state.name" class="w-full" />
                 </UFormField>
-                <UFormField label="Email" name="email">
+                <UFormField :label="t('admin.common.email')" name="email">
                     <UInput v-model="state.email" type="email" class="w-full" :disabled="!canSetEmail" />
                 </UFormField>
-                <UFormField label="Avatar URL" name="image" help="Optional.">
+                <UFormField
+                    :label="t('admin.modals.edit.avatarUrl')"
+                    name="image"
+                    :help="t('admin.modals.edit.optional')"
+                >
                     <UInput v-model="state.image" class="w-full" />
                 </UFormField>
                 <UFormField name="emailVerified">
-                    <USwitch v-model="state.emailVerified" label="Email verified" :disabled="!canSetEmail" />
+                    <USwitch
+                        v-model="state.emailVerified"
+                        :label="t('admin.modals.edit.emailVerified')"
+                        :disabled="!canSetEmail"
+                    />
                 </UFormField>
                 <div class="flex justify-end gap-2">
-                    <UButton label="Cancel" color="neutral" variant="subtle" @click="open = false" />
-                    <UButton label="Save" type="submit" loading-auto />
+                    <UButton :label="t('admin.common.cancel')" color="neutral" variant="subtle" @click="open = false" />
+                    <UButton :label="t('admin.common.save')" type="submit" loading-auto />
                 </div>
             </UForm>
         </template>

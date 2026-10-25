@@ -2,22 +2,39 @@
 import { defaultStatements } from 'better-auth/plugins/admin/access';
 import { upperFirst } from 'scule';
 import { roles as accessRoles } from '#better-auth-ui/roles';
-import { computed, useAuthCapabilities, useBetterAuthAdminConfig, useRuntimeConfig, useSeoMeta } from '#imports';
+import {
+    computed,
+    useAuthCapabilities,
+    useAuthI18n,
+    useBetterAuthAdminConfig,
+    useRuntimeConfig,
+    useSeoMeta
+} from '#imports';
 
 import type { TwoFactorRequired } from '../../two-factor-required';
 import { EMAIL_NAMES } from '../../server/emails/types';
 import CardTitle from '../components/account/CardTitle.vue';
+import type { MessageKey } from '../i18n';
 import { providerInfo } from '../utils/providers';
 
 /**
  * What the app's set-up allows, read from its Better Auth config and `betterAuthUi` options: how people sign in,
  * security, account self-service, emails, the admin's own records, and what each role can do. Read-only.
  */
-useSeoMeta({ title: 'Configuration' });
+const { t } = useAuthI18n();
+useSeoMeta({ title: () => t('admin.configuration.title') });
 
 const { capabilities } = useAuthCapabilities();
 const config = useBetterAuthAdminConfig();
-const { twoFactorRequired } = useRuntimeConfig().public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };
+const { twoFactorRequired, captcha } = useRuntimeConfig().public.betterAuthUi as {
+    twoFactorRequired: TwoFactorRequired;
+    captcha: { provider: keyof typeof CAPTCHA_NAMES; siteKey: string } | false;
+};
+const CAPTCHA_NAMES = {
+    'cloudflare-turnstile': 'Cloudflare Turnstile',
+    hcaptcha: 'hCaptcha',
+    'google-recaptcha': 'Google reCAPTCHA'
+};
 
 type Color = 'success' | 'warning' | 'neutral' | 'primary';
 type Row = {
@@ -27,7 +44,11 @@ type Row = {
     hint?: string;
     icons?: Array<{ name: string; label: string }>;
 };
-const on = (value: boolean, yes = 'On', no = 'Off'): Pick<Row, 'value' | 'color'> => ({
+const on = (
+    value: boolean,
+    yes = t('admin.configuration.on'),
+    no = t('admin.configuration.off')
+): Pick<Row, 'value' | 'color'> => ({
     value: value ? yes : no,
     color: value ? 'success' : 'neutral'
 });
@@ -38,43 +59,72 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
     const minutes = Math.round(config.activityInterval / 60_000);
     return [
         {
-            title: 'Signing in',
+            title: t('admin.configuration.sections.signIn'),
             icon: 'i-lucide-log-in',
             rows: [
-                { label: 'Email and password', ...on(c.emailAndPassword) },
-                { label: 'Sign-ups', ...on(c.signUp, 'Open', 'Closed') },
+                { label: t('admin.configuration.rows.emailAndPassword'), ...on(c.emailAndPassword) },
                 {
-                    label: 'Email verification',
+                    label: t('admin.configuration.rows.signUps'),
+                    ...on(c.signUp, t('admin.configuration.rows.open'), t('admin.configuration.rows.closed'))
+                },
+                {
+                    label: t('admin.configuration.rows.emailVerification'),
                     ...(c.requireEmailVerification
-                        ? { value: 'Required to sign in', color: 'primary' as const }
-                        : on(c.emailVerification, 'Sent, not required', 'Off'))
+                        ? { value: t('admin.configuration.rows.requiredToSignIn'), color: 'primary' as const }
+                        : on(c.emailVerification, t('admin.configuration.rows.sentNotRequired')))
                 },
                 {
-                    label: 'Passwords',
-                    value: `${c.minPasswordLength}–${c.maxPasswordLength} characters`,
-                    hint: c.resetPassword ? 'Can be reset by email' : "Can't be reset by email"
+                    label: t('admin.configuration.rows.passwords'),
+                    value: t('admin.configuration.rows.characters', {
+                        min: c.minPasswordLength,
+                        max: c.maxPasswordLength
+                    }),
+                    hint: c.resetPassword
+                        ? t('admin.configuration.rows.canReset')
+                        : t('admin.configuration.rows.cantReset')
                 },
                 {
-                    label: 'Social providers',
-                    value: c.socialProviders.length ? '' : 'None',
+                    label: t('admin.configuration.rows.socialProviders'),
+                    value: c.socialProviders.length ? '' : t('admin.configuration.rows.none'),
                     color: 'neutral',
                     icons: c.socialProviders.map((id) => ({
                         name: providerInfo(id).icon,
                         label: providerInfo(id).label
                     }))
                 },
-                { label: 'Passkeys', ...on(c.passkey) }
+                { label: t('admin.configuration.rows.passkeys'), ...on(c.passkey) },
+                { label: t('admin.configuration.rows.magicLinks'), ...on(c.magicLink) },
+                {
+                    label: t('admin.configuration.rows.usernames'),
+                    ...(c.username
+                        ? on(
+                              true,
+                              t('admin.configuration.rows.characters', {
+                                  min: c.username.minLength,
+                                  max: c.username.maxLength
+                              })
+                          )
+                        : on(false)),
+                    hint: c.username?.immutable ? t('admin.configuration.rows.usernameImmutable') : undefined
+                },
+                {
+                    label: t('admin.configuration.rows.lastUsed'),
+                    ...on(c.lastLoginMethod),
+                    hint: c.lastLoginMethod ? t('admin.configuration.rows.lastUsedHint') : undefined
+                }
             ]
         },
         {
-            title: 'Security',
+            title: t('admin.configuration.sections.security'),
             icon: 'i-lucide-shield-check',
             rows: [
                 {
-                    label: 'Two-factor',
+                    label: t('admin.configuration.rows.twoFactor'),
                     ...(c.twoFactor
                         ? {
-                              value: c.twoFactor.otp ? 'Authenticator app or email codes' : 'Authenticator app',
+                              value: c.twoFactor.otp
+                                  ? t('admin.configuration.rows.authenticatorOrEmail')
+                                  : t('admin.configuration.rows.authenticator'),
                               color: 'success' as const
                           }
                         : on(false))
@@ -82,125 +132,172 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                 ...(c.twoFactor
                     ? [
                           {
-                              label: 'Required for',
+                              label: t('admin.configuration.rows.requiredFor'),
                               value:
                                   twoFactorRequired === true
-                                      ? 'Everyone'
+                                      ? t('admin.configuration.rows.everyone')
                                       : Array.isArray(twoFactorRequired) && twoFactorRequired.length
                                         ? twoFactorRequired.map(upperFirst).join(', ')
-                                        : 'Nobody (optional)',
+                                        : t('admin.configuration.rows.nobody'),
                               color: (twoFactorRequired ? 'primary' : 'neutral') as Color,
-                              hint: twoFactorRequired
-                                  ? 'Passkey sign-ins count; password sign-ins need a code'
-                                  : undefined
+                              hint: twoFactorRequired ? t('admin.configuration.rows.requiredHint') : undefined
                           },
                           {
-                              label: 'Without a password',
-                              ...on(c.twoFactor.allowPasswordless, 'Can turn it on', "Can't turn it on")
+                              label: t('admin.configuration.rows.withoutPassword'),
+                              ...on(
+                                  c.twoFactor.allowPasswordless,
+                                  t('admin.configuration.rows.canTurnOn'),
+                                  t('admin.configuration.rows.cantTurnOn')
+                              )
                           }
                       ]
                     : []),
                 {
-                    label: 'Impersonation',
-                    ...on(config.impersonation, 'Admins can sign in as users'),
+                    label: t('admin.configuration.rows.breachedPasswords'),
+                    ...on(
+                        c.haveIBeenPwned,
+                        t('admin.configuration.rows.refused'),
+                        t('admin.configuration.rows.allowed')
+                    )
+                },
+                {
+                    label: t('admin.configuration.rows.captcha'),
+                    ...(captcha ? on(true, CAPTCHA_NAMES[captcha.provider]) : on(false)),
+                    hint: captcha ? t('admin.configuration.rows.onSignUp') : undefined
+                },
+                {
+                    label: t('admin.configuration.rows.impersonation'),
+                    ...on(config.impersonation, t('admin.configuration.rows.impersonationOn')),
                     hint: config.impersonation ? undefined : 'betterAuthUi.admin.impersonation'
                 }
             ]
         },
         {
-            title: 'Self-service',
+            title: t('admin.configuration.sections.selfService'),
             icon: 'i-lucide-user-round-cog',
             rows: [
                 {
-                    label: 'Changing email',
+                    label: t('admin.configuration.rows.changingEmail'),
                     ...(c.changeEmail
-                        ? on(true, c.changeEmailConfirmation ? 'On, approved from the current address' : 'On')
+                        ? on(
+                              true,
+                              c.changeEmailConfirmation
+                                  ? t('admin.configuration.rows.changeEmailApproved')
+                                  : t('admin.configuration.on')
+                          )
                         : on(false))
                 },
                 {
-                    label: 'Deleting their account',
-                    ...(c.deleteUser ? on(true, c.deleteUserByEmail ? 'On, confirmed by email' : 'On') : on(false))
+                    label: t('admin.configuration.rows.deletingAccount'),
+                    ...(c.deleteUser
+                        ? on(
+                              true,
+                              c.deleteUserByEmail
+                                  ? t('admin.configuration.rows.deleteByEmail')
+                                  : t('admin.configuration.on')
+                          )
+                        : on(false))
                 }
             ]
         },
         {
-            title: 'Emails',
+            title: t('admin.configuration.sections.emails'),
             icon: 'i-lucide-mail',
             rows: [
                 {
-                    label: 'Delivery',
+                    label: t('admin.configuration.rows.delivery'),
                     ...(config.emails.send
-                        ? on(true, 'Your sender')
-                        : { value: 'Not set up', color: 'warning' as const, hint: 'betterAuthUi.emails.send' })
+                        ? on(true, t('admin.configuration.rows.yourSender'))
+                        : {
+                              value: t('admin.configuration.rows.notSetUp'),
+                              color: 'warning' as const,
+                              hint: 'betterAuthUi.emails.send'
+                          })
                 },
                 ...EMAIL_NAMES.map((name) => ({
-                    label: EMAIL_LABELS[name],
+                    label: t(EMAIL_LABELS[name]),
                     hint: name,
-                    value: config.emails.templates.includes(name) ? 'Your template' : 'Plain-text default',
+                    value: config.emails.templates.includes(name)
+                        ? t('admin.configuration.rows.yourTemplate')
+                        : t('admin.configuration.rows.plainDefault'),
                     color: (config.emails.templates.includes(name) ? 'primary' : 'neutral') as Color
                 }))
             ]
         },
         {
-            title: 'Admin records',
+            title: t('admin.configuration.sections.records'),
             icon: 'i-lucide-history',
             rows: [
                 {
-                    label: 'Audit log',
+                    label: t('admin.configuration.rows.auditLog'),
                     ...on(
                         config.auditLog,
-                        config.auditLogRetentionDays ? `Kept ${config.auditLogRetentionDays} days` : 'Kept forever'
+                        config.auditLogRetentionDays
+                            ? t('admin.configuration.rows.keptDays', { days: config.auditLogRetentionDays })
+                            : t('admin.configuration.rows.keptForever')
                     )
                 },
-                { label: "Users' sign-ins in the log", ...on(config.lastSignIn) },
+                { label: t('admin.configuration.rows.signInsInLog'), ...on(config.lastSignIn) },
                 {
-                    label: 'Activity tracking',
-                    ...on(config.activityTracking, `Every ${minutes} minute${minutes === 1 ? '' : 's'}`),
-                    hint: config.activityTracking ? '"Last active" and "online now"' : undefined
+                    label: t('admin.configuration.rows.activityTracking'),
+                    ...on(
+                        config.activityTracking,
+                        t(
+                            minutes === 1
+                                ? 'admin.configuration.rows.every.one'
+                                : 'admin.configuration.rows.every.other',
+                            {
+                                count: minutes
+                            }
+                        )
+                    ),
+                    hint: config.activityTracking ? t('admin.configuration.rows.activityHint') : undefined
                 },
-                { label: 'Admin pages', value: config.route, color: 'neutral' }
+                { label: t('admin.configuration.rows.adminPages'), value: config.route, color: 'neutral' }
             ]
         }
     ];
 });
 
 // The emails in words; the template name (for betterAuthUi.emails.templates) shows under each.
-const EMAIL_LABELS: Record<(typeof EMAIL_NAMES)[number], string> = {
-    'verify-email': 'Verify email',
-    'reset-password': 'Reset password',
-    'existing-user-sign-up': 'Sign-up with a taken email',
-    'change-email-confirmation': 'Approve an email change',
-    'delete-account': 'Confirm deleting an account',
-    'two-factor-code': 'Two-factor code'
+const EMAIL_LABELS: Record<(typeof EMAIL_NAMES)[number], MessageKey> = {
+    'verify-email': 'admin.configuration.emails.verifyEmail',
+    'reset-password': 'admin.configuration.emails.resetPassword',
+    'existing-user-sign-up': 'admin.configuration.emails.existingUserSignUp',
+    'change-email-confirmation': 'admin.configuration.emails.changeEmailConfirmation',
+    'delete-account': 'admin.configuration.emails.deleteAccount',
+    'two-factor-code': 'admin.configuration.emails.twoFactorCode',
+    'magic-link': 'admin.configuration.emails.magicLink'
 };
 
 // Who can do what: Better Auth's Admin permissions, checked against each role exactly as the server checks them.
-const PERMISSIONS: Record<string, Record<string, string>> = {
+const PERMISSIONS: Record<string, Record<string, MessageKey>> = {
     user: {
-        list: 'See the user list',
-        get: 'View a user',
-        create: 'Create users',
-        update: 'Edit names and details',
-        'set-email': 'Change emails',
-        'set-password': 'Set passwords',
-        'set-role': 'Change roles',
-        ban: 'Ban and unban',
-        impersonate: 'Sign in as a user',
-        'impersonate-admins': 'Sign in as an admin',
-        delete: 'Delete users'
+        list: 'admin.configuration.permissions.user.list',
+        get: 'admin.configuration.permissions.user.get',
+        create: 'admin.configuration.permissions.user.create',
+        update: 'admin.configuration.permissions.user.update',
+        'set-email': 'admin.configuration.permissions.user.setEmail',
+        'set-password': 'admin.configuration.permissions.user.setPassword',
+        'set-role': 'admin.configuration.permissions.user.setRole',
+        ban: 'admin.configuration.permissions.user.ban',
+        impersonate: 'admin.configuration.permissions.user.impersonate',
+        'impersonate-admins': 'admin.configuration.permissions.user.impersonateAdmins',
+        delete: 'admin.configuration.permissions.user.delete'
     },
     session: {
-        list: 'See sessions',
-        revoke: 'Sign sessions out',
-        delete: 'Delete sessions'
+        list: 'admin.configuration.permissions.session.list',
+        revoke: 'admin.configuration.permissions.session.revoke',
+        delete: 'admin.configuration.permissions.session.delete'
     }
 };
-const permissions = (Object.keys(defaultStatements) as Array<keyof typeof defaultStatements>).flatMap((resource) =>
-    defaultStatements[resource].map((action) => ({
-        resource,
-        action,
-        label: PERMISSIONS[resource]?.[action] ?? `${resource}: ${action}`
-    }))
+const permissions = computed(() =>
+    (Object.keys(defaultStatements) as Array<keyof typeof defaultStatements>).flatMap((resource) =>
+        defaultStatements[resource].map((action) => {
+            const key = PERMISSIONS[resource]?.[action];
+            return { resource, action, label: key ? t(key) : `${resource}: ${action}` };
+        })
+    )
 );
 const allows = (role: string, resource: string, action: string) =>
     accessRoles[role]?.authorize({ [resource]: [action] }).success === true;
@@ -209,7 +306,7 @@ const allows = (role: string, resource: string, action: string) =>
 <template>
     <UDashboardPanel id="better-auth-ui-configuration">
         <template #header>
-            <UDashboardNavbar title="Configuration">
+            <UDashboardNavbar :title="t('admin.configuration.title')">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
@@ -219,9 +316,13 @@ const allows = (role: string, resource: string, action: string) =>
         <template #body>
             <div class="flex flex-col gap-4 sm:gap-6 w-full lg:max-w-4xl mx-auto">
                 <p class="text-sm text-muted">
-                    How {{ capabilities?.appName ?? 'the app' }} is set up, from its Better Auth config and the
-                    <code class="text-highlighted">betterAuthUi</code> options in nuxt.config. Read-only: change them in
-                    code.
+                    {{
+                        t('admin.configuration.introBefore', {
+                            app: capabilities?.appName ?? t('admin.configuration.theApp')
+                        })
+                    }}
+                    <code class="text-highlighted">betterAuthUi</code>
+                    {{ t('admin.configuration.introAfter') }}
                 </p>
 
                 <div class="grid items-start gap-4 sm:gap-6 lg:grid-cols-2">
@@ -233,14 +334,17 @@ const allows = (role: string, resource: string, action: string) =>
                                 :key="row.label"
                                 class="flex items-start justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
                             >
-                                <dt class="text-muted shrink-0">{{ row.label }}</dt>
-                                <dd class="text-end">
+                                <dt class="text-muted shrink-0 max-w-1/2">{{ row.label }}</dt>
+                                <!-- Long values (in any language) wrap inside the card. -->
+                                <dd class="text-end min-w-0">
                                     <span class="inline-flex flex-wrap justify-end items-center gap-1.5">
                                         <UBadge
                                             v-if="row.value"
                                             :label="row.value"
                                             :color="row.color ?? 'neutral'"
                                             variant="subtle"
+                                            :ui="{ label: 'whitespace-normal text-end' }"
+                                            class="max-w-full h-auto"
                                         />
                                         <UTooltip v-for="icon in row.icons" :key="icon.label" :text="icon.label">
                                             <UIcon :name="icon.name" :aria-label="icon.label" class="size-5" />
@@ -254,16 +358,21 @@ const allows = (role: string, resource: string, action: string) =>
                 </div>
 
                 <UPageCard variant="subtle">
-                    <template #title><CardTitle icon="i-lucide-key-square" title="Roles and permissions" /></template>
+                    <template #title
+                        ><CardTitle icon="i-lucide-key-square" :title="t('admin.configuration.roles.title')"
+                    /></template>
                     <template #description>
-                        What each role can do in the admin pages and Better Auth's admin endpoints. Roles with
-                        <UBadge label="Staff" size="sm" variant="subtle" /> can open these pages.
+                        {{ t('admin.configuration.roles.descriptionBefore') }}
+                        <UBadge :label="t('admin.configuration.roles.staff')" size="sm" variant="subtle" />
+                        {{ t('admin.configuration.roles.descriptionAfter') }}
                     </template>
                     <div class="overflow-x-auto -mx-1">
                         <table class="w-full text-sm">
                             <thead>
                                 <tr class="text-left">
-                                    <th class="py-2 px-1 font-medium text-muted">Permission</th>
+                                    <th class="py-2 px-1 font-medium text-muted">
+                                        {{ t('admin.configuration.roles.permission') }}
+                                    </th>
                                     <th
                                         v-for="role in config.roles"
                                         :key="role"
@@ -272,7 +381,7 @@ const allows = (role: string, resource: string, action: string) =>
                                         {{ upperFirst(role) }}
                                         <UBadge
                                             v-if="config.staffRoles.includes(role)"
-                                            label="Staff"
+                                            :label="t('admin.configuration.roles.staff')"
                                             size="sm"
                                             variant="subtle"
                                             class="ms-1"
@@ -296,13 +405,13 @@ const allows = (role: string, resource: string, action: string) =>
                                             v-if="allows(role, permission.resource, permission.action)"
                                             name="i-lucide-check"
                                             class="size-4 text-success"
-                                            aria-label="Allowed"
+                                            :aria-label="t('admin.configuration.roles.allowed')"
                                         />
                                         <UIcon
                                             v-else
                                             name="i-lucide-minus"
                                             class="size-4 text-dimmed"
-                                            aria-label="Not allowed"
+                                            :aria-label="t('admin.configuration.roles.notAllowed')"
                                         />
                                     </td>
                                 </tr>

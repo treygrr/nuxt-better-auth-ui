@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { reactive, useAdminCan, useAdminUsers, useToast, watch } from '#imports';
+import { reactive, useAdminCan, useAdminUsers, useAuthI18n, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
 const props = defineProps<{ user: AdminUser }>();
 const open = defineModel<boolean>('open', { default: false });
 
-const schema = z.object({ password: z.string().min(8, 'At least 8 characters') });
+const { t } = useAuthI18n();
+// The message as a function, so it follows the language.
+const schema = z.object({ password: z.string().min(8, { error: () => t('admin.validation.passwordLength') }) });
 type Schema = z.output<typeof schema>;
 const state = reactive<Schema>({ password: '' });
 watch(open, (isOpen) => {
@@ -23,35 +25,43 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     try {
         await users.setPassword(props.user.id, event.data.password);
         toast.add({
-            title: 'Password set',
-            description: `Tell ${props.user.name} their new password.`,
+            title: t('admin.modals.password.set'),
+            description: t('admin.modals.password.tellThem', { name: props.user.name }),
             color: 'success'
         });
         open.value = false;
     } catch (error) {
-        toast.add({ title: "Couldn't set the password", description: (error as Error).message, color: 'error' });
+        toast.add({
+            title: t('admin.modals.password.setFailed'),
+            description: (error as Error).message,
+            color: 'error'
+        });
     }
 }
 
 async function sendReset() {
     try {
         await users.sendPasswordReset(props.user.email);
-        toast.add({ title: 'Reset link sent', description: props.user.email, color: 'success' });
+        toast.add({ title: t('admin.modals.password.resetSent'), description: props.user.email, color: 'success' });
         open.value = false;
     } catch (error) {
-        toast.add({ title: "Couldn't send the reset link", description: (error as Error).message, color: 'error' });
+        toast.add({
+            title: t('admin.modals.password.resetFailed'),
+            description: (error as Error).message,
+            color: 'error'
+        });
     }
 }
 </script>
 
 <template>
-    <UModal v-model:open="open" title="Password" :description="user.email">
+    <UModal v-model:open="open" :title="t('admin.common.password')" :description="user.email">
         <template #body>
             <div class="space-y-6">
                 <div class="space-y-2">
-                    <p class="text-sm text-muted">Email them a link to choose a new password themselves.</p>
+                    <p class="text-sm text-muted">{{ t('admin.modals.password.emailLink') }}</p>
                     <UButton
-                        label="Send reset link"
+                        :label="t('admin.modals.password.sendReset')"
                         icon="i-lucide-mail"
                         color="neutral"
                         variant="outline"
@@ -60,15 +70,24 @@ async function sendReset() {
                     />
                 </div>
 
-                <USeparator v-if="canSetPassword" label="or" />
+                <USeparator v-if="canSetPassword" :label="t('admin.modals.password.or')" />
 
                 <UForm v-if="canSetPassword" :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
-                    <UFormField label="Set a new password" name="password" help="At least 8 characters.">
+                    <UFormField
+                        :label="t('admin.modals.password.setNew')"
+                        name="password"
+                        :help="t('admin.modals.password.help')"
+                    >
                         <UInput v-model="state.password" type="password" autocomplete="new-password" class="w-full" />
                     </UFormField>
                     <div class="flex justify-end gap-2">
-                        <UButton label="Cancel" color="neutral" variant="subtle" @click="open = false" />
-                        <UButton label="Set password" type="submit" loading-auto />
+                        <UButton
+                            :label="t('admin.common.cancel')"
+                            color="neutral"
+                            variant="subtle"
+                            @click="open = false"
+                        />
+                        <UButton :label="t('admin.modals.password.setPassword')" type="submit" loading-auto />
                     </div>
                 </UForm>
             </div>

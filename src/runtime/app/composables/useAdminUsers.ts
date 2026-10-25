@@ -1,5 +1,5 @@
 import { useAuthClient } from '@nuxtjs/better-auth/composables';
-import { $fetch } from '#imports';
+import { $fetch, useAuthI18n } from '#imports';
 
 import { ADMIN_API } from '../../constants';
 
@@ -38,22 +38,24 @@ type AdminClient = {
     requestPasswordReset(input: { email: string; redirectTo?: string }): Promise<Result<{ status: boolean }>>;
 };
 
-const unwrap = async <T>(request: Promise<Result<T>>): Promise<T> => {
-    const { data, error } = await request;
-    if (error) throw new Error(error.message || error.code || 'The request failed');
-    return data as T;
-};
-
-/** Rethrows a failed $fetch to this module's routes as an Error with the server's message. */
-const fetchError = (error: { data?: { statusMessage?: string; message?: string }; message?: string }): never => {
-    throw new Error(error?.data?.statusMessage || error?.data?.message || error?.message || 'The request failed');
-};
-
 /**
  * Better Auth's admin actions on users, returning data or throwing an Error with a readable message. Pages read
  * their data with useFetch instead, so it's fetched during server rendering.
  */
 export const useAdminUsers = () => {
+    const { t } = useAuthI18n();
+    const unwrap = async <T>(request: Promise<Result<T>>): Promise<T> => {
+        const { data, error } = await request;
+        if (error) throw new Error(error.message || error.code || t('admin.common.requestFailed'));
+        return data as T;
+    };
+    /** Rethrows a failed $fetch to this module's routes as an Error with the server's message. */
+    const fetchError = (error: { data?: { statusMessage?: string; message?: string }; message?: string }): never => {
+        throw new Error(
+            error?.data?.statusMessage || error?.data?.message || error?.message || t('admin.common.requestFailed')
+        );
+    };
+
     const client = () => {
         const authClient = useAuthClient() as unknown as AdminClient | null;
         if (!authClient) throw new Error('The auth client is only available in the browser');

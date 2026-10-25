@@ -6,16 +6,20 @@ import {
     navigateTo,
     ref,
     useAuthCapabilities,
+    useAuthI18n,
     useAuthPages,
     useRedirectTarget,
     useRoute,
     useSeoMeta
 } from '#imports';
 
+import Captcha from '../../components/auth/Captcha.vue';
+import { useCaptcha } from '../../utils/captcha';
 import { oauthErrorMessage } from '../../utils/oauth-errors';
 import { providerInfo } from '../../utils/providers';
 
-useSeoMeta({ title: 'Create an account' });
+const { t, errorMessage } = useAuthI18n();
+useSeoMeta({ title: () => t('signUp.title') });
 
 const pages = useAuthPages();
 const { capabilities } = useAuthCapabilities();
@@ -23,25 +27,43 @@ const redirectTo = useRedirectTarget();
 const route = useRoute();
 // A failed provider sign-in comes back with Better Auth's ?error= code.
 const oauthError = computed(() =>
-    typeof route.query.error === 'string' ? oauthErrorMessage(route.query.error) : null
+    typeof route.query.error === 'string' ? oauthErrorMessage(route.query.error, t) : null
 );
 
 const signUp = useSignUp('email');
 const social = useSignIn('social');
+const captcha = useCaptcha('/sign-up/email');
 // With required verification there's no session yet: they're told to check their email.
 const checkEmail = ref<string | null>(null);
 
 const fields = computed<AuthFormField[]>(() => {
     const min = capabilities.value?.minPasswordLength ?? 8;
+    const username = capabilities.value?.username;
     return [
-        { name: 'name', type: 'text', label: 'Name', autocomplete: 'name', required: true },
-        { name: 'email', type: 'email', label: 'Email', autocomplete: 'email', required: true },
+        { name: 'name', type: 'text', label: t('common.name'), autocomplete: 'name', required: true },
+        ...(username
+            ? [
+                  {
+                      name: 'username',
+                      type: 'text' as const,
+                      label: t('common.username'),
+                      autocomplete: 'username',
+                      help: t('signUp.usernameHelp', { min: username.minLength, max: username.maxLength }),
+                      minlength: username.minLength,
+                      maxlength: username.maxLength,
+                      required: true
+                  }
+              ]
+            : []),
+        { name: 'email', type: 'email', label: t('common.email'), autocomplete: 'email', required: true },
         {
             name: 'password',
             type: 'password',
-            label: 'Password',
+            label: t('common.password'),
             autocomplete: 'new-password',
-            help: `At least ${min} characters.`,
+            help: capabilities.value?.haveIBeenPwned
+                ? `${t('password.minimum', { min })} ${t('password.breachChecked')}`
+                : t('password.minimum', { min }),
             minlength: min,
             maxlength: capabilities.value?.maxPasswordLength,
             required: true
@@ -50,7 +72,7 @@ const fields = computed<AuthFormField[]>(() => {
 });
 const providers = computed<ButtonProps[]>(() =>
     (capabilities.value?.socialProviders ?? []).map((provider) => ({
-        label: `Continue with ${providerInfo(provider).label}`,
+        label: t('signIn.continueWith', { provider: providerInfo(provider).label }),
         icon: providerInfo(provider).icon,
         loadingAuto: true,
         // Typed from the app's configured providers, which the module can't know: these come from the app's config.
@@ -64,20 +86,27 @@ const providers = computed<ButtonProps[]>(() =>
             } as Parameters<typeof social.execute>[0])
     }))
 );
-const error = computed(() => signUp.error.value ?? social.error.value);
+const captchaMissing = ref(false);
+const error = computed(() =>
+    captchaMissing.value
+        ? t('captcha.required')
+        : errorMessage(signUp.error.value ?? social.error.value) || oauthError.value
+);
 
-async function onSubmit(event: FormSubmitEvent<{ name: string; email: string; password: string }>) {
+type SignUpData = { name: string; email: string; password: string; username?: string };
+async function onSubmit(event: FormSubmitEvent<SignUpData>) {
+    captchaMissing.value = captcha.missing();
+    if (captchaMissing.value) return;
     const requireVerification = capabilities.value?.requireEmailVerification;
-    await signUp.execute(
-        { ...event.data, callbackURL: redirectTo },
+    await signUp.execute({ ...event.data, callbackURL: redirectTo } as Parameters<typeof signUp.execute>[0], {
+        headers: captcha.headers(),
         // With verification required there's no session yet, so show the next step instead.
-        {
-            onSuccess: async () => {
-                if (requireVerification) checkEmail.value = event.data.email;
-                else await navigateTo(redirectTo);
-            }
+        onSuccess: async () => {
+            if (requireVerification) checkEmail.value = event.data.email;
+            else await navigateTo(redirectTo);
         }
-    );
+    });
+    captcha.reset();
 }
 </script>
 
@@ -86,15 +115,12 @@ async function onSubmit(event: FormSubmitEvent<{ name: string; email: string; pa
         <UPageCard class="w-full max-w-md">
             <div v-if="checkEmail" class="space-y-4 text-center">
                 <UIcon name="i-lucide-mail-check" class="size-10 text-primary mx-auto" />
-                <h1 class="text-xl font-semibold text-highlighted">Check your email</h1>
-                <p class="text-muted">
-                    We've sent a link to <strong class="text-default">{{ checkEmail }}</strong
-                    >. Open it to verify your email and finish creating your account.
-                </p>
+                <h1 class="text-xl font-semibold text-highlighted">{{ t('signUp.checkEmail.title') }}</h1>
+                <p class="text-muted">{{ t('signUp.checkEmail.description', { email: checkEmail }) }}</p>
                 <UButton
                     v-if="pages.signIn"
                     :to="pages.signIn"
-                    label="Back to sign in"
+                    :label="t('common.backToSignIn')"
                     variant="subtle"
                     color="neutral"
                 />
@@ -104,32 +130,38 @@ async function onSubmit(event: FormSubmitEvent<{ name: string; email: string; pa
                 color="neutral"
                 variant="subtle"
                 icon="i-lucide-info"
-                title="Sign-ups are closed"
-                description="New accounts can't be created right now."
+                :title="t('signUp.closed.title')"
+                :description="t('signUp.closed.description')"
             />
             <UAuthForm
                 v-else
                 :fields="fields"
                 :providers="providers"
-                title="Create an account"
+                :title="t('signUp.title')"
                 icon="i-lucide-user-plus"
                 :loading="signUp.status.value === 'pending'"
-                :submit="{ label: 'Create account' }"
+                :submit="{ label: t('signUp.submit') }"
                 @submit="onSubmit"
             >
                 <template v-if="pages.signIn" #description>
-                    Already have one?
-                    <ULink :to="{ path: pages.signIn, query: $route.query }" class="text-primary font-medium"
-                        >Sign in</ULink
+                    {{ t('signUp.haveAccount') }}
+                    <ULink :to="{ path: pages.signIn, query: $route.query }" class="text-primary font-medium">{{
+                        t('signUp.signIn')
+                    }}</ULink
                     >.
                 </template>
                 <template #validation>
+                    <Captcha
+                        v-if="captcha.enabled"
+                        :ref="(el) => (captcha.widget.value = el as never)"
+                        v-model="captcha.token.value"
+                    />
                     <UAlert
-                        v-if="error || oauthError"
+                        v-if="error"
                         color="error"
                         icon="i-lucide-circle-alert"
-                        title="Couldn't create your account"
-                        :description="error?.message ?? oauthError ?? undefined"
+                        :title="t('signUp.failed')"
+                        :description="error"
                     />
                 </template>
             </UAuthForm>

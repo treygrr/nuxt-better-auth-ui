@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, navigateTo, useAuthPages, useColorMode } from '#imports';
+import { computed, navigateTo, useAuthI18n, useAuthPages, useColorMode } from '#imports';
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 
@@ -14,6 +14,7 @@ const colorMode = useColorMode();
 const session = useUserSession();
 const pages = useAuthPages();
 const signOutTarget = useSignOutTarget();
+const { t } = useAuthI18n();
 
 const user = computed(() => ({
     name: session.user.value?.name ?? '',
@@ -25,9 +26,9 @@ const user = computed(() => ({
 }));
 
 const modes = [
-    { label: 'Light', value: 'light', icon: 'i-lucide-sun' },
-    { label: 'Dark', value: 'dark', icon: 'i-lucide-moon' },
-    { label: 'System', value: 'system', icon: 'i-lucide-monitor' }
+    { label: 'admin.userMenu.light', value: 'light', icon: 'i-lucide-sun' },
+    { label: 'admin.userMenu.dark', value: 'dark', icon: 'i-lucide-moon' },
+    { label: 'admin.userMenu.system', value: 'system', icon: 'i-lucide-monitor' }
 ] as const;
 
 const items = computed<DropdownMenuItem[][]>(() => [
@@ -39,12 +40,14 @@ const items = computed<DropdownMenuItem[][]>(() => [
         }
     ],
     [
-        ...(pages.account ? [{ label: 'Your account', icon: 'i-lucide-user-round', to: pages.account }] : []),
+        ...(pages.account
+            ? [{ label: t('admin.userMenu.yourAccount'), icon: 'i-lucide-user-round', to: pages.account }]
+            : []),
         {
-            label: 'Appearance',
+            label: t('admin.userMenu.appearance'),
             icon: 'i-lucide-sun-moon',
             children: modes.map((mode) => ({
-                label: mode.label,
+                label: t(mode.label),
                 icon: mode.icon,
                 type: 'checkbox' as const,
                 checked: colorMode.preference === mode.value,
@@ -57,12 +60,12 @@ const items = computed<DropdownMenuItem[][]>(() => [
     ],
     [
         {
-            label: 'Back to site',
+            label: t('admin.userMenu.backToSite'),
             icon: 'i-lucide-arrow-left',
             to: '/'
         },
         {
-            label: 'Log out',
+            label: t('admin.userMenu.logOut'),
             icon: 'i-lucide-log-out',
             onSelect: () =>
                 session.signOut({

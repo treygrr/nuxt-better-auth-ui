@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, navigateTo, useAdminPath, useAdminUsers, useToast } from '#imports';
+import { computed, navigateTo, useAdminPath, useAdminUsers, useAuthI18n, useToast } from '#imports';
 
 /**
  * Shown while an admin is signed in as someone else, with a way back. Place it in the app's layout:
@@ -10,6 +10,7 @@ const session = useUserSession();
 const admin = useAdminUsers();
 const adminPath = useAdminPath();
 const toast = useToast();
+const { t } = useAuthI18n();
 
 const impersonating = computed(
     () => !!(session.session.value as { impersonatedBy?: string | null } | null)?.impersonatedBy
@@ -22,7 +23,11 @@ async function stop() {
         // A full load, so the whole app picks up the admin's session again.
         await navigateTo(adminPath(userId ? `/users/${userId}` : '/users'), { external: true });
     } catch (error) {
-        toast.add({ title: "Couldn't stop impersonating", description: (error as Error).message, color: 'error' });
+        toast.add({
+            title: t('admin.impersonation.stopFailed'),
+            description: (error as Error).message,
+            color: 'error'
+        });
     }
 }
 </script>
@@ -35,8 +40,17 @@ async function stop() {
     >
         <UIcon name="i-lucide-venetian-mask" class="size-4 shrink-0" />
         <span>
-            You're signed in as <strong>{{ session.user.value?.name }}</strong> ({{ session.user.value?.email }}).
+            {{ t('admin.impersonation.signedInAs') }} <strong>{{ session.user.value?.name }}</strong> ({{
+                session.user.value?.email
+            }}).
         </span>
-        <UButton label="Stop impersonating" size="xs" color="neutral" variant="solid" loading-auto @click="stop" />
+        <UButton
+            :label="t('admin.impersonation.stop')"
+            size="xs"
+            color="neutral"
+            variant="solid"
+            loading-auto
+            @click="stop"
+        />
     </div>
 </template>

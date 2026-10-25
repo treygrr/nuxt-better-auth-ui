@@ -9,6 +9,7 @@ import {
     useAdminCan,
     useAdminDashboard,
     useAdminPath,
+    useAuthI18n,
     useAuthPages,
     useBetterAuthAdminConfig,
     useLazyAsyncData
@@ -21,6 +22,7 @@ const adminPath = useAdminPath();
 const pages = useAuthPages();
 const { auditLog } = useBetterAuthAdminConfig();
 const can = useAdminCan();
+const { t } = useAuthI18n();
 useAdminDashboard();
 
 const open = ref(false);
@@ -33,14 +35,14 @@ const links = computed(
         [
             [
                 {
-                    label: 'Home',
+                    label: t('admin.nav.home'),
                     icon: 'i-lucide-house',
                     to: adminPath('/'),
                     exact: true,
                     onSelect: close
                 },
                 {
-                    label: 'Users',
+                    label: t('admin.nav.users'),
                     icon: 'i-lucide-user-cog',
                     to: adminPath('/users'),
                     onSelect: close
@@ -48,7 +50,7 @@ const links = computed(
                 ...(can({ session: ['list'] })
                     ? [
                           {
-                              label: 'Sessions',
+                              label: t('admin.nav.sessions'),
                               icon: 'i-lucide-monitor-smartphone',
                               to: adminPath('/sessions'),
                               onSelect: close
@@ -56,10 +58,17 @@ const links = computed(
                       ]
                     : []),
                 ...(auditLog
-                    ? [{ label: 'Audit log', icon: 'i-lucide-history', to: adminPath('/audit'), onSelect: close }]
+                    ? [
+                          {
+                              label: t('admin.nav.auditLog'),
+                              icon: 'i-lucide-history',
+                              to: adminPath('/audit'),
+                              onSelect: close
+                          }
+                      ]
                     : []),
                 {
-                    label: 'Configuration',
+                    label: t('admin.nav.configuration'),
                     icon: 'i-lucide-sliders-horizontal',
                     to: adminPath('/configuration'),
                     onSelect: close
@@ -67,7 +76,7 @@ const links = computed(
             ],
             [
                 {
-                    label: 'Back to site',
+                    label: t('admin.nav.backToSite'),
                     icon: 'i-lucide-arrow-left',
                     to: '/'
                 }
@@ -100,24 +109,32 @@ const { data: found, status: searchStatus } = useLazyAsyncData(
 const groups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
     {
         id: 'links',
-        label: 'Go to',
+        label: t('admin.search.goTo'),
         items: links.value.flat()
     },
     {
         id: 'actions',
-        label: 'Actions',
+        label: t('admin.search.actions'),
         items: [
             ...(can({ user: ['create'] })
-                ? [{ label: 'Create a user', icon: 'i-lucide-user-plus', to: adminPath('/users?create=1') }]
+                ? [
+                      {
+                          label: t('admin.search.createUser'),
+                          icon: 'i-lucide-user-plus',
+                          to: adminPath('/users?create=1')
+                      }
+                  ]
                 : []),
-            ...(pages.account ? [{ label: 'Your account', icon: 'i-lucide-user-round', to: pages.account }] : [])
+            ...(pages.account
+                ? [{ label: t('admin.search.yourAccount'), icon: 'i-lucide-user-round', to: pages.account }]
+                : [])
         ]
     },
     ...(term.value.length >= 2
         ? [
               {
                   id: 'users',
-                  label: 'Users',
+                  label: t('admin.search.users'),
                   // Already matched by Better Auth.
                   ignoreFilter: true,
                   items: (found.value?.users ?? []).map((user) => ({
@@ -169,7 +186,7 @@ const groups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
             v-model:search-term="searchTerm"
             :groups="groups"
             :loading="searchStatus === 'pending'"
-            placeholder="Search pages and users…"
+            :placeholder="t('admin.search.placeholder')"
         />
 
         <slot />

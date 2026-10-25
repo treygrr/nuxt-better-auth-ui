@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composables';
-import { ref, useAuthCapabilities, useAuthPages, useToast } from '#imports';
+import { ref, useAuthCapabilities, useAuthI18n, useAuthPages, useToast } from '#imports';
 
 import CardTitle from './CardTitle.vue';
 
 /** The email address: verification status, resending the link, and changing it when the app allows. */
+const { t, errorMessage } = useAuthI18n();
 const { user } = useUserSession();
 const { capabilities } = useAuthCapabilities();
 const pages = useAuthPages();
@@ -18,9 +19,13 @@ const changeSent = ref<string | null>(null);
 async function resendLink() {
     await resend.execute({ email: user.value!.email, callbackURL: pages.account || '/' });
     if (resend.error.value) {
-        toast.add({ title: "Couldn't send the link", description: resend.error.value.message, color: 'error' });
+        toast.add({
+            title: t('account.email.resendFailed'),
+            description: errorMessage(resend.error.value),
+            color: 'error'
+        });
     } else {
-        toast.add({ title: 'Verification link sent', description: user.value!.email, color: 'success' });
+        toast.add({ title: t('account.email.resent'), description: user.value!.email, color: 'success' });
     }
 }
 
@@ -39,11 +44,11 @@ async function changeEmail() {
 </script>
 
 <template>
-    <UPageCard v-if="user" title="Email" :description="user.email" variant="subtle">
+    <UPageCard v-if="user" :title="t('common.email')" :description="user.email" variant="subtle">
         <template #title>
-            <CardTitle icon="i-lucide-mail" title="Email">
+            <CardTitle icon="i-lucide-mail" :title="t('common.email')">
                 <UBadge
-                    :label="user.emailVerified ? 'Verified' : 'Not verified'"
+                    :label="user.emailVerified ? t('account.overview.verified') : t('account.email.notVerified')"
                     :color="user.emailVerified ? 'success' : 'warning'"
                     variant="subtle"
                     size="sm"
@@ -52,9 +57,9 @@ async function changeEmail() {
         </template>
 
         <div v-if="!user.emailVerified && capabilities?.emailVerification" class="flex flex-wrap items-center gap-3">
-            <p class="text-sm text-muted flex-1">Verify your email so you can recover your account.</p>
+            <p class="text-sm text-muted flex-1">{{ t('account.email.verifyHint') }}</p>
             <UButton
-                label="Send verification link"
+                :label="t('account.email.resend')"
                 icon="i-lucide-mail"
                 color="neutral"
                 variant="outline"
@@ -69,26 +74,26 @@ async function changeEmail() {
                 color="success"
                 variant="subtle"
                 icon="i-lucide-mail-check"
-                title="Check your email"
+                :title="t('account.email.checkTitle')"
                 :description="
                     approvalFirst
-                        ? `We've sent a link to ${user.email} to approve the change, then we'll ask ${changeSent} to confirm. Your address stays the same until then.`
-                        : `Open the link we sent to ${changeSent} to finish changing your email. Your current address stays until then.`
+                        ? t('account.email.approvalFirst', { current: user.email, next: changeSent })
+                        : t('account.email.confirmNew', { next: changeSent })
                 "
             />
             <form v-else class="flex flex-wrap items-end gap-3" @submit.prevent="changeEmail">
-                <UFormField label="New email" class="flex-1 min-w-60">
+                <UFormField :label="t('account.email.newEmail')" class="flex-1 min-w-60">
                     <UInput v-model="newEmail" type="email" autocomplete="email" required class="w-full" />
                 </UFormField>
                 <UButton
                     type="submit"
-                    label="Change email"
+                    :label="t('account.email.change')"
                     color="neutral"
                     variant="outline"
                     :loading="change.status.value === 'pending'"
                 />
             </form>
-            <p v-if="change.error.value" class="text-sm text-error mt-2">{{ change.error.value.message }}</p>
+            <p v-if="change.error.value" class="text-sm text-error mt-2">{{ errorMessage(change.error.value) }}</p>
         </template>
     </UPageCard>
 </template>

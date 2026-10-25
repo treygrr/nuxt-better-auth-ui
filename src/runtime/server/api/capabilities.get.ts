@@ -28,6 +28,14 @@ export type AuthCapabilities = {
     twoFactor: { otp: boolean; allowPasswordless: boolean } | null;
     /** Better Auth's Passkey plugin: signing in with a passkey, and adding them from the account page. */
     passkey: boolean;
+    /** Better Auth's Username plugin: a username at sign-up, signing in with it, changing it (unless immutable). */
+    username: { minLength: number; maxLength: number; immutable: boolean } | null;
+    /** Better Auth's Magic Link plugin: signing in with a link by email. */
+    magicLink: boolean;
+    /** Better Auth's Have I Been Pwned plugin: breached passwords are refused. */
+    haveIBeenPwned: boolean;
+    /** Better Auth's Last Login Method plugin: the sign-in page marks the method used last. */
+    lastLoginMethod: boolean;
     /** Ids of the Better Auth plugins in use, eg ['admin', 'two-factor']. */
     plugins: string[];
 };
@@ -52,6 +60,7 @@ type Options = {
 };
 
 type TwoFactorPluginOptions = { otpOptions?: { sendOTP?: unknown }; allowPasswordless?: boolean };
+type UsernamePluginOptions = { minUsernameLength?: number; maxUsernameLength?: number; immutableUsername?: boolean };
 
 /** Public: it says which features are on, nothing about users. Defaults are Better Auth's documented ones. */
 export default defineEventHandler((event): AuthCapabilities => {
@@ -60,6 +69,9 @@ export default defineEventHandler((event): AuthCapabilities => {
     // The plugin keeps its options on itself, whether the module or the app added it.
     const twoFactor = options.plugins?.find((plugin) => plugin.id === 'two-factor');
     const twoFactorOptions = (twoFactor?.options ?? {}) as TwoFactorPluginOptions;
+    const username = options.plugins?.find((plugin) => plugin.id === 'username');
+    const usernameOptions = (username?.options ?? {}) as UsernamePluginOptions;
+    const has = (id: string) => !!options.plugins?.some((plugin) => plugin.id === id);
     return {
         appName: options.appName || 'Better Auth',
         emailAndPassword: password.enabled === true,
@@ -80,7 +92,18 @@ export default defineEventHandler((event): AuthCapabilities => {
                   allowPasswordless: twoFactorOptions.allowPasswordless === true
               }
             : null,
-        passkey: !!options.plugins?.some((plugin) => plugin.id === 'passkey'),
+        passkey: has('passkey'),
+        // Better Auth's defaults: 3 to 30 characters.
+        username: username
+            ? {
+                  minLength: usernameOptions.minUsernameLength || 3,
+                  maxLength: usernameOptions.maxUsernameLength || 30,
+                  immutable: usernameOptions.immutableUsername === true
+              }
+            : null,
+        magicLink: has('magic-link'),
+        haveIBeenPwned: has('have-i-been-pwned'),
+        lastLoginMethod: has('last-login-method'),
         plugins: (options.plugins ?? []).map((plugin) => plugin.id)
     };
 });

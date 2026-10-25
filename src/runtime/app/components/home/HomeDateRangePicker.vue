@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { computed } from '#imports';
+import { computed, useAuthI18n } from '#imports';
 import { getLocalTimeZone, CalendarDate, today } from '@internationalized/date';
 import type { Range } from '../../types';
 
 const selected = defineModel<Range>({ required: true });
 
-const ranges = [
-    { label: 'Last 7 days', days: 7 },
-    { label: 'Last 14 days', days: 14 },
-    { label: 'Last 30 days', days: 30 },
-    { label: 'Last 3 months', months: 3 },
-    { label: 'Last 6 months', months: 6 },
-    { label: 'Last year', years: 1 }
-];
+const { t } = useAuthI18n();
+const ranges = computed(() => [
+    { label: t('admin.home.ranges.last7Days'), days: 7 },
+    { label: t('admin.home.ranges.last14Days'), days: 14 },
+    { label: t('admin.home.ranges.last30Days'), days: 30 },
+    { label: t('admin.home.ranges.last3Months'), months: 3 },
+    { label: t('admin.home.ranges.last6Months'), months: 6 },
+    { label: t('admin.home.ranges.lastYear'), years: 1 }
+]);
 
 const toCalendarDate = (date: Date) => {
     return new CalendarDate(date.getFullYear(), date.getMonth() + 1, date.getDate());
@@ -83,7 +84,7 @@ const selectRange = (range: { days?: number; months?: number; years?: number }) 
                         <NuxtTime :datetime="selected.start" date-style="medium" />
                     </template>
                 </template>
-                <template v-else> Pick a date </template>
+                <template v-else> {{ t('admin.home.pickDate') }} </template>
             </span>
 
             <template #trailing>

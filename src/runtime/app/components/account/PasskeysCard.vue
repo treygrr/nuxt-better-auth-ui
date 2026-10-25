@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useToast } from '#imports';
+import { ref, useAuthI18n, useToast } from '#imports';
 
 import { useAccountPasskeys } from '../../utils/account-data';
 import CardTitle from './CardTitle.vue';
@@ -12,6 +12,7 @@ import {
 } from '../../utils/passkey';
 
 /** Passkeys, through Better Auth's Passkey plugin: adding one, renaming and removing them. */
+const { t, errorMessage, locale } = useAuthI18n();
 const toast = useToast();
 
 // Better Auth's own GET endpoint for the signed-in user's passkeys, shared with the overview.
@@ -27,13 +28,13 @@ const newName = ref('');
 
 async function addPasskey() {
     if (!passkeysSupported()) {
-        toast.add({ title: "This browser can't use passkeys", color: 'error' });
+        toast.add({ title: t('account.passkeys.unsupported'), color: 'error' });
         return;
     }
     // The browser asks which device or password manager keeps it.
     await add.execute({ name: name.value.trim() || undefined });
     if (add.error.value) return;
-    toast.add({ title: 'Passkey added', description: 'You can sign in with it now.', color: 'success' });
+    toast.add({ title: t('account.passkeys.added'), description: t('account.passkeys.addedHint'), color: 'success' });
     name.value = '';
     await refresh();
 }
@@ -46,7 +47,11 @@ function startRename(passkey: Passkey) {
 async function rename(passkey: Passkey) {
     await update.execute({ id: passkey.id, name: newName.value.trim() });
     if (update.error.value) {
-        toast.add({ title: "Couldn't rename it", description: update.error.value.message, color: 'error' });
+        toast.add({
+            title: t('account.passkeys.renameFailed'),
+            description: errorMessage(update.error.value),
+            color: 'error'
+        });
         return;
     }
     editing.value = null;
@@ -56,35 +61,58 @@ async function rename(passkey: Passkey) {
 async function removePasskey(passkey: Passkey) {
     await remove.execute({ id: passkey.id });
     if (remove.error.value) {
-        toast.add({ title: "Couldn't remove it", description: remove.error.value.message, color: 'error' });
+        toast.add({
+            title: t('account.passkeys.removeFailed'),
+            description: errorMessage(remove.error.value),
+            color: 'error'
+        });
         return;
     }
-    toast.add({ title: `Removed ${passkey.name || 'the passkey'}`, color: 'success' });
+    toast.add({
+        title: t('account.passkeys.removed', { name: passkey.name || t('account.passkeys.defaultName') }),
+        color: 'success'
+    });
     await refresh();
 }
 </script>
 
 <template>
-    <UPageCard
-        title="Passkeys"
-        description="Sign in with your fingerprint, face, screen lock or a security key instead of a password."
-        variant="subtle"
-    >
-        <template #title><CardTitle icon="i-lucide-fingerprint" title="Passkeys" /></template>
+    <UPageCard :title="t('account.passkeys.title')" :description="t('account.passkeys.description')" variant="subtle">
+        <template #title><CardTitle icon="i-lucide-fingerprint" :title="t('account.passkeys.title')" /></template>
         <ul v-if="passkeys.length" class="divide-y divide-default">
             <li v-for="item in passkeys" :key="item.id" class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                 <UIcon name="i-lucide-key-round" class="size-5 shrink-0 text-muted" />
                 <form v-if="editing === item.id" class="flex flex-1 items-center gap-2" @submit.prevent="rename(item)">
-                    <UInput v-model="newName" aria-label="Passkey name" required autofocus class="flex-1" />
-                    <UButton type="submit" label="Save" size="sm" :loading="update.status.value === 'pending'" />
-                    <UButton label="Cancel" color="neutral" variant="ghost" size="sm" @click="editing = null" />
+                    <UInput
+                        v-model="newName"
+                        :aria-label="t('account.passkeys.nameLabel')"
+                        required
+                        autofocus
+                        class="flex-1"
+                    />
+                    <UButton
+                        type="submit"
+                        :label="t('common.save')"
+                        size="sm"
+                        :loading="update.status.value === 'pending'"
+                    />
+                    <UButton
+                        :label="t('common.cancel')"
+                        color="neutral"
+                        variant="ghost"
+                        size="sm"
+                        @click="editing = null"
+                    />
                 </form>
                 <template v-else>
                     <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium text-highlighted truncate">{{ item.name || 'Passkey' }}</p>
+                        <p class="text-sm font-medium text-highlighted truncate">
+                            {{ item.name || t('account.passkeys.defaultName') }}
+                        </p>
                         <p class="text-xs text-muted truncate">
-                            {{ item.backedUp ? 'Synced' : 'On one device' }} · added
-                            <NuxtTime :datetime="item.createdAt" date-style="medium" />
+                            {{ item.backedUp ? t('account.passkeys.synced') : t('account.passkeys.oneDevice') }} ·
+                            {{ t('account.passkeys.added_on') }}
+                            <NuxtTime :datetime="item.createdAt" date-style="medium" :locale="locale" />
                         </p>
                     </div>
                     <UButton
@@ -92,7 +120,7 @@ async function removePasskey(passkey: Passkey) {
                         color="neutral"
                         variant="ghost"
                         size="sm"
-                        aria-label="Rename"
+                        :aria-label="t('account.passkeys.rename')"
                         @click="startRename(item)"
                     />
                     <UButton
@@ -100,7 +128,7 @@ async function removePasskey(passkey: Passkey) {
                         color="error"
                         variant="ghost"
                         size="sm"
-                        aria-label="Remove"
+                        :aria-label="t('account.passkeys.remove')"
                         loading-auto
                         @click="removePasskey(item)"
                     />
@@ -111,13 +139,13 @@ async function removePasskey(passkey: Passkey) {
         <form class="flex flex-wrap items-start gap-3" @submit.prevent="addPasskey">
             <UInput
                 v-model="name"
-                placeholder="Name it (optional), eg “Work laptop”"
-                aria-label="Passkey name"
+                :placeholder="t('account.passkeys.namePlaceholder')"
+                :aria-label="t('account.passkeys.nameLabel')"
                 class="flex-1 min-w-48"
             />
             <UButton
                 type="submit"
-                label="Add a passkey"
+                :label="t('account.passkeys.add')"
                 icon="i-lucide-plus"
                 :loading="add.status.value === 'pending'"
             />
@@ -128,7 +156,7 @@ async function removePasskey(passkey: Passkey) {
             class="text-sm"
             :class="passkeyCancelled(add.error.value) ? 'text-muted' : 'text-error'"
         >
-            {{ passkeyAddError(add.error.value) }}
+            {{ passkeyAddError(add.error.value, t) }}
         </p>
     </UPageCard>
 </template>

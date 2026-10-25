@@ -66,6 +66,12 @@ dark or system appearance, the way back to the site, and signing out. Everything
 - **Two-factor** (with the Two-Factor plugin): a shield on the users list for users who have it on, a "Two-factor
   off" filter, and a badge on each user's page, including "required, not set up" for roles under
   `twoFactor.required`.
+- **Lost a device?** Each user's page has a Security card (with the Two-Factor or Passkey plugin): **turn their
+  two-factor off** (their authenticator app, backup codes and trusted devices stop working; users who must have it
+  are asked to set it up again), and **remove a passkey**. Better Auth has no admin endpoints for these, so the module
+  does what its plugins' own disable and delete do, after the `user: update` permission check, and logs both in the
+  audit log.
+- **Usernames** (with the Username plugin) show as `@handle` on the users list and each user's page.
 - **Configuration page:** how the app is set up, read-only, from its Better Auth config and `betterAuthUi` options:
   sign-in methods and providers, email verification and password rules, two-factor (and who must use it), passkeys,
   impersonation, email changes and deletion, which emails have your own template, the audit log and activity
@@ -160,6 +166,14 @@ export default defineNuxtConfig({
         twoFactor: { enabled: false, otp: false, required: false },
         // Passkeys (install @better-auth/passkey). See "Passkeys" below.
         passkey: { enabled: false },
+        // More ways to sign in, and bot protection. See "More sign-in options" below.
+        username: { enabled: false },
+        magicLink: { enabled: false },
+        captcha: false,
+        haveIBeenPwned: false,
+        lastLoginMethod: false,
+        // The pages' and default emails' language: 'en' or 'es'. See "Languages" below.
+        locale: 'en',
         // Auth emails: delivery and templates. See "Emails" below.
         emails: {}
     }
@@ -298,6 +312,61 @@ Then run Better Auth's migrations (it adds a `passkey` table).
 - **Adding the plugin yourself** works too: leave `passkey.enabled` off, add `passkey()` and `passkeyClient()` to
   your auth configs, and the pages pick it up.
 
+## More sign-in options
+
+Each is one of Better Auth's own plugins, added by the module and shown by the pages; each is off by default. As
+with two-factor and passkeys, the pages also pick them up when your auth config adds the plugin itself.
+
+```ts
+betterAuthUi: {
+    // A username at sign-up; signing in with it or the email; changing it on the account page.
+    // Adds `username` and `displayUsername` user columns: run Better Auth's migrations.
+    username: { enabled: true, minLength: 3, maxLength: 30, immutable: false },
+    // "Email me a sign-in link" on the sign-in page (needs emails.send; template: `magic-link`). No migration.
+    magicLink: { enabled: true, expiresIn: 300, disableSignUp: false },
+    // Bot protection on signing up (and asking for a sign-in link). The secret key is read from
+    // BETTER_AUTH_CAPTCHA_SECRET_KEY at runtime, never from nuxt.config.
+    captcha: { provider: 'cloudflare-turnstile', siteKey: '0x4AAA…' }, // or 'hcaptcha', 'google-recaptcha' (v2)
+    // Refuse passwords found in data breaches at sign-up, password changes and resets.
+    haveIBeenPwned: true,
+    // "Last time, you signed in with GitHub", and that button highlighted, on the sign-in page.
+    lastLoginMethod: true
+}
+```
+
+- **Usernames:** the sign-up form asks for one (letters, numbers, `_` and `.`, as Better Auth checks them), and the
+  sign-in form takes "Email or username": anything with an `@` signs in by email, anything else by username. They're
+  case-insensitive (`Pixel_42` and `pixel_42` are the same), and shown as typed. With `immutable`, a username can be set
+  once, then not changed.
+- **Magic links:** the sign-in page's "Email me a sign-in link" asks for an email and sends a link that works once and
+  expires in 5 minutes. The first link for a new email creates the account (unless `disableSignUp`), landing on the
+  account page; an expired or used link comes back to the sign-in page with a message. Users with two-factor on are
+  asked for their code after the link, like after a password.
+- **Captcha:** a Cloudflare Turnstile, hCaptcha or reCAPTCHA v2 widget, loaded in the browser only, on the forms
+  whose Better Auth paths `captcha.endpoints` lists. By default that's signing up (`/sign-up/email`) and, with magic
+  links, asking for one (`/sign-in/magic-link`), since that can create an account too. Add `/sign-in/email` or
+  `/request-password-reset` to guard those forms as well. Better Auth checks the token on its server.
+- **Have I Been Pwned:** only the first 5 characters of the password's SHA-1 hash leave your server. The sign-up, reset
+  and change-password forms say the password will be checked.
+- **Last used:** Better Auth's Last Login Method plugin remembers the method in a cookie for 30 days (a non-essential
+  cookie, under GDPR); the sign-in page reads it on the server, so there's no flash.
+
+## Languages
+
+The sign-in pages, the account page, the admin dashboard and the default emails come in English and Spanish:
+
+```ts
+betterAuthUi: { locale: 'es' }
+```
+
+- **With @nuxtjs/i18n**, the pages follow its current language instead, as visitors switch it (when it's one of these
+  two); `locale` then only sets the default emails' language.
+- **Better Auth's errors** ("Invalid email or password", "Username is already taken", …) are shown in the page's
+  language by their error code; codes the module doesn't know show Better Auth's own message.
+- **Nuxt UI's own labels** (the password field's "Show password", a select's "No data") follow `<UApp :locale>`, as
+  usual for Nuxt UI: pass it `es` from `@nuxt/ui/locale` too.
+- **Your email templates** get no language from the module; write them in yours.
+
 ## Emails
 
 Better Auth leaves sending auth emails to the app. The module does the sending: plain-text emails by default, or your
@@ -368,6 +437,7 @@ own templates, delivered by your own function (Resend, SMTP, …).
 | `change-email-confirmation` | `user.changeEmail.sendChangeEmailConfirmation` | `{ user, newEmail, url, token }` |
 | `delete-account`        | `user.deleteUser.sendDeleteAccountVerification` | `{ user, url, token }` |
 | `two-factor-code`       | Two-Factor `otpOptions.sendOTP` (added by the module with `twoFactor.otp`) | `{ user, otp }` |
+| `magic-link`            | Magic Link `sendMagicLink` (added by the module with `magicLink`) | `{ email, url, token }` (no `user`: there may be no account yet) |
 
 Emails are sent in the background, not awaited, as
 [Better Auth advises](https://better-auth.com/docs/concepts/email) (waiting would reveal through timing which emails

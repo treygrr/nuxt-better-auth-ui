@@ -9,6 +9,7 @@ import {
     useAdminCan,
     useAdminPath,
     useAdminUsers,
+    useAuthI18n,
     useFetch,
     useToast
 } from '#imports';
@@ -39,6 +40,7 @@ const can = useAdminCan();
 const session = useUserSession();
 const admin = useAdminUsers();
 const toast = useToast();
+const { t } = useAuthI18n();
 
 const PAGE_SIZE = 25;
 const page = ref(1);
@@ -52,20 +54,24 @@ const thisSession = computed(() => session.session.value?.id);
 async function signOut(row: Row) {
     try {
         await admin.revokeSession(row.token);
-        toast.add({ title: 'Session signed out', description: row.user?.email, color: 'success' });
+        toast.add({ title: t('admin.common.sessionSignedOut'), description: row.user?.email, color: 'success' });
         await refresh();
     } catch (failure) {
-        toast.add({ title: "Couldn't sign it out", description: (failure as Error).message, color: 'error' });
+        toast.add({
+            title: t('admin.sessions.signOutFailed'),
+            description: (failure as Error).message,
+            color: 'error'
+        });
     }
 }
 
-const columns: TableColumn<Row>[] = [
+const columns = computed<TableColumn<Row>[]>(() => [
     {
         id: 'user',
-        header: 'User',
+        header: t('admin.sessions.columns.user'),
         cell: ({ row }) => {
             const user = row.original.user;
-            if (!user) return h('span', { class: 'text-dimmed' }, 'Deleted user');
+            if (!user) return h('span', { class: 'text-dimmed' }, t('admin.sessions.deletedUser'));
             return h(ULink, { to: adminPath(`/users/${user.id}`), class: 'flex items-center gap-3' }, () => [
                 h(UAvatar, { src: user.image ?? undefined, alt: user.name, size: 'md' }),
                 h('div', { class: 'min-w-0' }, [
@@ -77,38 +83,44 @@ const columns: TableColumn<Row>[] = [
     },
     {
         id: 'device',
-        header: 'Device',
+        header: t('admin.sessions.columns.device'),
         cell: ({ row }) =>
             h('div', { class: 'min-w-0' }, [
                 h('p', { class: 'truncate' }, [
-                    device(row.original.userAgent),
+                    device(row.original.userAgent, t),
                     row.original.id === thisSession.value &&
-                        h(UBadge, { label: 'You', color: 'primary', variant: 'subtle', size: 'sm', class: 'ms-1' }),
+                        h(UBadge, {
+                            label: t('admin.common.you'),
+                            color: 'primary',
+                            variant: 'subtle',
+                            size: 'sm',
+                            class: 'ms-1'
+                        }),
                     row.original.impersonatedBy &&
                         h(UBadge, {
-                            label: 'Impersonated',
+                            label: t('admin.common.impersonated'),
                             color: 'warning',
                             variant: 'subtle',
                             size: 'sm',
                             class: 'ms-1'
                         })
                 ]),
-                h('p', { class: 'text-xs text-dimmed truncate' }, row.original.ipAddress || 'Unknown IP')
+                h('p', { class: 'text-xs text-dimmed truncate' }, row.original.ipAddress || t('admin.common.unknownIp'))
             ])
     },
     {
         id: 'active',
-        header: 'Last active',
+        header: t('admin.common.lastActive'),
         cell: ({ row }) => h(NuxtTime, { datetime: row.original.updatedAt, relative: true, title: true })
     },
     {
         id: 'started',
-        header: 'Signed in',
+        header: t('admin.sessions.columns.signedIn'),
         cell: ({ row }) => h(NuxtTime, { datetime: row.original.createdAt, dateStyle: 'medium', timeStyle: 'short' })
     },
     {
         id: 'expires',
-        header: 'Expires',
+        header: t('admin.sessions.columns.expires'),
         cell: ({ row }) => h(NuxtTime, { datetime: row.original.expiresAt, relative: true, title: true })
     },
     {
@@ -117,7 +129,7 @@ const columns: TableColumn<Row>[] = [
             can({ session: ['revoke'] }) && row.original.id !== thisSession.value
                 ? h('div', { class: 'text-right' }, [
                       h(UButton, {
-                          label: 'Sign out',
+                          label: t('admin.common.signOut'),
                           color: 'neutral',
                           variant: 'outline',
                           size: 'sm',
@@ -127,13 +139,13 @@ const columns: TableColumn<Row>[] = [
                   ])
                 : null
     }
-];
+]);
 </script>
 
 <template>
     <UDashboardPanel id="sessions">
         <template #header>
-            <UDashboardNavbar title="Sessions" :badge="total">
+            <UDashboardNavbar :title="t('admin.sessions.title')" :badge="total">
                 <template #leading>
                     <UDashboardSidebarCollapse />
                 </template>
@@ -142,14 +154,13 @@ const columns: TableColumn<Row>[] = [
 
         <template #body>
             <p class="text-sm text-muted">
-                Everyone signed in right now, most recently active first. "Last active" is when Better Auth last
-                refreshed the session, so it can be up to a day old.
+                {{ t('admin.sessions.intro') }}
             </p>
             <UAlert
                 v-if="error"
                 color="error"
                 icon="i-lucide-circle-alert"
-                title="Couldn't load sessions"
+                :title="t('admin.sessions.loadFailed')"
                 :description="
                     (error.data as { message?: string } | undefined)?.message || error.statusMessage || error.message
                 "
@@ -159,14 +170,14 @@ const columns: TableColumn<Row>[] = [
                 color="neutral"
                 variant="subtle"
                 icon="i-lucide-info"
-                description="Sessions are kept in secondary storage (eg Redis), not the database, so they can't be listed here."
+                :description="t('admin.sessions.secondaryStorage')"
             />
             <UTable
                 v-else
                 :data="data?.sessions ?? []"
                 :columns="columns"
                 :loading="status === 'pending'"
-                empty="Nobody is signed in."
+                :empty="t('admin.sessions.empty')"
                 class="shrink-0"
                 :ui="{
                     base: 'table-fixed border-separate border-spacing-0',
@@ -177,7 +188,9 @@ const columns: TableColumn<Row>[] = [
                 }"
             />
             <div class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto">
-                <div class="text-sm text-muted">{{ total }} session{{ total === 1 ? '' : 's' }}</div>
+                <div class="text-sm text-muted">
+                    {{ t(total === 1 ? 'admin.sessions.count.one' : 'admin.sessions.count.other', { count: total }) }}
+                </div>
                 <UPagination v-model:page="page" :items-per-page="PAGE_SIZE" :total="total" />
             </div>
         </template>

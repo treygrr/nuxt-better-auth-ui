@@ -74,7 +74,13 @@ let userCookie: string;
 let adminCookie: string;
 
 beforeAll(async () => {
-    execSync('pnpm exec nuxt build', { cwd: playgroundDir, stdio: 'pipe' });
+    // Without the .env's optional extras (set, so Nuxt's .env loading doesn't fill them in): no captcha, which API
+    // sign-ups can't solve, no breached-password check (the tests use password123), and English.
+    execSync('pnpm exec nuxt build', {
+        cwd: playgroundDir,
+        stdio: 'pipe',
+        env: { ...process.env, PLAYGROUND_CAPTCHA_SITE_KEY: '', PLAYGROUND_HIBP: '', PLAYGROUND_LOCALE: '' }
+    });
     server = spawn(process.execPath, ['.output/server/index.mjs'], {
         cwd: playgroundDir,
         env: {
@@ -1242,6 +1248,64 @@ describe('two-factor authentication (on in the playground, with email codes)', (
     });
 });
 
+describe('helping someone who lost a device', () => {
+    const userId = async (email: string) =>
+        (await (await get(`/api/auth/admin/list-users?searchValue=${email}&searchField=email`, adminCookie)).json())
+            .users[0].id as string;
+    const emails = async (query: string) =>
+        (
+            (await (await get(`/api/auth/admin/list-users?limit=100&${query}`, adminCookie)).json()) as {
+                users: Array<{ email: string }>;
+            }
+        ).users.map((user) => user.email);
+
+    it('finds users with two-factor off (the admin filter)', async () => {
+        const off = await emails('filterField=twoFactorEnabled&filterValue=false&filterOperator=eq');
+        expect(off).toContain('alice@example.com');
+        expect(off).not.toContain('tess@example.com');
+    });
+
+    it("lists a user's passkeys for staff, not users", async () => {
+        const tess = await userId('tess@example.com');
+        const response = await get(`/api/_better-auth-ui/users/${tess}/passkeys`, adminCookie);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual([]);
+        expect((await get(`/api/_better-auth-ui/users/${tess}/passkeys`, userCookie)).status).toBe(403);
+        const missing = await fetch(`${base}/api/_better-auth-ui/users/${tess}/passkeys/nope`, {
+            method: 'DELETE',
+            headers: { origin: base, cookie: adminCookie }
+        });
+        expect(missing.status).toBe(404);
+    });
+
+    it('turns their two-factor off, so the password alone signs in, and logs it', async () => {
+        const tess = await userId('tess@example.com');
+        const reset = (cookie: string) =>
+            fetch(`${base}/api/_better-auth-ui/users/${tess}/two-factor/reset`, {
+                method: 'POST',
+                headers: { origin: base, cookie }
+            });
+        expect((await reset(userCookie)).status).toBe(403);
+        expect((await reset(adminCookie)).status).toBe(200);
+
+        const user = await (await get(`/api/auth/admin/get-user?id=${tess}`, adminCookie)).json();
+        expect(user.twoFactorEnabled).toBe(false);
+        const signIn = await fetch(`${base}/api/auth/sign-in/email`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base },
+            body: JSON.stringify({ email: 'tess@example.com', password: 'password123' })
+        });
+        expect((await signIn.json()).twoFactorRedirect).toBeUndefined();
+
+        // Newest first: her sign-in, then the reset.
+        const { entries } = await (await get(`/api/_better-auth-ui/audit?limit=2&userId=${tess}`, adminCookie)).json();
+        expect(entries.map((entry: { action: string }) => entry.action)).toEqual([
+            'auth.sign-in',
+            'user.two-factor-reset'
+        ]);
+    });
+});
+
 describe('requiring two-factor (moderators, in the playground)', () => {
     let monaCookie: string;
 
@@ -1291,7 +1355,8 @@ describe('passkeys (on in the playground)', () => {
     it('offers passkey sign-in, and adding passkeys on the account page', async () => {
         const signInPage = await (await get('/login')).text();
         expect(signInPage).toContain('Sign in with a passkey');
-        expect(signInPage).toContain('autocomplete="email webauthn"');
+        // With usernames on, the field takes either, so it's a username field.
+        expect(signInPage).toContain('autocomplete="username webauthn"');
         const account = await (await get('/account?tab=security', userCookie)).text();
         expect(account).toContain('Passkeys');
         expect(account).toContain('Add a passkey');
@@ -1353,5 +1418,91 @@ describe('social sign-ins ask for the code too (through a mock OAuth provider)',
         const trusted = await socialSignIn('sol@mock.test', trust);
         expect(trusted.headers.get('location')).toBe('/account');
         expect(await sessionEmail(cookiesOf(trusted))).toBe('sol@mock.test');
+    });
+});
+
+describe('usernames, sign-in links and the last-used hint (on in the playground)', () => {
+    const json = { 'content-type': 'application/json', origin: base };
+
+    it('reports them', async () => {
+        const capabilities = await (await get('/api/_better-auth-ui/capabilities')).json();
+        expect(capabilities).toMatchObject({
+            username: { minLength: 3, maxLength: 30, immutable: false },
+            magicLink: true,
+            lastLoginMethod: true,
+            haveIBeenPwned: false
+        });
+        const signUp = await (await get('/signup')).text();
+        expect(signUp).toContain('Letters, numbers, _ and . (3–30 characters).');
+        const signIn = await (await get('/login')).text();
+        expect(signIn).toContain('Email or username');
+        expect(signIn).toContain('Email me a sign-in link');
+    });
+
+    it('signs up with a username, then signs in with it', async () => {
+        const signUp = await fetch(`${base}/api/auth/sign-up/email`, {
+            method: 'POST',
+            headers: json,
+            body: JSON.stringify({
+                name: 'Pixel',
+                email: 'pixel@example.com',
+                password: 'password123',
+                username: 'Pixel_42'
+            })
+        });
+        expect(signUp.status).toBe(200);
+        const taken = await fetch(`${base}/api/auth/sign-up/email`, {
+            method: 'POST',
+            headers: json,
+            body: JSON.stringify({
+                name: 'Copy',
+                email: 'copy@example.com',
+                password: 'password123',
+                username: 'pixel_42'
+            })
+        });
+        expect((await taken.json()).code).toBe('USERNAME_IS_ALREADY_TAKEN');
+
+        const signIn = await fetch(`${base}/api/auth/sign-in/username`, {
+            method: 'POST',
+            headers: json,
+            body: JSON.stringify({ username: 'PIXEL_42', password: 'password123' })
+        });
+        expect(signIn.status).toBe(200);
+        // Signing in with the password form, under either name, counts as "email" for the hint.
+        expect(signIn.headers.getSetCookie().join(';')).toContain('better-auth.last_used_login_method=email');
+        const user = (await (await get('/api/auth/get-session', cookiesOf(signIn))).json()).user;
+        expect(user).toMatchObject({ username: 'pixel_42', displayUsername: 'Pixel_42' });
+        // The admin shows it.
+        expect(await (await get(`/admin/users/${user.id}`, adminCookie)).text()).toContain('@Pixel_42');
+    });
+
+    it('marks the method used last time on the sign-in page', async () => {
+        const html = await (await get('/login', 'better-auth.last_used_login_method=email')).text();
+        expect(html).toContain('Last time, you signed in with your password.');
+    });
+
+    it('signs in with a link by email, creating the account the first time', async () => {
+        const request = await fetch(`${base}/api/auth/sign-in/magic-link`, {
+            method: 'POST',
+            headers: json,
+            body: JSON.stringify({ email: 'link@example.com', callbackURL: '/account', newUserCallbackURL: '/account' })
+        });
+        expect(request.status).toBe(200);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const [email] = await (await get('/api/_playground/outbox')).json();
+        expect(email).toMatchObject({ to: 'link@example.com', email: 'magic-link', subject: 'Your sign-in link' });
+        const url = email.text.match(/https?:\/\/\S+/)[0];
+
+        const verify = await fetch(url, { redirect: 'manual' });
+        expect(verify.status).toBe(302);
+        expect(verify.headers.get('location')).toBe(`${base}/account`);
+        const session = await (await get('/api/auth/get-session', cookiesOf(verify))).json();
+        expect(session.user.email).toBe('link@example.com');
+
+        // A used link doesn't work twice: it comes back with the error the sign-in page explains.
+        const again = await fetch(url, { redirect: 'manual' });
+        expect(again.headers.get('location')).toMatch(/error=INVALID_TOKEN/);
+        expect(await (await get('/login?error=INVALID_TOKEN')).text()).toContain('expired or was already used');
     });
 });

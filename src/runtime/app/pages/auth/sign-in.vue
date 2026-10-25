@@ -5,65 +5,104 @@ import {
     computed,
     navigateTo,
     onMounted,
+    ref,
     useAuthCapabilities,
+    useAuthI18n,
     useAuthPages,
+    useCookie,
     useRedirectTarget,
     useRoute,
     useSeoMeta
 } from '#imports';
 
+import Captcha from '../../components/auth/Captcha.vue';
+import { useCaptcha } from '../../utils/captcha';
 import { oauthErrorMessage } from '../../utils/oauth-errors';
 import { passkeyCancelled, type PasskeyClient } from '../../utils/passkey';
 import { providerInfo } from '../../utils/providers';
 
-useSeoMeta({ title: 'Sign in' });
+const { t, errorMessage } = useAuthI18n();
+useSeoMeta({ title: () => t('signIn.title') });
 
 const pages = useAuthPages();
 const { capabilities } = useAuthCapabilities();
 const redirectTo = useRedirectTarget();
 const route = useRoute();
-// A failed provider sign-in comes back with Better Auth's ?error= code.
+// A failed provider sign-in, or an expired sign-in link, comes back with Better Auth's ?error= code.
 const oauthError = computed(() =>
-    typeof route.query.error === 'string' ? oauthErrorMessage(route.query.error) : null
+    typeof route.query.error === 'string' ? oauthErrorMessage(route.query.error, t) : null
 );
 
+// The Better Auth methods the module may add, which the app's typed client may not know about.
+type Result = Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
+type Options = { headers?: Record<string, string>; onSuccess?: (context: never) => Promise<void> };
+const handle = <Input,>(name: string) =>
+    useSignIn(name as Parameters<typeof useSignIn>[0]) as unknown as ActionHandleFor<
+        (input: Input, options?: Options) => Result
+    >;
 const email = useSignIn('email');
 const social = useSignIn('social');
-// Added by the Passkey plugin, which the app's typed client may not know about.
-type PasskeySignIn = (
-    input?: { autoFill?: boolean },
-    options?: { onSuccess?: () => Promise<void> }
-) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
-const passkey = useSignIn('passkey' as Parameters<typeof useSignIn>[0]) as unknown as ActionHandleFor<PasskeySignIn>;
+const username = handle<{ username: string; password: string }>('username');
+const passkey = handle<{ autoFill?: boolean }>('passkey');
+const magicLink = handle<{ email: string; callbackURL: string; newUserCallbackURL: string; errorCallbackURL: string }>(
+    'magicLink'
+);
+
+// How they signed in last time, from the Last Login Method plugin's cookie (read on the server too).
+const lastMethod = useCookie<string | null>('better-auth.last_used_login_method', { readonly: true });
+const lastUsed = computed(() => (capabilities.value?.lastLoginMethod ? lastMethod.value : null));
+const lastUsedLabel = computed(() => {
+    const method = lastUsed.value;
+    if (!method) return null;
+    if (method === 'email') return t('signIn.methods.password');
+    if (method === 'passkey') return t('signIn.methods.passkey');
+    if (method === 'magic-link') return t('signIn.methods.magicLink');
+    return providerInfo(method).label;
+});
+
+// Signing in with a password, or (with magic links) asking for a link instead.
+const mode = ref<'password' | 'link' | 'linkSent'>('password');
+const linkSentTo = ref('');
+const captcha = useCaptcha('/sign-in/email');
+const linkCaptcha = useCaptcha('/sign-in/magic-link');
 
 const fields = computed<AuthFormField[]>(() =>
     capabilities.value?.emailAndPassword
         ? [
               {
                   name: 'email',
-                  type: 'email',
-                  label: 'Email',
-                  // `webauthn` lets the browser offer saved passkeys from the email field.
-                  autocomplete: capabilities.value.passkey ? 'email webauthn' : 'email',
+                  // With usernames, either works: an @ means an email.
+                  type: capabilities.value.username ? 'text' : 'email',
+                  label: capabilities.value.username ? t('signIn.emailOrUsername') : t('common.email'),
+                  // `webauthn` lets the browser offer saved passkeys from this field.
+                  autocomplete: `${capabilities.value.username ? 'username' : 'email'}${capabilities.value.passkey ? ' webauthn' : ''}`,
                   required: true
               },
               {
                   name: 'password',
                   type: 'password',
-                  label: 'Password',
+                  label: t('common.password'),
                   autocomplete: 'current-password',
                   required: true
               }
           ]
         : []
 );
+const linkFields = computed<AuthFormField[]>(() => [
+    { name: 'email', type: 'email', label: t('common.email'), autocomplete: 'email', required: true }
+]);
+
+// The method used last time stands out.
+const highlight = (method: string): Partial<ButtonProps> =>
+    lastUsed.value === method ? { color: 'primary', variant: 'soft' } : {};
 const providers = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.passkey
         ? [
               {
-                  label: 'Sign in with a passkey',
+                  label: t('signIn.passkey'),
                   icon: 'i-lucide-key-round',
                   loading: passkey.status.value === 'pending',
+                  ...highlight('passkey'),
                   onClick: () =>
                       passkey.execute(
                           {},
@@ -76,10 +115,23 @@ const providers = computed<ButtonProps[]>(() => [
               }
           ]
         : []),
+    ...(capabilities.value?.magicLink
+        ? [
+              {
+                  label: t('signIn.magicLink.button'),
+                  icon: 'i-lucide-wand-sparkles',
+                  ...highlight('magic-link'),
+                  onClick: () => {
+                      mode.value = 'link';
+                  }
+              }
+          ]
+        : []),
     ...(capabilities.value?.socialProviders ?? []).map((provider) => ({
-        label: `Continue with ${providerInfo(provider).label}`,
+        label: t('signIn.continueWith', { provider: providerInfo(provider).label }),
         icon: providerInfo(provider).icon,
         loadingAuto: true,
+        ...highlight(provider),
         // Typed from the app's configured providers, which the module can't know: these come from the app's config.
         onClick: () =>
             social.execute({
@@ -110,67 +162,156 @@ onMounted(async () => {
 const needsVerification = computed(() => email.error.value?.code === 'EMAIL_NOT_VERIFIED');
 // Closing the passkey prompt (or letting it time out) isn't an error worth showing.
 const passkeyError = computed(() => (passkeyCancelled(passkey.error.value) ? null : passkey.error.value));
-const error = computed(() => email.error.value ?? social.error.value ?? passkeyError.value);
+const captchaMissing = ref(false);
+const error = computed(() =>
+    captchaMissing.value
+        ? t('captcha.required')
+        : errorMessage(email.error.value ?? username.error.value ?? social.error.value ?? passkeyError.value) ||
+          oauthError.value
+);
 
-function onSubmit(event: FormSubmitEvent<{ email: string; password: string }>) {
-    email.execute(
-        { email: event.data.email, password: event.data.password, callbackURL: redirectTo },
+type SignedIn = { data?: { twoFactorRedirect?: boolean; twoFactorMethods?: string[] } };
+const afterPassword = async (context: SignedIn) => {
+    // Two-factor users have no session yet: they finish on the two-factor page, which keeps ?redirect=.
+    if (context.data?.twoFactorRedirect && pages.twoFactor) {
+        await navigateTo({
+            path: pages.twoFactor,
+            query: { ...route.query, methods: context.data.twoFactorMethods?.join(',') }
+        });
+        return;
+    }
+    await navigateTo(redirectTo);
+};
+
+async function onSubmit(event: FormSubmitEvent<{ email: string; password: string }>) {
+    captchaMissing.value = captcha.missing();
+    if (captchaMissing.value) return;
+    const { email: identifier, password } = event.data;
+    const options = { headers: captcha.headers(), onSuccess: afterPassword as (context: never) => Promise<void> };
+    if (capabilities.value?.username && !identifier.includes('@')) {
+        await username.execute({ username: identifier, password }, options);
+    } else {
+        // Better Auth's own fetch options, typed by its client; these are the same two.
+        await email.execute({ email: identifier, password, callbackURL: redirectTo }, options as never);
+    }
+    captcha.reset();
+}
+
+async function sendLink(event: FormSubmitEvent<{ email: string }>) {
+    captchaMissing.value = linkCaptcha.missing();
+    if (captchaMissing.value) return;
+    await magicLink.execute(
         {
-            onSuccess: async (context: { data?: { twoFactorRedirect?: boolean; twoFactorMethods?: string[] } }) => {
-                // Two-factor users have no session yet: they finish on the two-factor page, which keeps ?redirect=.
-                if (context.data?.twoFactorRedirect && pages.twoFactor) {
-                    await navigateTo({
-                        path: pages.twoFactor,
-                        query: { ...route.query, methods: context.data.twoFactorMethods?.join(',') }
-                    });
-                    return;
-                }
-                await navigateTo(redirectTo);
-            }
-        }
+            email: event.data.email,
+            callbackURL: redirectTo,
+            newUserCallbackURL: pages.account || redirectTo,
+            // An expired or used link comes back here, with ?error=.
+            errorCallbackURL: pages.signIn || '/'
+        },
+        { headers: linkCaptcha.headers() }
     );
+    linkCaptcha.reset();
+    if (magicLink.error.value) return;
+    linkSentTo.value = event.data.email;
+    mode.value = 'linkSent';
 }
 </script>
 
 <template>
     <UContainer class="flex justify-center py-16">
         <UPageCard class="w-full max-w-md">
+            <!-- The link is on its way. -->
+            <div v-if="mode === 'linkSent'" class="space-y-4 text-center">
+                <UIcon name="i-lucide-mail-check" class="size-10 text-primary mx-auto" />
+                <h1 class="text-xl font-semibold text-highlighted">{{ t('signIn.magicLink.sentTitle') }}</h1>
+                <p class="text-muted">{{ t('signIn.magicLink.sentDescription', { email: linkSentTo }) }}</p>
+                <UButton :label="t('common.back')" variant="subtle" color="neutral" @click="mode = 'password'" />
+            </div>
+
+            <!-- Asking for a sign-in link. -->
             <UAuthForm
+                v-else-if="mode === 'link'"
+                :fields="linkFields"
+                :title="t('signIn.magicLink.title')"
+                :description="t('signIn.magicLink.description')"
+                icon="i-lucide-wand-sparkles"
+                :loading="magicLink.status.value === 'pending'"
+                :submit="{ label: t('signIn.magicLink.submit') }"
+                @submit="sendLink"
+            >
+                <template #validation>
+                    <Captcha
+                        v-if="linkCaptcha.enabled"
+                        :ref="(el) => (linkCaptcha.widget.value = el as never)"
+                        v-model="linkCaptcha.token.value"
+                    />
+                    <UAlert
+                        v-if="captchaMissing || magicLink.error.value"
+                        color="error"
+                        icon="i-lucide-circle-alert"
+                        :title="t('signIn.magicLink.failed')"
+                        :description="captchaMissing ? t('captcha.required') : errorMessage(magicLink.error.value)"
+                    />
+                </template>
+                <template #footer>
+                    <UButton
+                        :label="t('signIn.magicLink.usePassword')"
+                        variant="link"
+                        color="neutral"
+                        @click="mode = 'password'"
+                    />
+                </template>
+            </UAuthForm>
+
+            <UAuthForm
+                v-else
                 :fields="fields"
                 :providers="providers"
-                title="Sign in"
+                :title="t('signIn.title')"
                 icon="i-lucide-lock"
-                :loading="email.status.value === 'pending'"
-                :submit="fields.length ? { label: 'Sign in' } : undefined"
+                :loading="email.status.value === 'pending' || username.status.value === 'pending'"
+                :submit="fields.length ? { label: t('signIn.submit') } : undefined"
                 @submit="onSubmit"
             >
-                <template v-if="pages.signUp && capabilities?.signUp" #description>
-                    No account yet?
-                    <ULink :to="{ path: pages.signUp, query: $route.query }" class="text-primary font-medium"
-                        >Sign up</ULink
-                    >.
+                <template #description>
+                    <template v-if="pages.signUp && capabilities?.signUp">
+                        {{ t('signIn.noAccount') }}
+                        <ULink :to="{ path: pages.signUp, query: $route.query }" class="text-primary font-medium">{{
+                            t('signIn.signUp')
+                        }}</ULink
+                        >.
+                    </template>
+                    <span v-if="lastUsedLabel" class="mt-2 flex items-center justify-center gap-1.5 text-sm">
+                        <UIcon name="i-lucide-history" class="size-4" />
+                        {{ t('signIn.lastUsed', { method: lastUsedLabel }) }}
+                    </span>
                 </template>
 
                 <template v-if="pages.forgotPassword && capabilities?.resetPassword" #password-hint>
-                    <ULink :to="pages.forgotPassword" class="text-primary font-medium" tabindex="-1"
-                        >Forgot password?</ULink
-                    >
+                    <ULink :to="pages.forgotPassword" class="text-primary font-medium" tabindex="-1">{{
+                        t('signIn.forgotPassword')
+                    }}</ULink>
                 </template>
 
                 <template #validation>
+                    <Captcha
+                        v-if="captcha.enabled"
+                        :ref="(el) => (captcha.widget.value = el as never)"
+                        v-model="captcha.token.value"
+                    />
                     <UAlert
                         v-if="needsVerification"
                         color="warning"
                         icon="i-lucide-mail"
-                        title="Verify your email first"
-                        description="We've sent you a new verification link. Open it, then sign in."
+                        :title="t('signIn.verifyFirst.title')"
+                        :description="t('signIn.verifyFirst.description')"
                     />
                     <UAlert
-                        v-else-if="error || oauthError"
+                        v-else-if="error"
                         color="error"
                         icon="i-lucide-circle-alert"
-                        title="Couldn't sign in"
-                        :description="error?.message ?? oauthError ?? undefined"
+                        :title="t('signIn.failed')"
+                        :description="error"
                     />
                 </template>
             </UAuthForm>

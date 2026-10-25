@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, navigateTo, ref, useAuthCapabilities } from '#imports';
+import { computed, navigateTo, ref, useAuthCapabilities, useAuthI18n } from '#imports';
 
 import CardTitle from './CardTitle.vue';
 
@@ -10,6 +10,7 @@ import CardTitle from './CardTitle.vue';
  */
 const props = defineProps<{ hasPassword: boolean }>();
 
+const { t, errorMessage } = useAuthI18n();
 const { user } = useUserSession();
 const { capabilities } = useAuthCapabilities();
 const remove = useAuthClientAction((client) => client.deleteUser);
@@ -39,23 +40,25 @@ async function confirm() {
 
 <template>
     <UPageCard
-        title="Delete account"
-        description="Permanently delete your account and everything in it. This can't be undone."
+        :title="t('account.delete.title')"
+        :description="t('account.delete.description')"
         variant="subtle"
         :ui="{ title: 'text-error' }"
     >
-        <template #title><CardTitle icon="i-lucide-trash-2" title="Delete account" color="error" /></template>
+        <template #title
+            ><CardTitle icon="i-lucide-trash-2" :title="t('account.delete.title')" color="error"
+        /></template>
         <UAlert
             v-if="emailSent"
             color="warning"
             variant="subtle"
             icon="i-lucide-mail"
-            title="Check your email"
-            :description="`Open the link we sent to ${user?.email} to confirm. Your account stays until you do.`"
+            :title="t('account.email.checkTitle')"
+            :description="t('account.delete.emailSent', { email: user?.email ?? '' })"
         />
         <div v-else>
             <UButton
-                label="Delete my account"
+                :label="t('account.delete.button')"
                 color="error"
                 variant="outline"
                 icon="i-lucide-trash"
@@ -63,14 +66,17 @@ async function confirm() {
             />
         </div>
 
-        <UModal v-model:open="open" title="Delete your account?" description="This can't be undone.">
+        <UModal
+            v-model:open="open"
+            :title="t('account.delete.confirmTitle')"
+            :description="t('account.delete.cantUndo')"
+        >
             <template #body>
                 <form class="space-y-4" @submit.prevent="confirm">
                     <p class="text-sm text-muted">
-                        <template v-if="byEmail">We'll email you a link to confirm.</template>
-                        <template v-else>Your account and everything in it will be deleted straight away.</template>
+                        {{ byEmail ? t('account.delete.byEmail') : t('account.delete.straightAway') }}
                     </p>
-                    <UFormField v-if="hasPassword" label="Your password" required>
+                    <UFormField v-if="hasPassword" :label="t('account.twoFactor.yourPassword')" required>
                         <UInput
                             v-model="password"
                             type="password"
@@ -82,15 +88,15 @@ async function confirm() {
                     <p v-if="remove.error.value" class="text-sm text-error">
                         {{
                             remove.error.value.code === 'SESSION_EXPIRED'
-                                ? 'For your security, sign out and back in, then try again.'
-                                : remove.error.value.message
+                                ? t('account.delete.signInAgain')
+                                : errorMessage(remove.error.value)
                         }}
                     </p>
                     <div class="flex justify-end gap-2">
-                        <UButton label="Cancel" color="neutral" variant="subtle" @click="open = false" />
+                        <UButton :label="t('common.cancel')" color="neutral" variant="subtle" @click="open = false" />
                         <UButton
                             type="submit"
-                            :label="byEmail ? 'Email me a link' : 'Delete my account'"
+                            :label="byEmail ? t('account.delete.emailLink') : t('account.delete.button')"
                             color="error"
                             :loading="remove.status.value === 'pending'"
                         />
