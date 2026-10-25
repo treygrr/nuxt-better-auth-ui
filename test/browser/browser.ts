@@ -75,7 +75,7 @@ export async function signUp(name: string, email: string, password = 'password12
     if (!response.ok) throw new Error(`Sign-up failed: ${await response.text()}`);
 }
 
-/** Signs in through the sign-in page, then waits to land on `to`. */
+/** Signs in through the sign-in page, then waits to land on `to` and for the page to settle. */
 export async function signInWithForm(
     session: Awaited<ReturnType<typeof openPage>>,
     email: string,
@@ -88,6 +88,8 @@ export async function signInWithForm(
     await session.page.getByLabel('Password', { exact: true }).fill(password);
     await session.page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await session.page.waitForURL((url) => url.pathname === to.split('?')[0], { timeout: 10_000 });
+    // The page's data is still loading when the URL changes; going elsewhere now would abort that navigation.
+    await session.page.waitForLoadState('networkidle').catch(() => {});
 }
 
 /** Holds a test file's browser open for its tests; closes contexts it opened. */
