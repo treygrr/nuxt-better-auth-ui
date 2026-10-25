@@ -15,7 +15,7 @@ orientation: horizontal
 Auth UI for [Better Auth]{.text-primary} in Nuxt.
 
 #description
-Stop building admin dashboards for the 100th time. Nuxt Better Auth UI builds on `@nuxtjs/better-auth` and Better Auth's own primitives to give you batteries-included UI for your Better Auth instance: sign-in pages, a self-service account page, organizations with single sign-on, and an admin dashboard to run it all. Turn features on in `nuxt.config.ts`.
+Stop building admin dashboards for the 100th time. Nuxt Better Auth UI builds on `@nuxtjs/better-auth` and Better Auth's own primitives to give you batteries-included UI for your Better Auth instance: sign-in pages, a self-service account page, organizations with single sign-on, and an admin dashboard to run it all. Simply turn features on in `nuxt.config.ts`.
 
 #links
   :::u-button
