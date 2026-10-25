@@ -227,6 +227,7 @@ user and session APIs ([User & Accounts](https://better-auth.com/docs/concepts/u
 | ---------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | Profile          | change their name and avatar                                                                       |                                       |
 | Email            | resend the verification link; change their email (approved from the old address when it's verified, then verified at the new one) | `user.changeEmail.enabled` to change |
+| Your data        | download what the auth keeps about them as JSON (see below)                                        |                                       |
 | Password         | change it, optionally signing out other devices; accounts without one get a link to set one        | email and password sign-in            |
 | Passkeys         | add, rename and remove passkeys                                                                    | the Passkey plugin                    |
 | Two-factor       | set up an authenticator app (QR code, backup codes) or email codes; new backup codes; turn it off   | the Two-Factor plugin                 |
@@ -239,6 +240,12 @@ security (email, two-factor, passkeys, sign-in methods, devices) that opens wher
 are in tabs (Profile, Security, Devices, Delete), with the open one in the URL (`/account?tab=security`), so it's
 server-rendered and linkable. Sections the app's Better Auth set-up doesn't support are left out. The lists are server-rendered from Better Auth's
 `list-accounts` and `list-sessions`.
+
+"Download my data" (GDPR's right of access) gives `account-data.json` from `GET /api/_better-auth-ui/export`: their
+user row (with the app's own user fields), sign-in methods, sessions, passkeys, whether two-factor is on, when they
+were last active, and their audit history. Never secrets: no password hashes, tokens, two-factor secrets, backup codes
+or passkey keys. History entries by an admin say "an admin", without the admin's name, email, IP or browser. It covers
+the auth's tables only: the app's own data about them is the app's to add.
 
 ## Two-factor authentication
 

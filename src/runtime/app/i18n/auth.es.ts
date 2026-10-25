@@ -292,6 +292,12 @@ export const authEs = {
             straightAway: 'Tu cuenta y todo lo que contiene se eliminarán de inmediato.',
             signInAgain: 'Por tu seguridad, cierra sesión y vuelve a iniciarla, y luego inténtalo de nuevo.',
             emailLink: 'Envíame un enlace'
+        },
+        data: {
+            title: 'Tus datos',
+            description:
+                'Descarga lo que guardamos de tu cuenta: tu perfil, métodos de inicio de sesión, dispositivos, llaves de acceso e historial. Sin contraseñas ni claves.',
+            button: 'Descargar mis datos'
         }
     },
     oauth: {

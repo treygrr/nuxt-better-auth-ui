@@ -2,9 +2,7 @@
 
 ## Pinned
 
-1. **"Download my data", and gentler deletion.** A JSON export of the profile, sign-in methods, sessions and audit
-   history from the account page (GDPR's right of access); optionally a grace period to cancel a deletion.
-2. **Moderator notes on users.** A private notes thread on each user's admin page, in the module's own table (never
+1. **Moderator notes on users.** A private notes thread on each user's admin page, in the module's own table (never
    Better Auth's): "Warned for spam in chat". Moderation history beyond the ban reason. Audit-logged.
 
 ## Better Auth plugins: planned
@@ -76,6 +74,15 @@ Work in the module:
 
 Not planned: SIWE (Ethereum), SSO / OIDC provider (enterprise), OAuth proxy (a deployment concern with no UI), Open
 API (developer docs; at most a link on the configuration page).
+
+## Needs a decision
+
+- **A grace period before deleting an account** ("deleted in 14 days; sign in to cancel"). Better Auth deletes at once
+  (`/delete-user`, or its email link's `/delete-user/callback`), so a grace period means either stopping its endpoint in
+  a before hook and deleting later from a scheduled job (which replaces Better Auth's endpoint, against this module's
+  rule), or a separate "schedule deletion" route next to Better Auth's, which then calls its server API when the time
+  comes (needs a Nitro scheduled task, so an always-on server, not serverless). Better Auth's `beforeDelete` hook can
+  only refuse, not postpone.
 
 ## Smaller follow-ups
 

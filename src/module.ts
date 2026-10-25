@@ -556,6 +556,12 @@ export default defineNuxtModule<ModuleOptions>({
             method: 'get',
             handler: resolve('./runtime/server/api/two-factor.get')
         });
+        // "Download my data" on the account page: what the auth keeps about the signed-in user.
+        addServerHandler({
+            route: `${UI_API}/export`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/export.get')
+        });
 
         // Better Auth's Passkey plugin, from its own package, which the app installs.
         const { passkey } = moduleOptions;

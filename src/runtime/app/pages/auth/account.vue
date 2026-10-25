@@ -14,6 +14,7 @@ import {
 import { needsTwoFactorSetUp, requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 
 import ConnectionsCard from '../../components/account/ConnectionsCard.vue';
+import DataCard from '../../components/account/DataCard.vue';
 import DeleteCard from '../../components/account/DeleteCard.vue';
 import DevicesCard from '../../components/account/DevicesCard.vue';
 import EmailCard from '../../components/account/EmailCard.vue';
@@ -164,6 +165,7 @@ const open = (value: string) => {
                     <div class="space-y-6">
                         <ProfileCard />
                         <EmailCard />
+                        <DataCard />
                     </div>
                 </template>
 

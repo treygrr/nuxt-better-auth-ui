@@ -13,6 +13,7 @@ declare module '#imports' {
     export const getQuery: H3['getQuery'];
     export const getRequestIP: H3['getRequestIP'];
     export const getRequestHeader: H3['getRequestHeader'];
+    export const setResponseHeader: H3['setResponseHeader'];
     export const useRuntimeConfig: () => { public: Record<string, unknown> };
 }
 

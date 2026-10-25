@@ -287,6 +287,12 @@ export const authEn = {
             straightAway: 'Your account and everything in it will be deleted straight away.',
             signInAgain: 'For your security, sign out and back in, then try again.',
             emailLink: 'Email me a link'
+        },
+        data: {
+            title: 'Your data',
+            description:
+                'Download what we keep about your account: your profile, sign-in methods, devices, passkeys and account history. Passwords and keys stay out.',
+            button: 'Download my data'
         }
     },
     // Better Auth's error codes as it adds them to an error URL (?error=…), from provider sign-ins and sign-in links.
