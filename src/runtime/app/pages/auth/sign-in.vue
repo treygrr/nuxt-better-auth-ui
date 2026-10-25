@@ -122,7 +122,9 @@ const isGuest = computed(() => (sessionUser.value as { isAnonymous?: boolean | n
 // The method used last time stands out.
 const highlight = (method: string): Partial<ButtonProps> =>
     lastUsed.value === method ? { color: 'primary', variant: 'soft' } : {};
-const providers = computed<ButtonProps[]>(() => [
+// The other ways to sign in, under the form: the sign-in providers first, as a grid of square icons (their names for
+// screen readers and on hover), then full-width buttons for this app's own methods and SSO, then guests.
+const methods = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.passkey
         ? [
               {
@@ -188,9 +190,12 @@ const providers = computed<ButtonProps[]>(() => [
                   }
               }
           ]
-        : []),
-    ...(capabilities.value?.socialProviders ?? []).map((provider) => ({
-        label: t('signIn.continueWith', { provider: providerInfo(provider).label }),
+        : [])
+]);
+const socials = computed<ButtonProps[]>(() =>
+    (capabilities.value?.socialProviders ?? []).map((provider) => ({
+        'aria-label': t('signIn.continueWith', { provider: providerInfo(provider).label }),
+        title: t('signIn.continueWith', { provider: providerInfo(provider).label }),
         icon: providerInfo(provider).icon,
         loadingAuto: true,
         ...highlight(provider),
@@ -201,8 +206,10 @@ const providers = computed<ButtonProps[]>(() => [
                 newUserCallbackURL: pages.account || redirectTo,
                 errorCallbackURL: route.fullPath
             })
-    })),
-    // A guest account (Anonymous plugin), last: the other ways sign in for good. Not for someone already a guest.
+    }))
+);
+// A guest account (Anonymous plugin), last: the other ways sign in for good. Not for someone already a guest.
+const guestButtons = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.anonymous && !isGuest.value
         ? [
               {
@@ -222,6 +229,8 @@ const providers = computed<ButtonProps[]>(() => [
           ]
         : [])
 ]);
+// All of them, for the form's separator ("or"), which shows only when there are some.
+const providers = computed(() => [...methods.value, ...socials.value, ...guestButtons.value]);
 
 // Saved passkeys offered from the email field (conditional UI), where the browser supports it. Called on the client
 // directly, not through `passkey`, so the button doesn't show as busy while the browser waits.
@@ -722,8 +731,40 @@ const phoneErrorMessage = computed(() =>
                 icon="i-lucide-lock"
                 :loading="email.status.value === 'pending' || username.status.value === 'pending'"
                 :submit="fields.length ? { label: t('signIn.submit') } : undefined"
+                :ui="{ separator: 'order-1', providers: 'order-last' }"
                 @submit="onSubmit"
             >
+                <!-- Under the form (by the order classes above): the other ways to sign in. -->
+                <template #providers>
+                    <div v-if="socials.length" class="grid grid-cols-[repeat(auto-fill,minmax(3rem,1fr))] gap-2">
+                        <UButton
+                            v-for="(social, index) in socials"
+                            :key="`social-${index}`"
+                            color="neutral"
+                            variant="subtle"
+                            square
+                            class="aspect-square justify-center"
+                            :ui="{ leadingIcon: 'size-6' }"
+                            v-bind="social"
+                        />
+                    </div>
+                    <UButton
+                        v-for="(method, index) in methods"
+                        :key="`method-${index}`"
+                        block
+                        color="neutral"
+                        variant="subtle"
+                        v-bind="method"
+                    />
+                    <UButton
+                        v-for="(button, index) in guestButtons"
+                        :key="`guest-${index}`"
+                        block
+                        color="neutral"
+                        variant="subtle"
+                        v-bind="button"
+                    />
+                </template>
                 <template #description>
                     <UAlert
                         v-if="isGuest"
