@@ -41,7 +41,8 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         // The app's own field (the playground's "website").
         await dialog.getByLabel('Website').fill('https://orla.example');
         await dialog.getByRole('button', { name: 'Create organization' }).click();
-        await session.page.getByText('Created Orla & Co').waitFor();
+        // Toasts are matched exactly: their words are also in Nuxt UI's screen-reader announcement.
+        await session.page.getByText('Created Orla & Co', { exact: true }).waitFor();
         // A new organization becomes the active one (Better Auth's create sets it).
         await session.page.getByText('Active').first().waitFor();
         expect(session.problems).toEqual([]);
@@ -52,7 +53,7 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await expect(session.page.getByLabel('Website').inputValue()).resolves.toBe('https://orla.example');
         await session.page.getByLabel('Name', { exact: true }).fill('Orla and Co');
         await session.page.getByRole('button', { name: 'Save' }).click();
-        await session.page.getByText('Details saved').waitFor();
+        await session.page.getByText('Details saved', { exact: true }).waitFor();
 
         await session.page.getByRole('tab', { name: 'Members' }).click();
         await session.page.getByText('Members (1)').waitFor();
@@ -60,13 +61,13 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await session.page.getByRole('tab', { name: 'Invitations' }).click();
         await session.page.getByLabel('Their email').fill('guest@orla.test');
         await session.page.getByRole('button', { name: 'Send invitation' }).click();
-        await session.page.getByText('Invited guest@orla.test').waitFor();
+        await session.page.getByText('Invited guest@orla.test', { exact: true }).waitFor();
         await session.page.getByText('Waiting for an answer').waitFor();
 
         await session.page.getByRole('tab', { name: 'Teams' }).click();
         await session.page.getByLabel('Name').fill('Design');
         await session.page.getByRole('button', { name: 'Create team' }).click();
-        await session.page.getByText('Created Design').waitFor();
+        await session.page.getByText('Created Design', { exact: true }).waitFor();
 
         await session.page.getByRole('tab', { name: 'Roles' }).click();
         await session.page.getByText('Editor').first().waitFor();
@@ -74,7 +75,7 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await session.page.getByRole('dialog').getByLabel('Name').fill('reviewer');
         await session.page.getByRole('dialog').getByRole('checkbox', { name: 'update' }).first().check();
         await session.page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-        await session.page.getByText('Created reviewer').waitFor();
+        await session.page.getByText('Created reviewer', { exact: true }).waitFor();
         expect(session.problems).toEqual([]);
 
         // The switcher an app shows: the active organization, and its teams to switch to.

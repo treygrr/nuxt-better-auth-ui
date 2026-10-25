@@ -48,7 +48,8 @@ describe.skipIf(!hasBrowser)('admin dashboard (browser)', () => {
         await session.page.getByRole('button', { name: 'Edit details' }).click();
         await session.page.getByRole('dialog').getByLabel('Company').fill('Initech');
         await session.page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
-        await session.page.getByText('Details saved').waitFor();
+        // Exact: a toast's words are also in Nuxt UI's screen-reader announcement.
+        await session.page.getByText('Details saved', { exact: true }).waitFor();
         await session.page.getByText('Initech').waitFor();
         expect(session.problems).toEqual([]);
     });
