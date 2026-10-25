@@ -50,6 +50,9 @@ Then point Tailwind at the module's pages, run Better Auth's migrations, and giv
 
 ## Development
 
+Contributions are welcome: see [Contributing](https://treygrr.github.io/nuxt-better-auth-ui/reference/contributing)
+for setting up, the tests, and adding a feature.
+
 ```bash
 pnpm install
 cp playground/.env.example playground/.env
@@ -60,6 +63,7 @@ pnpm typecheck
 pnpm fmt
 pnpm docs:dev      # the documentation site (docs/), on http://localhost:3002
 pnpm docs:generate # its static build, as GitHub Pages serves it
+pnpm docs:screenshots # retakes the docs' screenshots, from a built playground
 ```
 
 The repository is a pnpm workspace: the module at the root, `playground/` and `docs/` (the documentation site, made

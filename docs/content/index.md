@@ -40,32 +40,45 @@ Sign-in and sign-up pages, a self-service account page, organizations with singl
   :::
 
 #default
-  :::prose-pre
-  ---
-  code: |
-    export default defineNuxtConfig({
-      modules: ['@treygrr/nuxt-better-auth-ui'],
-      betterAuthUi: {
-        twoFactor: { enabled: true },
-        passkey: { enabled: true },
-        organization: { enabled: true },
-        sso: { enabled: true }
-      }
-    })
-  filename: nuxt.config.ts
-  ---
+  :screenshot{name="admin-home" alt="The admin dashboard's home page: users, sign-ups, sessions and bans, with a sign-ups chart" eager}
+::
 
-  ```ts [nuxt.config.ts]
-  export default defineNuxtConfig({
-    modules: ['@treygrr/nuxt-better-auth-ui'],
-    betterAuthUi: {
-      twoFactor: { enabled: true },
-      passkey: { enabled: true },
-      organization: { enabled: true },
-      sso: { enabled: true }
-    }
-  })
-  ```
+::u-page-section{class="dark:bg-neutral-950"}
+#title
+Every page around Better Auth
+
+#description
+For the people using your app, and the staff running it. Each page shows only what your Better Auth set-up supports.
+
+#default
+  :::screenshot-gallery
+  ---
+  items:
+    - name: sign-in
+      title: Sign-in pages
+      description: Passwords, providers, passkeys, links, codes, SSO and guests.
+      to: /sign-in/pages
+    - name: account
+      title: Account page
+      description: Profile, security, devices, keys, billing and their data.
+      to: /sign-in/account
+    - name: organization
+      title: Organizations
+      description: Members and their roles, invitations, teams and custom roles.
+      to: /organizations
+    - name: organization-sso
+      title: Single sign-on
+      description: OIDC and SAML providers, with domain verification.
+      to: /organizations/sso
+    - name: admin-users
+      title: Managing users
+      description: Search, filter, ban, impersonate, and help locked-out users.
+      to: /admin/users
+    - name: admin-audit
+      title: Audit log
+      description: Every admin action and users' sign-ins, with who and when.
+      to: /admin/audit-log
+  ---
   :::
 ::
 
@@ -138,5 +151,56 @@ Everything around Better Auth, ready to use
 
   #description
   English and Spanish built in, and any word can be renamed per language.
+  :::
+::
+
+::u-page-section{class="dark:bg-neutral-950"}
+---
+orientation: horizontal
+---
+#title
+Turn on what you need
+
+#description
+Each feature is one line in `nuxt.config.ts`. The module adds Better Auth's plugin for it, and the pages show it.
+
+#links
+  :::u-button
+  ---
+  to: /getting-started/configuration
+  color: neutral
+  variant: subtle
+  trailing-icon: i-lucide-arrow-right
+  ---
+  See every option
+  :::
+
+#default
+  :::prose-pre
+  ---
+  code: |
+    export default defineNuxtConfig({
+      modules: ['@treygrr/nuxt-better-auth-ui'],
+      betterAuthUi: {
+        twoFactor: { enabled: true },
+        passkey: { enabled: true },
+        organization: { enabled: true },
+        sso: { enabled: true }
+      }
+    })
+  filename: nuxt.config.ts
+  ---
+
+  ```ts [nuxt.config.ts]
+  export default defineNuxtConfig({
+    modules: ['@treygrr/nuxt-better-auth-ui'],
+    betterAuthUi: {
+      twoFactor: { enabled: true },
+      passkey: { enabled: true },
+      organization: { enabled: true },
+      sso: { enabled: true }
+    }
+  })
+  ```
   :::
 ::

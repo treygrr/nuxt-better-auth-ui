@@ -15,6 +15,15 @@ const github =
         ? { github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET } }
         : {};
 
+// For the docs' screenshots (PLAYGROUND_DEMO=1): providers that show on the pages (their placeholder credentials don't
+// sign anyone in) and an app name.
+const demo = process.env.PLAYGROUND_DEMO === '1';
+const demoProviders = demo
+    ? Object.fromEntries(
+          ['google', 'github', 'discord', 'apple'].map((id) => [id, { clientId: 'demo', clientSecret: 'demo' }])
+      )
+    : {};
+
 // A stand-in OAuth provider for the tests (PLAYGROUND_MOCK_OAUTH=1), signing in whoever its authorize URL names
 // (?email=). It goes through Better Auth's /callback/:providerId, as GitHub does.
 const siteUrl = process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3001';
@@ -59,7 +68,9 @@ const mockOAuth =
 
 export default defineServerAuth({
     database: new Database(databasePath),
-    socialProviders: { ...github },
+    // The screenshots' identity provider, registered without fetching from it.
+    ...(demo && { appName: 'Acme', trustedOrigins: ['https://acme.okta.com'] }),
+    socialProviders: { ...demoProviders, ...github },
     plugins: [...mockOAuth],
     // Auth emails through the module: templates and delivery are set in nuxt.config (betterAuthUi.emails).
     emailAndPassword: { enabled: true, sendResetPassword: betterAuthEmails.resetPassword },

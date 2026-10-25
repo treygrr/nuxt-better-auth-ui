@@ -52,6 +52,7 @@
         "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxt prepare playground",
         "docs:dev": "pnpm --filter ./docs dev",
         "docs:generate": "pnpm --filter ./docs generate",
+        "docs:screenshots": "node docs/scripts/screenshots.mjs",
         "fmt": "prettier --check src test playground scripts server typecheck auth.config.ts prettier.config.mjs",
         "fmt:fix": "prettier --write src test playground scripts server typecheck auth.config.ts prettier.config.mjs",
         "test": "pnpm build && vitest run",
