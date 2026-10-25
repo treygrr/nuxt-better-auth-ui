@@ -5,7 +5,7 @@ import type { NuxtPage } from '@nuxt/schema';
 import { resolveRoles, rolesFile, rolesTypes, type AdminRolePermissions } from './roles';
 import type { BetterAuthEmailName } from './runtime/server/emails/types';
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
-import { ADMIN_API, DEMO_API } from './runtime/constants';
+import { ADMIN_API, DEMO_API, UI_API } from './runtime/constants';
 import {
     addComponentsDir,
     addImports,
@@ -92,9 +92,26 @@ export type AdminOptions = {
     auditUserEvents: boolean;
 };
 
+/** Where the sign-in and account pages go; false to leave one out (eg the app has its own). */
+export type PagesOptions = {
+    /** @default '/login' (@nuxtjs/better-auth sends signed-out users here by default) */
+    signIn: string | false;
+    /** @default '/signup' */
+    signUp: string | false;
+    /** @default '/forgot-password' */
+    forgotPassword: string | false;
+    /** Where password reset links land. @default '/reset-password' */
+    resetPassword: string | false;
+};
+
 export type ModuleOptions = {
     /** The admin dashboard for managing users (`/admin`). */
     admin: AdminOptions;
+    /**
+     * Sign-in pages, on by default. An app page at the same path wins: the module skips its own. Each shows only what
+     * the app's Better Auth set-up supports (eg social buttons for configured providers).
+     */
+    pages: PagesOptions;
     /**
      * Auth emails, sent through `betterAuthEmails` in the app's auth config. Paths are relative to the project
      * root, eg `./server/emails/send.ts`; Nuxt aliases work too (`~~/server/…`).
@@ -130,6 +147,12 @@ export default defineNuxtModule<ModuleOptions>({
             auditLogRetentionDays: 30,
             auditUserEvents: true,
             activityTracking: { enabled: false }
+        },
+        pages: {
+            signIn: '/login',
+            signUp: '/signup',
+            forgotPassword: '/forgot-password',
+            resetPassword: '/reset-password'
         },
         emails: {}
     },
@@ -183,7 +206,51 @@ export default defineNuxtModule<ModuleOptions>({
                 ].join('\n');
         });
 
-        (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = {};
+        // Sign-in pages, in the app's own layout.
+        const pagePaths = Object.fromEntries(
+            Object.entries(moduleOptions.pages).map(([name, path]) => [
+                name,
+                path ? `/${String(path).replace(/^\/+|\/+$/g, '')}` : false
+            ])
+        ) as PagesOptions;
+        const AUTH_PAGES: Array<[keyof PagesOptions, string]> = [
+            ['signIn', 'sign-in.vue'],
+            ['signUp', 'sign-up.vue'],
+            ['forgotPassword', 'forgot-password.vue'],
+            ['resetPassword', 'reset-password.vue']
+        ];
+        extendPages((pages) => {
+            for (const [name, file] of AUTH_PAGES) {
+                const path = pagePaths[name];
+                if (!path) continue;
+                // The app's own page at this path wins.
+                if (pages.some((page) => page.path === path)) {
+                    useLogger('better-auth-ui').info(
+                        `Using the app's own ${path} instead of the module's ${name} page.`
+                    );
+                    pagePaths[name] = path;
+                    continue;
+                }
+                pages.push({ name: `better-auth-ui-${name}`, path, file: resolve(`./runtime/app/pages/auth/${file}`) });
+            }
+        });
+        for (const [name] of AUTH_PAGES) {
+            const path = pagePaths[name];
+            // Signed-in users are sent on (@nuxtjs/better-auth's redirects.guest).
+            if (path) extendRouteRules(path, { auth: { only: 'guest' } });
+        }
+        addServerHandler({
+            route: `${UI_API}/capabilities`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/capabilities.get')
+        });
+        addImports([
+            { name: 'useAuthCapabilities', from: resolve('./runtime/app/composables/useAuthCapabilities') },
+            { name: 'useAuthPages', from: resolve('./runtime/app/composables/useAuthPages') },
+            { name: 'useRedirectTarget', from: resolve('./runtime/app/composables/useAuthPages') }
+        ]);
+
+        (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = { pages: pagePaths };
         if (!options.enabled) return;
 
         // The admin dashboard.

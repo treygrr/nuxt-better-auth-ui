@@ -2,8 +2,8 @@
 
 Auth UI for [Better Auth](https://better-auth.com) in Nuxt, built with [Nuxt UI](https://ui.nuxt.com): an admin
 dashboard at `/admin`, where staff manage users through Better Auth's
-[Admin plugin](https://better-auth.com/docs/plugins/admin), and auth emails with your own templates. Sign-in pages and a
-self-service account page are coming next. Configure it under `betterAuthUi` in `nuxt.config.ts`.
+[Admin plugin](https://better-auth.com/docs/plugins/admin), sign-in pages, and auth emails with your own templates. A
+self-service account page is coming next. Configure it under `betterAuthUi` in `nuxt.config.ts`.
 
 The dashboard is the [Nuxt UI dashboard template](https://github.com/nuxt-ui-templates/dashboard) (MIT), brought in
 whole: a collapsible sidebar with search, a home page with stats and a revenue chart, an inbox, a customers table,
@@ -154,6 +154,33 @@ export default defineNuxtConfig({
     }
 });
 ```
+
+## Sign-in pages
+
+On by default, in your app's own layout, built with Nuxt UI's `UAuthForm` and `@nuxtjs/better-auth`'s
+`useSignIn` / `useSignUp`:
+
+| Page              | Path               | What it does                                                                      |
+| ----------------- | ------------------ | --------------------------------------------------------------------------------- |
+| Sign in           | `/login`           | email and password, and a button for each social provider you've configured      |
+| Sign up           | `/signup`          | name, email, password; "check your email" when you require verification          |
+| Forgot password   | `/forgot-password` | emails a reset link (the same answer whether or not the email has an account)    |
+| Reset password    | `/reset-password`  | where reset links land: choose a new password, or ask for a new link if it expired |
+
+- **Each page shows only what your Better Auth set-up supports**, read from it at runtime: social buttons for configured
+  providers, sign-up only when it's enabled, password length rules, "Forgot password?" only with reset emails.
+- **Your own page wins:** if your app already has a page at one of these paths, the module uses yours. Move or turn off
+  any of them with `pages`:
+
+    ```ts
+    betterAuthUi: {
+        pages: { signIn: '/sign-in', signUp: false }
+    }
+    ```
+
+- `/login` is where `@nuxtjs/better-auth` sends signed-out visitors by default. After signing in, people go back
+  where they came from (its `?redirect=`, checked to be a path on your site), else to its `redirects.authenticated`,
+  else `/`. Signed-in visitors are sent away from these pages.
 
 ## Emails
 

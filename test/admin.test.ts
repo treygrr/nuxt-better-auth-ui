@@ -986,3 +986,40 @@ describe('activity tracking (opt-in; on in the playground, every minute)', () =>
         expect((await get('/api/_better-auth-ui/last-active?userIds=x', userCookie)).status).toBe(403);
     });
 });
+
+describe('sign-in pages', () => {
+    it("reports what the app's Better Auth set-up offers", async () => {
+        const capabilities = await (await get('/api/_better-auth-ui/capabilities')).json();
+        expect(capabilities).toMatchObject({
+            emailAndPassword: true,
+            signUp: true,
+            requireEmailVerification: false,
+            minPasswordLength: 8,
+            resetPassword: true,
+            emailVerification: true,
+            socialProviders: [],
+            changeEmail: false,
+            deleteUser: false
+        });
+        expect(capabilities.plugins).toContain('admin');
+    });
+
+    it('serves each page to signed-out visitors, rendered on the server', async () => {
+        for (const [path, text] of [
+            ['/login', 'Sign in'],
+            ['/signup', 'Create an account'],
+            ['/forgot-password', 'Forgot your password?'],
+            ['/reset-password?token=abc', 'Choose a new password'],
+            ['/reset-password?error=INVALID_TOKEN', 'This link doesn']
+        ] as const) {
+            const response = await get(path);
+            expect(response.status, path).toBe(200);
+            expect(await response.text(), path).toContain(text);
+        }
+    });
+
+    it('sends signed-in users away from them', async () => {
+        const response = await get('/login', userCookie);
+        expect(response.status).toBe(302);
+    });
+});
