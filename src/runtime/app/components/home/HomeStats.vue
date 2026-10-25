@@ -30,6 +30,16 @@ const cards = computed<Stat[]>(() => {
             variation: change(stats.newUsers, stats.previousNewUsers),
             to: adminPath('/users')
         },
+        ...(stats.online === null
+            ? []
+            : [
+                  {
+                      title: 'Online now',
+                      icon: 'i-lucide-radio',
+                      value: number(stats.online),
+                      to: adminPath('/sessions')
+                  }
+              ]),
         {
             title: 'Active sessions',
             icon: 'i-lucide-monitor-smartphone',
@@ -46,7 +56,7 @@ const cards = computed<Stat[]>(() => {
 </script>
 
 <template>
-    <UPageGrid class="lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-px">
+    <UPageGrid class="gap-4 sm:gap-6 lg:gap-px" :class="cards.length > 4 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'">
         <UPageCard
             v-for="stat in cards"
             :key="stat.title"

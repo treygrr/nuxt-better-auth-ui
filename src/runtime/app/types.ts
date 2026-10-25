@@ -44,6 +44,8 @@ export interface AdminStats {
     banned: number;
     /** Null when sessions live only in secondary storage, where they can't be counted. */
     sessions: number | null;
+    /** Users active within the activity interval; null without activity tracking. */
+    online: number | null;
     series: Array<{ date: string; signUps: number }>;
 }
 

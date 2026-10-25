@@ -957,3 +957,35 @@ describe('the sessions page', () => {
         expect((await get('/api/_better-auth-admin/sessions', userCookie)).status).toBe(403);
     });
 });
+
+describe('activity tracking (opt-in; on in the playground, every minute)', () => {
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
+    const lastActiveOf = async (id: string) =>
+        (await (await get(`/api/_better-auth-admin/last-active?userIds=${id}`, adminCookie)).json())[id] as
+            string | null;
+
+    it('records when a signed-in user was last active, at most once per interval', async () => {
+        const cookie = await signIn('hal', 'sign-up');
+        const hal = (await (await get('/api/auth/get-session', cookie)).json()).user.id;
+        await settle();
+        const first = await lastActiveOf(hal);
+        expect(first).not.toBeNull();
+        expect(Date.now() - new Date(first!).getTime()).toBeLessThan(10_000);
+
+        // Another page load within the interval doesn't write again.
+        await get('/api/auth/get-session', cookie);
+        await settle();
+        expect(await lastActiveOf(hal)).toBe(first);
+    });
+
+    it('counts who is online in the home stats', async () => {
+        const now = Date.now();
+        const buckets = [new Date(now - 86_400_000), new Date(now + 1000)].map((date) => date.toISOString()).join(',');
+        const stats = await (await get(`/api/_better-auth-admin/stats?buckets=${buckets}`, adminCookie)).json();
+        expect(stats.online).toBeGreaterThanOrEqual(1);
+    });
+
+    it('needs the user: list permission', async () => {
+        expect((await get('/api/_better-auth-admin/last-active?userIds=x', userCookie)).status).toBe(403);
+    });
+});

@@ -106,6 +106,14 @@ const { data: lastSignIns } = await useFetch<Record<string, string | null>>(`${A
     immediate: knowsLastSignIn
 });
 
+// When each listed user was last active, with activity tracking.
+const { activityTracking } = useBetterAuthAdminConfig();
+const { data: lastActive } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-active`, {
+    query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
+    default: () => ({}),
+    immediate: activityTracking
+});
+
 // Each listed user's sign-in methods, for the whole page in one request.
 const { data: providers, status: providersStatus } = await useFetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, {
     query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
@@ -336,6 +344,20 @@ const columns: TableColumn<AdminUser>[] = [
             );
         }
     },
+    ...(activityTracking
+        ? [
+              {
+                  id: 'lastActive',
+                  header: 'Last active',
+                  cell: ({ row }: { row: Row<AdminUser> }) => {
+                      const at = lastActive.value[row.original.id];
+                      return at
+                          ? h(NuxtTime, { datetime: at, relative: true, title: true })
+                          : h('span', { class: 'text-dimmed' }, '—');
+                  }
+              } satisfies TableColumn<AdminUser>
+          ]
+        : []),
     ...(knowsLastSignIn
         ? [
               {
@@ -388,7 +410,8 @@ const columnLabels: Record<string, string> = {
     banned: 'Status',
     emailVerified: 'Email',
     signIn: 'Sign-in',
-    lastSignIn: 'Last sign-in'
+    lastSignIn: 'Last sign-in',
+    lastActive: 'Last active'
 };
 
 // One filter per staff role, eg "Admins", "Moderators".

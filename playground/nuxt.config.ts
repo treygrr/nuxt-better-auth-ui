@@ -4,6 +4,8 @@ export default defineNuxtConfig({
     // Sign in as a user from their page; the banner in app.vue offers the way back.
     betterAuthAdmin: {
         impersonation: true,
+        // Opt-in "last active" and "online now"; a short interval to see it work.
+        activityTracking: { enabled: true, updateInterval: 60_000 },
         // Delivery to the playground outbox, and an HTML verification email; the rest are plain-text defaults.
         emails: {
             send: './server/emails/send.ts',

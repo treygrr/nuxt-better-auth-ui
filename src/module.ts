@@ -85,6 +85,13 @@ export type ModuleOptions = {
      */
     auditLogRetentionDays: number;
     /**
+     * Opt-in "last active" and "online now": records when each signed-in user was last active (their page loads)
+     * in an `adminUserActivity` table, at most once per user per `updateInterval` (ms) on each server, so about
+     * one write per signed-in user per interval. Like Better Auth's dashboard activity tracking, off by default.
+     * @default { enabled: false, updateInterval: 300000 }
+     */
+    activityTracking: { enabled: boolean; updateInterval?: number };
+    /**
      * Also record users' own sign-ins (any method), failed sign-ins, sign-outs, password resets and changes, and
      * email verification in the audit log. One write per event.
      * @default true
@@ -109,7 +116,8 @@ export default defineNuxtModule<ModuleOptions>({
         emails: {},
         auditLog: true,
         auditLogRetentionDays: 30,
-        auditUserEvents: true
+        auditUserEvents: true,
+        activityTracking: { enabled: false }
     },
     // Installed before this module, in order, and checked against these versions.
     moduleDependencies: {
@@ -157,6 +165,8 @@ export default defineNuxtModule<ModuleOptions>({
             impersonation: options.impersonation,
             auditLog: options.auditLog,
             lastSignIn: options.auditLog && options.auditUserEvents,
+            activityTracking: options.activityTracking.enabled,
+            activityInterval: options.activityTracking.updateInterval ?? 300_000,
             auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays))
         } satisfies BetterAuthAdminPublicConfig;
 
@@ -214,6 +224,15 @@ export default defineNuxtModule<ModuleOptions>({
                     `export default adminAuditLog(${JSON.stringify({ retentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)), userEvents: options.auditUserEvents })})`
                 ].join('\n')
         });
+        const activity = addTemplate({
+            filename: 'better-auth-admin/activity.mjs',
+            write: true,
+            getContents: () =>
+                [
+                    `import { adminActivityTracking } from ${JSON.stringify(resolve('./runtime/server/activity/plugin'))}`,
+                    `export default adminActivityTracking(${JSON.stringify({ updateInterval: options.activityTracking.updateInterval ?? 300_000 })})`
+                ].join('\n')
+        });
         const clientPlugin = addTemplate({
             filename: 'better-auth-admin/client-plugin.mjs',
             write: true,
@@ -229,6 +248,7 @@ export default defineNuxtModule<ModuleOptions>({
             (sources.server ??= []).push(serverPlugin.dst);
             if (!options.impersonation) sources.server.push(impersonationOff.dst);
             if (options.auditLog) sources.server.push(auditLog.dst);
+            if (options.activityTracking.enabled) sources.server.push(activity.dst);
             (sources.client ??= []).push(clientPlugin.dst);
         });
 
@@ -284,6 +304,13 @@ export default defineNuxtModule<ModuleOptions>({
         addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
 
         // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoints for.
+        if (options.activityTracking.enabled) {
+            addServerHandler({
+                route: `${ADMIN_API}/last-active`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/last-active.get')
+            });
+        }
         if (options.auditLog && options.auditUserEvents) {
             addServerHandler({
                 route: `${ADMIN_API}/last-sign-in`,

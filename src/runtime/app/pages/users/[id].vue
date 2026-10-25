@@ -58,6 +58,14 @@ const { data: lastSignIns } = await useFetch<Record<string, string | null>>(`${A
     immediate: knowsLastSignIn
 });
 
+// When they were last active, with activity tracking.
+const { activityTracking } = useBetterAuthAdminConfig();
+const { data: lastActive } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-active`, {
+    query: { userIds: userId },
+    default: () => ({}),
+    immediate: activityTracking
+});
+
 // The latest audit log entries about this user, when the log is on.
 const ACTIVITY_SIZE = 10;
 const { data: activity, refresh: refreshActivity } = await useFetch<{ entries: AdminAuditEntry[]; total: number }>(
@@ -294,6 +302,13 @@ const thisSession = computed(() => session.session.value?.id);
                         <dd><NuxtTime :datetime="user.createdAt" date-style="medium" time-style="short" /></dd>
                         <dt class="text-muted">Last updated</dt>
                         <dd><NuxtTime :datetime="user.updatedAt" date-style="medium" time-style="short" /></dd>
+                        <template v-if="activityTracking">
+                            <dt class="text-muted">Last active</dt>
+                            <dd>
+                                <NuxtTime v-if="lastActive[user.id]" :datetime="lastActive[user.id]!" relative title />
+                                <span v-else class="text-dimmed">Not since tracking started</span>
+                            </dd>
+                        </template>
                         <template v-if="knowsLastSignIn">
                             <dt class="text-muted">Last sign-in</dt>
                             <dd>

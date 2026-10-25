@@ -53,6 +53,12 @@ settings pages and a notifications panel. Those pages still show the template's 
   lists one user's sessions, so the module reads them itself, a page at a time, only when an admin opens the page
   (`session: list` permission). "Last active" is when Better Auth last refreshed the session (by default at most
   daily). Not available when sessions live only in secondary storage such as Redis.
+- **Last active and online now** (opt-in, `activityTracking: { enabled: true }`): a "Last active" column and
+  detail, and an "Online now" card on the home page. When Better Auth checks a signed-in user's session (their page
+  loads), the module records the time in its own `adminUserActivity` table, at most once per user per
+  `updateInterval` (default 5 minutes) on each server, after the response. That's about one write per signed-in
+  user per interval: fine for most databases, but it grows with traffic, which is why it's off by default (as in
+  Better Auth's own dashboard, whose `activityTracking` adds a `lastActiveAt` user column instead).
 - **Last sign-in** on the users list and each user's page, from those events: no extra writes, so it only knows
   sign-ins within the log's retention (older shows as "not in the last 30 days").
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
@@ -127,6 +133,8 @@ export default defineNuxtConfig({
         auditLogRetentionDays: 30,
         // Also log users' sign-ins, failed sign-ins, sign-outs and password changes; gives "last sign-in".
         auditUserEvents: true,
+        // Opt-in "last active" and "online now"; about one write per signed-in user per interval.
+        activityTracking: { enabled: false, updateInterval: 5 * 60 * 1000 },
         // Auth emails: delivery and templates. See "Emails" below.
         emails: {},
 

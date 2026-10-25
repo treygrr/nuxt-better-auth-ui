@@ -1,4 +1,6 @@
-import { createError, defineEventHandler, getQuery } from '#imports';
+import { createError, defineEventHandler, getQuery, useRuntimeConfig } from '#imports';
+
+import { ACTIVITY_MODEL } from '../activity/plugin';
 
 import { requireAdminPermission, type AdminContext, type Where } from '../utils/admin';
 
@@ -51,7 +53,14 @@ export default defineEventHandler(async (event) => {
             }))
         )
     ]);
-    return { users, newUsers, previousNewUsers, banned, sessions, series };
+    // With activity tracking: users active within the last update interval.
+    const config = useRuntimeConfig().public.betterAuthAdmin as { activityTracking: boolean; activityInterval: number };
+    const online = config.activityTracking
+        ? await count(ACTIVITY_MODEL, [
+              { field: 'lastActiveAt', operator: 'gt', value: new Date(Date.now() - config.activityInterval) }
+          ])
+        : null;
+    return { users, newUsers, previousNewUsers, banned, sessions, series, online };
 });
 
 /**

@@ -12,6 +12,10 @@ export type BetterAuthAdminPublicConfig = {
     auditLog: boolean;
     /** Whether "last sign-in" is known: the audit log records users' sign-ins. */
     lastSignIn: boolean;
+    /** Opt-in activity tracking: "last active" and "online now". */
+    activityTracking: boolean;
+    /** How often activity is recorded, in ms: "online now" means active within it. */
+    activityInterval: number;
     /** Days the audit log keeps entries; 0 keeps them forever. */
     auditLogRetentionDays: number;
 };
