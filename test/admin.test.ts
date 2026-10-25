@@ -748,9 +748,8 @@ describe('custom roles', () => {
         await post('/admin/set-role', { userId: carolId, role: 'user' }, adminCookie);
     });
 
-    it('treats moderators as staff for impersonation', async () => {
+    it("lets the admin impersonate a moderator: only admins need impersonate-admins (Better Auth's default)", async () => {
         const daveId = (await (await get('/api/auth/get-session', moderatorCookie)).json()).user.id;
-        // The admin role doesn't have impersonate-admins, so staff can't be impersonated.
-        expect((await post('/admin/impersonate-user', { userId: daveId }, adminCookie)).status).toBe(403);
+        expect((await post('/admin/impersonate-user', { userId: daveId }, adminCookie)).status).toBe(200);
     });
 });

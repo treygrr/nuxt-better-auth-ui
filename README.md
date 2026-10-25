@@ -131,8 +131,11 @@ betterAuthAdmin: {
 - **Permissions:** `user`: `create`, `list`, `get`, `update`, `set-role`, `ban`, `impersonate`, `impersonate-admins`,
   `delete`, `set-password`, `set-email`; `session`: `list`, `revoke`, `delete`. Unknown ones fail the build with the
   list of valid ones.
-- **Who gets in:** roles that can `list` users open the admin pages, and are treated as staff: they get their own
-  filter on the users list, and impersonating them takes `impersonate-admins`.
+- **Who gets in:** roles that can `list` users open the admin pages, and are treated as staff, with their own filter
+  on the users list.
+- **Impersonation** follows Better Auth's default: only users with the `admin` role need `impersonate-admins` to be
+  impersonated, since the module passes the Admin plugin `ac` and `roles` and nothing else, as
+  [documented](https://better-auth.com/docs/plugins/admin#access-control).
 - **What they see:** only the actions their role allows, eg a moderator has no Delete, Change role or Add user, the
   email field is locked without `set-email`, and Password offers only the reset link without `set-password`.
 - **Enforced by Better Auth:** the module builds the roles with Better Auth's own access control and passes them to the

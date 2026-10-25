@@ -6,11 +6,11 @@ import type { AdminUser } from '../types';
 
 /**
  * The "Sign in as …" menu item for a user, or null when the module's `impersonation` option is off or the
- * admin's role can't impersonate. Disabled, with the reason, for yourself, staff (Better Auth refuses them
+ * admin's role can't impersonate. Disabled, with the reason, for yourself, admins (Better Auth refuses them
  * without the impersonate-admins permission) and banned users (Better Auth refuses their sessions).
  */
 export const useImpersonateItem = () => {
-    const { staffRoles, impersonation } = useBetterAuthAdminConfig();
+    const { impersonation } = useBetterAuthAdminConfig();
     const can = useAdminCan();
     const session = useUserSession();
     const admin = useAdminUsers();
@@ -18,12 +18,13 @@ export const useImpersonateItem = () => {
 
     return (user: AdminUser): DropdownMenuItem | null => {
         if (!impersonation || !can({ user: ['impersonate'] })) return null;
-        const staff = (user.role ?? 'user').split(',').some((role) => staffRoles.includes(role));
+        // Better Auth's default adminRoles: users with the `admin` role need impersonate-admins to be impersonated.
+        const isAdmin = (user.role ?? 'user').split(',').includes('admin');
         const reason =
             user.id === session.user.value?.id
                 ? 'you'
-                : staff && !can({ user: ['impersonate-admins'] })
-                  ? 'staff'
+                : isAdmin && !can({ user: ['impersonate-admins'] })
+                  ? 'an admin'
                   : user.banned
                     ? 'banned'
                     : null;

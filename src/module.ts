@@ -111,8 +111,9 @@ export default defineNuxtModule<ModuleOptions>({
         nuxt.options.alias['#better-auth-admin/roles'] = rolesTemplate.dst;
 
         // Better Auth's Admin plugin, added to the app's auth config through @nuxtjs/better-auth.
-        // It adds the role and ban columns to the user table and the /api/auth/admin/* endpoints. Staff roles
-        // count as admins, so impersonating them takes the impersonate-admins permission.
+        // It adds the role and ban columns to the user table and the /api/auth/admin/* endpoints. Passed `ac` and
+        // `roles` only, as documented (https://better-auth.com/docs/plugins/admin#access-control): with custom
+        // access control `adminRoles` isn't needed, and its default (`admin`) decides who needs impersonate-admins.
         const serverPlugin = addTemplate({
             filename: 'better-auth-admin/server-plugin.mjs',
             write: true,
@@ -120,7 +121,7 @@ export default defineNuxtModule<ModuleOptions>({
                 [
                     "import { admin } from 'better-auth/plugins'",
                     "import { ac, roles } from './roles.mjs'",
-                    `export default admin({ ac, roles, adminRoles: ${JSON.stringify(roles.staff)} })`
+                    'export default admin({ ac, roles })'
                 ].join('\n')
         });
         // Better Auth lets any admin impersonate. With the option off, this refuses the endpoint, so hiding the
