@@ -120,6 +120,17 @@ export const authEn = {
         newLink: 'Send a new link',
         failed: "Couldn't change your password"
     },
+    finishAccount: {
+        title: 'Add your email',
+        description:
+            "The account you signed in with doesn't share your email. Add one to finish your account: it's how you get back in if you lose access.",
+        submit: 'Send link',
+        failed: "Couldn't add the email",
+        sentTitle: 'Check your email',
+        sentDescription: "We've sent a link to {email}. Open it to finish your account.",
+        otherEmail: 'Use another email',
+        doneTitle: 'Your account is ready'
+    },
     invitation: {
         title: 'Invitation',
         heading: 'Join {name}',

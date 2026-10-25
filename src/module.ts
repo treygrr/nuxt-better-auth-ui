@@ -117,6 +117,11 @@ export type PagesOptions = {
     account: string | false;
     /** The second step of signing in with a password, for users with two-factor on (see `twoFactor`). @default '/two-factor' */
     twoFactor: string | false;
+    /**
+     * Where accounts from a provider that shares no email (eg the module's Epic Games and Battle.net helpers) add one,
+     * before using the app. @default '/finish-account'
+     */
+    finishAccount: string | false;
 };
 
 /** Two-factor authentication, through Better Auth's Two-Factor plugin (https://better-auth.com/docs/plugins/2fa). */
@@ -543,7 +548,8 @@ export default defineNuxtModule<ModuleOptions>({
             forgotPassword: '/forgot-password',
             resetPassword: '/reset-password',
             account: '/account',
-            twoFactor: '/two-factor'
+            twoFactor: '/two-factor',
+            finishAccount: '/finish-account'
         },
         signOutRedirect: '/',
         locale: 'en',
@@ -631,7 +637,8 @@ export default defineNuxtModule<ModuleOptions>({
             ['forgotPassword', 'forgot-password.vue'],
             ['resetPassword', 'reset-password.vue'],
             ['account', 'account.vue'],
-            ['twoFactor', 'two-factor.vue']
+            ['twoFactor', 'two-factor.vue'],
+            ['finishAccount', 'finish-account.vue']
         ];
         const { twoFactor } = moduleOptions;
         if (twoFactor.otp && !emails.send) {
@@ -669,13 +676,22 @@ export default defineNuxtModule<ModuleOptions>({
         const guestPages: Array<keyof PagesOptions> = moduleOptions.anonymous.enabled ? ['signIn', 'signUp'] : [];
         for (const [name] of AUTH_PAGES) {
             const path = pagePaths[name];
-            // The account page is for signed-in users; the others send signed-in users on
+            // The account and finish-account pages are for signed-in users; the others send signed-in users on
             // (@nuxtjs/better-auth's redirects.guest).
             if (path) {
+                const forUsers = name === 'account' || name === 'finishAccount';
                 extendRouteRules(path, {
-                    auth: guestPages.includes(name) ? false : { only: name === 'account' ? 'user' : 'guest' }
+                    auth: guestPages.includes(name) ? false : { only: forUsers ? 'user' : 'guest' }
                 });
             }
+        }
+        // Accounts without a real email (placeholder from a provider that shares none) are asked for one first.
+        if (pagePaths.finishAccount) {
+            addRouteMiddleware({
+                name: 'better-auth-ui-finish-account',
+                path: resolve('./runtime/app/middleware/finish-account'),
+                global: true
+            });
         }
         if (guestPages.length) {
             addRouteMiddleware({

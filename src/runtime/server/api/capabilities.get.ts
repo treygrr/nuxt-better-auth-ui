@@ -13,7 +13,10 @@ export type AuthCapabilities = {
     resetPassword: boolean;
     /** Verification emails (`emailVerification.sendVerificationEmail`). */
     emailVerification: boolean;
-    /** Configured social providers, eg ['github', 'google']. */
+    /**
+     * Configured social providers, eg ['github', 'google'], and the Generic OAuth plugin's `providerId`s: Better Auth
+     * registers those as social providers too, signed in with and linked the same way.
+     */
     socialProviders: string[];
     /** `user.changeEmail.enabled`, and whether a change is approved from the current (verified) address first. */
     changeEmail: boolean;
@@ -93,6 +96,7 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
     const emailOtp = options.plugins?.find((plugin) => plugin.id === 'email-otp');
     const anonymous = options.plugins?.find((plugin) => plugin.id === 'anonymous');
     const phone = options.plugins?.find((plugin) => plugin.id === 'phone-number');
+    const genericOAuth = options.plugins?.find((plugin) => plugin.id === 'generic-oauth');
     const organization = options.plugins?.find((plugin) => plugin.id === 'organization');
     const jwt = options.plugins?.find((plugin) => plugin.id === 'jwt');
     // Better Auth's base URL includes its base path (eg /api/auth); its default JWKS path is /jwks.
@@ -107,7 +111,14 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
         maxPasswordLength: password.maxPasswordLength ?? 128,
         resetPassword: typeof password.sendResetPassword === 'function',
         emailVerification: typeof options.emailVerification?.sendVerificationEmail === 'function',
-        socialProviders: Object.keys(options.socialProviders ?? {}),
+        socialProviders: [
+            ...new Set([
+                ...Object.keys(options.socialProviders ?? {}),
+                ...((genericOAuth?.options?.config as Array<{ providerId: string }> | undefined) ?? []).map(
+                    (config) => config.providerId
+                )
+            ])
+        ],
         changeEmail: options.user?.changeEmail?.enabled === true,
         changeEmailConfirmation: typeof options.user?.changeEmail?.sendChangeEmailConfirmation === 'function',
         deleteUser: options.user?.deleteUser?.enabled === true,

@@ -10,6 +10,7 @@ export type AuthPagePaths = {
     resetPassword: string | false;
     account: string | false;
     twoFactor: string | false;
+    finishAccount: string | false;
 };
 
 export const useAuthPages = () => (useRuntimeConfig().public.betterAuthUi as { pages: AuthPagePaths }).pages;

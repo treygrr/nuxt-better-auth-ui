@@ -29,17 +29,12 @@ the app added it, the admin and configuration page show it, Spanish included.
 | **Xbox** | Built-in Microsoft provider (`socialProviders.microsoft`, consumers) | Signs in with the Microsoft account; the **gamertag** needs Xbox Live's own token exchange (user token, then XSTS) in a custom `getUserInfo`. Shown as "Xbox" with Xbox branding. |
 | Steam | Not possible | OpenID 2.0, which Better Auth doesn't support. |
 
-Work in the module:
+Done: Generic OAuth providers on the pages, icons and labels, `epicGames` and `battleNet` helpers, and the
+finish-account page for providers without an email. Left:
 
-- **Generic OAuth providers on the pages.** The sign-in and account pages only list `socialProviders`; they need the
-  `genericOAuth` plugin's `providerId`s too (from its options, in the capabilities route).
-- **Icons and labels** for Twitch, Apple, Epic, Battle.net, Xbox (and Roblox and Kick, built in too) in `providers.ts`.
-- **Providers without an email** (Epic, Battle.net): Better Auth needs one per user. Options to decide between: ask
-  for an email after the first sign-in (a "finish your account" step), or start them as a guest (Anonymous, above)
-  and link the platform account to it. The admin shows the platform id (BattleTag, Epic display name) either way.
-- **Provider helpers** the app can import, like Better Auth's own: `epicGames({ clientId, clientSecret })`,
-  `battleNet({ clientId, clientSecret, region })`, `xbox({ clientId, clientSecret })` returning `GenericOAuthConfig`
-  (or the Microsoft provider plus gamertag mapping), so apps don't hand-write endpoints.
+- **Xbox**: the Microsoft provider shown as Xbox, with the gamertag from Xbox Live's token exchange (user token, then
+  XSTS) in a custom `getUserInfo`.
+- Trying the Epic Games and Battle.net helpers against the real services.
 
 ## Better Auth plugins: maybe later
 

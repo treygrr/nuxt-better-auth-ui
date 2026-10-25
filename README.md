@@ -395,6 +395,45 @@ betterAuthUi: {
 - **Last used:** Better Auth's Last Login Method plugin remembers the method in a cookie for 30 days (a non-essential
   cookie, under GDPR); the sign-in page reads it on the server, so there's no flash.
 
+## Sign-in providers
+
+The sign-in, sign-up and account pages offer every provider in your auth config: Better Auth's social providers
+(`socialProviders`), and the Generic OAuth plugin's `providerId`s, which Better Auth signs in and links the same way.
+Each shows with its icon and name: Google, GitHub, Discord, Apple, Microsoft, Facebook, X, GitLab, Twitch, Roblox,
+Kick, Spotify, LinkedIn, Reddit, TikTok, Slack and Zoom, and the helpers' Epic Games and Battle.net; others show
+their id.
+
+For providers Better Auth has no helper for, `@treygrr/nuxt-better-auth-ui/providers` has Generic OAuth configs:
+
+```ts
+// server/auth.config.ts
+import { genericOAuth } from 'better-auth/plugins';
+import { battleNet, epicGames } from '@treygrr/nuxt-better-auth-ui/providers';
+
+export default defineServerAuth({
+    plugins: [
+        genericOAuth({
+            config: [
+                epicGames({ clientId: process.env.EPIC_CLIENT_ID!, clientSecret: process.env.EPIC_CLIENT_SECRET! }),
+                battleNet({ clientId: process.env.BNET_CLIENT_ID!, clientSecret: process.env.BNET_CLIENT_SECRET! })
+            ]
+        })
+    ]
+});
+```
+
+Their redirect URLs are `https://your-site/api/auth/callback/epic-games` and `…/battle-net`. **Neither shares an
+email**, and Better Auth needs one per user: the helpers give these accounts a placeholder
+(`<id>.<provider>@no-email.invalid`, reserved, never emailed), with their Epic display name or BattleTag as their name,
+and the module sends them to a **finish-account page** (`pages.finishAccount`, `/finish-account`) before anything
+else: they add their email through Better Auth's change-email (it needs `user.changeEmail.enabled` and verification
+emails), which emails them a link; opening it makes it theirs. Your own providers without an email can do the same
+with `placeholderEmail(providerId, accountId)`. The helpers follow Epic's and Blizzard's published OpenID set-up, but
+haven't been tried against them.
+
+Not yet: Xbox gamertags (they need Xbox Live's own token exchange after the Microsoft sign-in); Steam (OpenID 2.0, which
+Better Auth doesn't support).
+
 ## Phone numbers
 
 Signing in with a code by text, through Better Auth's Phone Number plugin. Texts go through your sender, like emails:

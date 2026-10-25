@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import { genericOAuth } from 'better-auth/plugins';
 import { defineServerAuth } from '@nuxtjs/better-auth/config';
 import { betterAuthEmails } from '@treygrr/nuxt-better-auth-ui/emails';
+import { placeholderEmail } from '@treygrr/nuxt-better-auth-ui/providers';
 
 const databasePath = process.env.AUTH_DATABASE_PATH || '.data/auth.sqlite';
 mkdirSync(dirname(databasePath), { recursive: true });
@@ -34,6 +35,21 @@ const mockOAuth =
                               email: accessToken!,
                               name: accessToken!.split('@')[0]!,
                               emailVerified: true
+                          })
+                      },
+                      // Like Epic Games and Battle.net: no email, so a placeholder, and the finish-account page.
+                      {
+                          providerId: 'mock-no-email',
+                          clientId: 'playground',
+                          clientSecret: 'playground',
+                          authorizationUrl: `${siteUrl}/api/_playground/oauth/authorize`,
+                          tokenUrl: `${siteUrl}/api/_playground/oauth/token`,
+                          pkce: false,
+                          getUserInfo: async ({ accessToken }) => ({
+                              id: accessToken!,
+                              email: placeholderEmail('mock-no-email', accessToken!),
+                              name: accessToken!.split('@')[0]!,
+                              emailVerified: false
                           })
                       }
                   ]

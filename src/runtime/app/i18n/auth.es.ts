@@ -122,6 +122,17 @@ export const authEs = {
         newLink: 'Enviar un enlace nuevo',
         failed: 'No se pudo cambiar tu contraseña'
     },
+    finishAccount: {
+        title: 'Añade tu correo',
+        description:
+            'La cuenta con la que iniciaste sesión no comparte tu correo. Añade uno para terminar tu cuenta: así podrás volver a entrar si pierdes el acceso.',
+        submit: 'Enviar enlace',
+        failed: 'No se pudo añadir el correo',
+        sentTitle: 'Revisa tu correo',
+        sentDescription: 'Enviamos un enlace a {email}. Ábrelo para terminar tu cuenta.',
+        otherEmail: 'Usar otro correo',
+        doneTitle: 'Tu cuenta está lista'
+    },
     invitation: {
         title: 'Invitación',
         heading: 'Únete a {name}',

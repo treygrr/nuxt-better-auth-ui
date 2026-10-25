@@ -991,7 +991,8 @@ describe('sign-in pages', () => {
             minPasswordLength: 8,
             resetPassword: true,
             emailVerification: true,
-            socialProviders: [],
+            // The playground's mock Generic OAuth providers, which Better Auth registers as social ones.
+            socialProviders: ['mock', 'mock-no-email'],
             changeEmail: true,
             changeEmailConfirmation: true,
             deleteUser: true,
