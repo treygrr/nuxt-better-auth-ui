@@ -92,4 +92,29 @@ describe('organizations', () => {
         expect((await get('/admin/organizations', adminCookie)).status).toBe(200);
         expect((await get(`/admin/organizations/${organizationId}`, adminCookie)).status).toBe(200);
     });
+
+    it("are joined by whoever staff add, through Better Auth's addMember, audit-logged", async () => {
+        const newcomer = await signUp('nina');
+        const add = (cookie: string, body: unknown) =>
+            fetch(`${base}/api/_better-auth-ui/organizations/${organizationId}/members`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', origin: base, cookie },
+                body: JSON.stringify(body)
+            });
+        expect((await add(owner.cookie, { email: newcomer.email, roles: ['member'] })).status).toBe(403);
+        expect((await add(adminCookie, { email: 'nobody@orgs.test', roles: ['member'] })).status).toBe(404);
+        expect((await add(adminCookie, { email: newcomer.email, roles: ['member', 'editor'] })).status).toBe(200);
+
+        const detail = await (await get(`/api/_better-auth-ui/organizations/${organizationId}`, adminCookie)).json();
+        const added = detail.members.find(
+            (member: { user: { email: string } }) => member.user.email === newcomer.email
+        );
+        expect(added.role).toBe('member,editor');
+        const logged = new Database(databasePath)
+            .prepare(
+                "select count(*) as count from adminAuditLog where action = 'organization.member-add' and targetId = ?"
+            )
+            .get(newcomer.id) as { count: number };
+        expect(logged.count).toBe(1);
+    });
 });

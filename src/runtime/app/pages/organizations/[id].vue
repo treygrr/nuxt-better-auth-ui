@@ -1,5 +1,17 @@
 <script setup lang="ts">
-import { useAdminPath, useAuthI18n, useFetch, useRoute } from '#imports';
+import {
+    $fetch,
+    computed,
+    reactive,
+    ref,
+    useAdminCan,
+    useAdminPath,
+    useAuthCapabilities,
+    useAuthI18n,
+    useFetch,
+    useRoute,
+    useToast
+} from '#imports';
 import { upperFirst } from 'scule';
 
 import { ADMIN_API } from '../../../constants';
@@ -7,16 +19,63 @@ import type { AdminOrganizationDetail } from '../../../server/api/organizations/
 import { serverError } from '../../utils/server-error';
 
 /**
- * One organization, for staff: its members (linking to their user pages) and pending invitations. Read-only: Better
- * Auth's Organization plugin changes an organization only for its own members, from their account page.
+ * One organization, for staff: its members (linking to their user pages), pending invitations, teams and its own
+ * roles. Staff who can update users add members (Better Auth's server-only addMember); everything else is changed by
+ * the organization's members, as Better Auth's Organization plugin allows.
  */
 const adminPath = useAdminPath();
 const { t, errorMessage } = useAuthI18n();
+const toast = useToast();
+const { capabilities } = useAuthCapabilities();
+const canAdd = useAdminCan()({ user: ['update'] });
 const id = useRoute().params.id as string;
 
-const { data: organization, error } = await useFetch<AdminOrganizationDetail>(
-    `${ADMIN_API}/organizations/${encodeURIComponent(id)}`
+const {
+    data: organization,
+    error,
+    refresh
+} = await useFetch<AdminOrganizationDetail>(`${ADMIN_API}/organizations/${encodeURIComponent(id)}`);
+
+// Adding a member: their email, roles (the app's and the organization's own) and, with teams, a team.
+const roleItems = computed(() =>
+    [
+        ...new Set([
+            ...(capabilities.value?.organization?.roles ?? []),
+            ...(organization.value?.roles ?? []).map((role) => role.role)
+        ])
+    ].map((role) => ({ label: upperFirst(role), value: role }))
 );
+const teamItems = computed(() =>
+    (organization.value?.teams ?? []).map((team) => ({ label: team.name, value: team.id }))
+);
+const form = reactive<{ email: string; roles: string[]; teamId: string | undefined }>({
+    email: '',
+    roles: ['member'],
+    teamId: undefined
+});
+const adding = ref(false);
+async function addMember() {
+    adding.value = true;
+    try {
+        await $fetch(`${ADMIN_API}/organizations/${encodeURIComponent(id)}/members`, {
+            method: 'POST',
+            body: { email: form.email, roles: form.roles, teamId: form.teamId }
+        });
+        toast.add({ title: t('admin.organizations.added', { email: form.email }), color: 'success' });
+        form.email = '';
+        await refresh();
+    } catch (failure) {
+        toast.add({
+            title: t('admin.organizations.addFailed'),
+            description: errorMessage(serverError(failure)),
+            color: 'error'
+        });
+    } finally {
+        adding.value = false;
+    }
+}
+const permissionList = (permissions: Record<string, string[]>) =>
+    Object.entries(permissions).flatMap(([resource, actions]) => actions.map((action) => `${resource}:${action}`));
 /** "owner,admin" → "Owner, Admin": Better Auth stores several roles comma-separated. */
 const roles = (role: string) =>
     role
@@ -91,6 +150,78 @@ const roles = (role: string) =>
                                 <p class="text-xs text-muted truncate">{{ member.user?.email }}</p>
                             </div>
                             <UBadge :label="roles(member.role)" color="neutral" variant="subtle" />
+                        </li>
+                    </ul>
+                    <template v-if="canAdd" #footer>
+                        <form class="flex flex-wrap items-start gap-2 w-full" @submit.prevent="addMember">
+                            <UInput
+                                v-model="form.email"
+                                type="email"
+                                required
+                                :placeholder="t('admin.organizations.addEmail')"
+                                :aria-label="t('admin.organizations.addEmail')"
+                                class="flex-1 min-w-48"
+                            />
+                            <USelectMenu
+                                v-model="form.roles"
+                                :items="roleItems"
+                                value-key="value"
+                                multiple
+                                class="w-40"
+                                :aria-label="t('admin.organizations.addRoles')"
+                            />
+                            <USelect
+                                v-if="teamItems.length"
+                                v-model="form.teamId"
+                                :items="teamItems"
+                                :placeholder="t('admin.organizations.noTeam')"
+                                class="w-36"
+                            />
+                            <UButton
+                                type="submit"
+                                :label="t('admin.organizations.add')"
+                                icon="i-lucide-user-plus"
+                                :loading="adding"
+                                :disabled="!form.email || !form.roles.length"
+                            />
+                        </form>
+                    </template>
+                </UPageCard>
+
+                <UPageCard v-if="organization.teams.length" :title="t('admin.organizations.teams')" variant="subtle">
+                    <ul class="divide-y divide-default">
+                        <li
+                            v-for="team in organization.teams"
+                            :key="team.id"
+                            class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                        >
+                            <UIcon name="i-lucide-users-round" class="size-5 shrink-0 text-muted" />
+                            <p class="text-sm font-medium text-highlighted flex-1">{{ team.name }}</p>
+                            <span class="text-xs text-muted">
+                                {{ t('admin.organizations.teamMembers', { count: team.members }) }}
+                            </span>
+                        </li>
+                    </ul>
+                </UPageCard>
+
+                <UPageCard v-if="organization.roles.length" :title="t('admin.organizations.roles')" variant="subtle">
+                    <ul class="divide-y divide-default">
+                        <li
+                            v-for="role in organization.roles"
+                            :key="role.id"
+                            class="py-2.5 first:pt-0 last:pb-0 space-y-1.5"
+                        >
+                            <p class="text-sm font-medium text-highlighted">{{ upperFirst(role.role) }}</p>
+                            <div class="flex flex-wrap gap-1">
+                                <UBadge
+                                    v-for="permission in permissionList(role.permission)"
+                                    :key="permission"
+                                    :label="permission"
+                                    color="neutral"
+                                    variant="subtle"
+                                    size="sm"
+                                />
+                            </div>
                         </li>
                     </ul>
                 </UPageCard>

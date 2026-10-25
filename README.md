@@ -549,20 +549,35 @@ The module builds the roles with Better Auth's access control and passes them (`
 client plugins, and checks them at build time: a permission on a resource or action that doesn't exist fails the
 build. Your API checks them with Better Auth's `auth.api.hasPermission({ headers, body: { permissions } })`.
 
-- **Account page:** an "Organizations" tab: their organizations, the active one marked, switching to another, and
-  creating one (a name and a slug made from it). "Manage" opens one: its members (owners and admins change roles and
-  remove members), invitations (send one by email with a role, copy its link, cancel it), leaving it, and (owners)
-  deleting it. Invitations sent to them show at the top with Accept and Decline (Better Auth lists them only for a
-  verified email).
+- **Account page:** an "Organizations" tab: their organizations (with their teams in each), the active one marked,
+  switching to another, and creating one (a name, a slug made from it and checked as they type, and your fields).
+  Invitations sent to them show at the top with Accept and Decline (Better Auth lists them only for a verified email).
+- **Organization page** (`organization.page`, `/organization/<id>`, signed in), each part shown to those whose role
+  allows it, from Better Auth's own `hasPermission` (so your roles and dynamic roles count):
+  - **General:** name, slug (checked as they type), logo and your organization fields (`organization:update`);
+    leaving, and deleting (`organization:delete`, unless `disableOrganizationDeletion`).
+  - **Members:** a page at a time, with your member fields; several roles each (`member:update`); removing them
+    (`member:delete`).
+  - **Invitations:** invite by email with roles, a team and your invitation fields (`invitation:create`); waiting ones
+    to send again, copy the link of, or cancel (`invitation:cancel`).
+  - **Teams** (with `teams`): create, rename and remove them (`team:*`), with your team fields; add and remove
+    members; make one of yours your active team.
+  - **Roles:** the app's roles and what each allows; with `dynamicRoles`, the organization's own roles, created,
+    edited and deleted with a grid of every resource's actions (`ac:*`; Better Auth refuses permissions the editor
+    doesn't have).
 - **Invitation page:** the email's link (`/accept-invitation/<id>`, signed in) shows who invited them, to which
   organization and as what, then Accept or Decline. Invitations go out through the module's emails (template
-  `organization-invitation`) when `emails.send` is set; their links can be copied from the organization either way.
+  `organization-invitation`) when `emails.send` is set; their links can be copied either way.
+- **For your app:** `useActiveOrganization()` (the active organization, with its members, server-rendered, following
+  the session, and `activeTeamId`) and `<AuthOrganizationSwitcher />` for a header or sidebar: switch organization and
+  team, open the organization's page, create one.
 - **Admin:** an "Organizations" page listing every one (search by name, member counts), each organization's page with
-  its members (linking to their user pages) and pending invitations, and a user's organizations on their page.
-  Read-only: Better Auth's Organization plugin only lets an organization's own members change it, so staff see but
-  don't edit.
-- Uses Better Auth's words (organization, owner, admin, member) and its default roles. Adds Better Auth's
-  `organization`, `member` and `invitation` tables and the session's `activeOrganizationId`: run its migrations.
+  its members (linking to their user pages), pending invitations, teams and own roles, and a user's organizations on
+  their page. Staff who can update users add members there (Better Auth's server-only `addMember`, audit-logged);
+  everything else is changed by the organization's members, as Better Auth allows.
+- Uses Better Auth's words (organization, owner, admin, member; rename them with `messages`). Adds Better Auth's
+  `organization`, `member` and `invitation` tables and the session's `activeOrganizationId` (and `team`, `teamMember`
+  and `organizationRole` with teams and dynamic roles): run its migrations.
 
 ## Subscriptions with Stripe
 

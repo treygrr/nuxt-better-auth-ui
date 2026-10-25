@@ -653,6 +653,7 @@ export const authEs = {
         NOTE_NOT_FOUND: 'Esa nota no existe (o ya no existe).',
         NOTE_NOT_YOURS: 'Solo su autor puede borrar esta nota.',
         ORGANIZATION_NOT_FOUND: 'Esa organización no existe (o ya no existe).',
+        ROLE_REQUIRED: 'Elige al menos un rol.',
         // Las de OAuth Popup.
         POPUP_SIGN_IN_FAILED: 'No se pudo iniciar sesión. Inténtalo de nuevo.',
         POPUP_TIMEOUT: 'La ventana de inicio de sesión tardó demasiado. Inténtalo de nuevo.',

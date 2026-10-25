@@ -652,6 +652,7 @@ export const authEn = {
         NOTE_NOT_FOUND: "That note doesn't exist (any more).",
         NOTE_NOT_YOURS: 'Only its author can delete this note.',
         ORGANIZATION_NOT_FOUND: "That organization doesn't exist (any more).",
+        ROLE_REQUIRED: 'Choose at least one role.',
         // OAuth Popup's.
         POPUP_SIGN_IN_FAILED: "Couldn't sign you in. Try again.",
         POPUP_TIMEOUT: 'The sign-in window took too long. Try again.',

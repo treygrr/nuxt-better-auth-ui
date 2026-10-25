@@ -57,6 +57,7 @@ type AdminAuth = {
             findUserById(
                 id: string
             ): Promise<{ id: string; email: string; name: string; emailVerified?: boolean } | null>;
+            findUserByEmail(email: string): Promise<{ user: { id: string; email: string; name: string } } | null>;
             findAccounts(userId: string): Promise<StoredAccount[]>;
             deleteAccount(id: string): Promise<void>;
             updateUser(id: string, data: Record<string, unknown>): Promise<unknown>;

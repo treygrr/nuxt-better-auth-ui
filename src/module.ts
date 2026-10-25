@@ -1604,6 +1604,12 @@ export default defineNuxtModule<ModuleOptions>({
                 method: 'get',
                 handler: resolve('./runtime/server/api/organizations/[id].get')
             });
+            // Staff add a member: Better Auth's server-only addMember.
+            addServerHandler({
+                route: `${ADMIN_API}/organizations/:id/members`,
+                method: 'post',
+                handler: resolve('./runtime/server/api/organizations/members.post')
+            });
             addServerHandler({
                 route: `${ADMIN_API}/users/:id/organizations`,
                 method: 'get',
