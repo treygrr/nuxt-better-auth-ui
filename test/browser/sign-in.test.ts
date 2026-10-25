@@ -46,7 +46,7 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         const session = await browser.open();
         await session.noPasskeyAutofill();
         await session.go('/login?redirect=/account');
-        await session.page.getByRole('button', { name: 'Email me a sign-in link' }).click();
+        await session.page.getByRole('button', { name: 'Sign-in link' }).click();
         await session.page.getByLabel('Email', { exact: true }).fill('lina@browser.test');
         await session.page.getByRole('button', { name: 'Send link' }).click();
         await session.page.getByText('Check your email').waitFor();
@@ -60,7 +60,7 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         const session = await browser.open();
         await session.noPasskeyAutofill();
         await session.go('/login?redirect=/account');
-        await session.page.getByRole('button', { name: 'Email me a code' }).click();
+        await session.page.getByRole('button', { name: 'Email code' }).click();
         await session.page.getByLabel('Email', { exact: true }).fill('cody@browser.test');
         await session.page.getByRole('button', { name: 'Send code' }).click();
         await session.page.getByText('Enter your code').waitFor();
@@ -107,7 +107,7 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         const session = await browser.open();
         await session.noPasskeyAutofill();
         await session.go('/login?redirect=/account');
-        await session.page.getByRole('button', { name: 'Text me a code' }).click();
+        await session.page.getByRole('button', { name: 'Text code' }).click();
         await session.page.getByLabel('Phone number').fill('+1 (555) 000-4444');
         await session.page.getByRole('button', { name: 'Send code' }).click();
         await session.page.getByText('Enter your code').waitFor();

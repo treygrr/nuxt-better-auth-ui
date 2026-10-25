@@ -161,7 +161,7 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
 
         await session.context.clearCookies();
         await session.go('/login?redirect=/account');
-        await session.page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+        await session.page.getByRole('button', { name: 'Passkey', exact: true }).click();
         await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
 
         // A closed (or timed-out) prompt, as the browser reports it.

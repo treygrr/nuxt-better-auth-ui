@@ -31,6 +31,12 @@ export const authEs = {
         passkey: 'Iniciar sesión con una llave de acceso',
         continueWith: 'Continuar con {provider}',
         lastUsed: 'La última vez iniciaste sesión con {method}.',
+        options: {
+            passkey: 'Llave de acceso',
+            magicLink: 'Enlace por correo',
+            emailCode: 'Código por correo',
+            phone: 'Código por SMS'
+        },
         methods: {
             password: 'tu contraseña',
             passkey: 'una llave de acceso',

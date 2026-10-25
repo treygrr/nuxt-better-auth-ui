@@ -123,12 +123,14 @@ const isGuest = computed(() => (sessionUser.value as { isAnonymous?: boolean | n
 const highlight = (method: string): Partial<ButtonProps> =>
     lastUsed.value === method ? { color: 'primary', variant: 'soft' } : {};
 // The other ways to sign in, under the form: the sign-in providers first, as a grid of square icons (their names for
-// screen readers and on hover), then full-width buttons for this app's own methods and SSO, then guests.
+// screen readers and on hover), then this app's own methods two by two with short labels (the full wording on
+// hover), SSO across the width, and guests as a quieter link at the end.
 const methods = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.passkey
         ? [
               {
-                  label: t('signIn.passkey'),
+                  label: t('signIn.options.passkey'),
+                  title: t('signIn.passkey'),
                   icon: 'i-lucide-key-round',
                   loading: passkey.status.value === 'pending',
                   ...highlight('passkey'),
@@ -147,7 +149,8 @@ const methods = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.magicLink
         ? [
               {
-                  label: t('signIn.magicLink.button'),
+                  label: t('signIn.options.magicLink'),
+                  title: t('signIn.magicLink.button'),
                   icon: 'i-lucide-wand-sparkles',
                   ...highlight('magic-link'),
                   onClick: () => {
@@ -159,7 +162,8 @@ const methods = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.emailOtp
         ? [
               {
-                  label: t('signIn.emailCode.button'),
+                  label: t('signIn.options.emailCode'),
+                  title: t('signIn.emailCode.button'),
                   icon: 'i-lucide-mail',
                   ...highlight('email-otp'),
                   onClick: () => {
@@ -171,7 +175,8 @@ const methods = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.phoneNumber
         ? [
               {
-                  label: t('signIn.phone.button'),
+                  label: t('signIn.options.phone'),
+                  title: t('signIn.phone.button'),
                   icon: 'i-lucide-smartphone',
                   ...highlight('phone-number'),
                   onClick: () => {
@@ -179,7 +184,9 @@ const methods = computed<ButtonProps[]>(() => [
                   }
               }
           ]
-        : []),
+        : [])
+]);
+const ssoButtons = computed<ButtonProps[]>(() => [
     ...(capabilities.value?.sso
         ? [
               {
@@ -230,7 +237,7 @@ const guestButtons = computed<ButtonProps[]>(() => [
         : [])
 ]);
 // All of them, for the form's separator ("or"), which shows only when there are some.
-const providers = computed(() => [...methods.value, ...socials.value, ...guestButtons.value]);
+const providers = computed(() => [...socials.value, ...methods.value, ...ssoButtons.value, ...guestButtons.value]);
 
 // Saved passkeys offered from the email field (conditional UI), where the browser supports it. Called on the client
 // directly, not through `passkey`, so the button doesn't show as busy while the browser waits.
@@ -748,22 +755,39 @@ const phoneErrorMessage = computed(() =>
                             v-bind="social"
                         />
                     </div>
-                    <UButton
-                        v-for="(method, index) in methods"
-                        :key="`method-${index}`"
-                        block
-                        color="neutral"
-                        variant="subtle"
-                        v-bind="method"
-                    />
-                    <UButton
-                        v-for="(button, index) in guestButtons"
-                        :key="`guest-${index}`"
-                        block
-                        color="neutral"
-                        variant="subtle"
-                        v-bind="button"
-                    />
+                    <div v-if="methods.length || ssoButtons.length" class="grid grid-cols-2 gap-2">
+                        <!-- An odd one out takes the whole row. -->
+                        <UButton
+                            v-for="(method, index) in methods"
+                            :key="`method-${index}`"
+                            block
+                            color="neutral"
+                            variant="subtle"
+                            :class="{
+                                'col-span-2': methods.length % 2 === 1 && index === methods.length - 1
+                            }"
+                            v-bind="method"
+                        />
+                        <UButton
+                            v-for="(button, index) in ssoButtons"
+                            :key="`sso-${index}`"
+                            block
+                            color="neutral"
+                            variant="subtle"
+                            class="col-span-2"
+                            v-bind="button"
+                        />
+                    </div>
+                    <div v-if="guestButtons.length" class="flex justify-center">
+                        <UButton
+                            v-for="(button, index) in guestButtons"
+                            :key="`guest-${index}`"
+                            color="neutral"
+                            variant="link"
+                            size="sm"
+                            v-bind="button"
+                        />
+                    </div>
                 </template>
                 <template #description>
                     <UAlert

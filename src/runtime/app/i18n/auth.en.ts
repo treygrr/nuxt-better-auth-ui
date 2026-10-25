@@ -31,6 +31,13 @@ export const authEn = {
         passkey: 'Sign in with a passkey',
         continueWith: 'Continue with {provider}',
         lastUsed: 'Last time, you signed in with {method}.',
+        // Short labels for the buttons under the form; their full wording shows on hover.
+        options: {
+            passkey: 'Passkey',
+            magicLink: 'Sign-in link',
+            emailCode: 'Email code',
+            phone: 'Text code'
+        },
         methods: {
             password: 'your password',
             passkey: 'a passkey',
