@@ -12,7 +12,7 @@ import {
     useAuthI18n,
     useBetterAuthAdminConfig,
     useFetch,
-    useLazyFetch,
+    useRequestURL,
     useRoute,
     useRuntimeConfig,
     useToast
@@ -42,12 +42,12 @@ const {
     error,
     refresh: refreshUser
 } = await useFetch<AdminUser>('/api/auth/admin/get-user', { query: { id: userId } });
-// Browser only: Better Auth can't read a POST body from Nuxt's in-process server requests. The card keys off
-// `sessions === undefined`, which the server and the hydrating browser agree on (status doesn't: idle vs pending).
-const { data: sessions, refresh: refreshSessions } = useLazyFetch('/api/auth/admin/list-user-sessions', {
+// Better Auth's list-user-sessions is a POST, which it refuses with the session cookie unless the request says where
+// it comes from: the browser sends Origin itself, the server rendering the page says its own.
+const { data: sessions, refresh: refreshSessions } = await useFetch('/api/auth/admin/list-user-sessions', {
     method: 'POST',
     body: { userId },
-    server: false,
+    headers: import.meta.server ? { origin: useRequestURL().origin } : undefined,
     immediate: can({ session: ['list'] }),
     transform: (result: { sessions: AdminSession[] }) => result.sessions
 });

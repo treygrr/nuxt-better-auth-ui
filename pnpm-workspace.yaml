@@ -5,6 +5,10 @@ packages:
 
 # Only install versions published at least a day ago.
 minimumReleaseAge: 1440
+# Except these exact versions. @nuxtjs/better-auth 0.3.13 has our SSR request-body fix (nuxt-modules/better-auth#649);
+# remove it once it's a day old (from 2026-10-26 16:15 UTC).
+minimumReleaseAgeExclude:
+  - '@nuxtjs/better-auth@0.3.13'
 
 # The docs: mdast-util-to-markdown 2.2.0 recurses forever with remark-mdc 3.11's bold handler (llms-full.txt fails to
 # build). 2.1.2 is what the Nuxt UI docs template is locked to. Remove when remark-mdc supports 2.2.

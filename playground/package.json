@@ -6,7 +6,7 @@
         "@iconify-json/lucide": "^1.2.145",
         "@iconify-json/simple-icons": "^1.2.100",
         "@nuxt/ui": "4.12.0",
-        "@nuxtjs/better-auth": "0.3.12",
+        "@nuxtjs/better-auth": "0.3.13",
         "@treygrr/nuxt-better-auth-ui": "workspace:*",
         "better-auth": "1.7.12",
         "better-sqlite3": "13.0.3",

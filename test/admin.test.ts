@@ -54,6 +54,26 @@ describe('the admin pages', () => {
         expect(columns).toEqual(expect.arrayContaining(['role', 'banned', 'banReason', 'banExpires']));
     });
 
+    it("server-render a user's sessions on their page", async () => {
+        // A session from a recognisable device.
+        const signedIn = await fetch(`${base}/api/auth/sign-in/email`, {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                origin: base,
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0'
+            },
+            body: JSON.stringify({ email: 'alice@example.com', password: 'password123' })
+        });
+        expect(signedIn.ok).toBe(true);
+        const { id } = new Database(databasePath)
+            .prepare("select id from user where email = 'alice@example.com'")
+            .get();
+        // Better Auth's list-user-sessions is a POST, made while rendering the page (with @nuxtjs/better-auth 0.3.13+).
+        const page = await (await get(`/admin/users/${id}`, adminCookie)).text();
+        expect(page).toContain('Firefox on Windows');
+    });
+
     it('send signed-out visitors to the login page', async () => {
         const response = await get('/admin');
         expect(response.status).toBe(302);

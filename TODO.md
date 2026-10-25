@@ -53,6 +53,7 @@ API (developer docs; at most a link on the configuration page).
 
 ## Smaller follow-ups
 
-- `@nuxtjs/better-auth`'s SSR POST bug (issue #648, PR #649): when it's fixed, server-render the user page's sessions.
+- After 2026-10-26 16:15 UTC: remove `minimumReleaseAgeExclude` (`@nuxtjs/better-auth@0.3.13`) from
+  pnpm-workspace.yaml.
 - Publish: `private: true` and `0.0.0` in package.json; `scripts/release.mjs`.
 - Install in neomons: remove its own sign-in pages (or set `pages.signIn: false`), set `appName`.
