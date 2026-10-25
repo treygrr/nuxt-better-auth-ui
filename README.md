@@ -41,7 +41,7 @@ settings pages and a notifications panel. Those pages still show the template's 
   Auth's own tables aren't changed. A failed write is logged and never blocks the action.
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
 
-> **Status: early.** Next: custom roles and permissions. The template's other pages still show sample data.
+> **Status: early.** The template's other pages (inbox, customers, settings) still show sample data.
 
 ## Setup
 
@@ -99,8 +99,10 @@ export default defineNuxtConfig({
     betterAuthAdmin: {
         // Where the admin pages live.
         route: '/admin',
-        // The role that may use the admin pages and Better Auth's admin endpoints.
+        // The role that can do everything in the admin pages and Better Auth's admin endpoints.
         role: 'admin',
+        // More roles, with Better Auth Admin permissions. See "Roles" below.
+        roles: {},
         // Let admins sign in as a user (Better Auth's impersonation). Off, its endpoint is refused too.
         impersonation: false,
         // Record admin actions in an adminAuditLog table (added through Better Auth's migrations).
@@ -110,6 +112,35 @@ export default defineNuxtConfig({
     }
 });
 ```
+
+## Roles
+
+Besides `admin` (everything) and `user` (nothing), define roles with any of Better Auth's Admin permissions:
+
+```ts
+betterAuthAdmin: {
+    roles: {
+        // Handles reports: can view, edit and ban users, and sign their sessions out.
+        moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] },
+        // Can look, not touch.
+        support: { user: ['list', 'get'], session: ['list'] }
+    }
+}
+```
+
+- **Permissions:** `user`: `create`, `list`, `get`, `update`, `set-role`, `ban`, `impersonate`, `impersonate-admins`,
+  `delete`, `set-password`, `set-email`; `session`: `list`, `revoke`, `delete`. Unknown ones fail the build with the
+  list of valid ones.
+- **Who gets in:** roles that can `list` users open the admin pages, and are treated as staff: they get their own
+  filter on the users list, and impersonating them takes `impersonate-admins`.
+- **What they see:** only the actions their role allows, eg a moderator has no Delete, Change role or Add user, the
+  email field is locked without `set-email`, and Password offers only the reset link without `set-password`.
+- **Enforced by Better Auth:** the module builds the roles with Better Auth's own access control and passes them to the
+  Admin plugin, so every endpoint checks the same permissions, and so do the module's own routes. The pages read the
+  same roles file, so they show exactly what the server would allow, identically in the server render and the
+  browser.
+- Assign roles from **Change role**, which lists the configured roles. A user with several roles
+  (Better Auth's comma-separated `role`) gets everything any of them allows.
 
 ## How it works
 
@@ -127,8 +158,9 @@ export default defineNuxtConfig({
   ID, scope and dates, never passwords or tokens) and `DELETE …/accounts/:accountId` (`user: ['update']`).
   `GET /api/_better-auth-admin/accounts?userIds=a,b,…` returns `{ [userId]: providerIds }` for up to 100 users, in one
   query, for the users list.
-- Route rules let only signed-in users with the admin role in; others are sent to the login page or get a 403. Better
-  Auth checks the role again on every `/api/auth/admin/*` request.
+- Route rules let only signed-in staff in (the admin role, and custom roles that can list users); others are sent to
+  the login page or get a 403. Better Auth checks permissions again on every `/api/auth/admin/*` request. Users with
+  several roles are matched by their whole `role` value, so give them the pages through a single staff role.
 
 ## Development
 
@@ -144,8 +176,8 @@ pnpm fmt
 
 On startup the playground seeds an admin (`admin@example.com` / `password123` by default) and 40 mock users from
 `playground/.env`: join dates over six months, verified and unverified emails, two more admins, three bans
-(permanent, expiring, expired), linked GitHub, Google and Discord accounts (some users have no password), and active
-sessions on different devices. Mock users share the admin's password. It only adds users that are missing, so delete
+(permanent, expiring, expired), a moderator (`lucas.haddad@example.com`, for trying the playground's `moderator` role),
+linked GitHub, Google and Discord accounts (some users have no password), and active sessions on different devices. Mock users share the admin's password. It only adds users that are missing, so delete
 `playground/.data/auth.sqlite` to start over.
 
 ## License

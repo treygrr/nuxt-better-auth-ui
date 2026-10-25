@@ -11,6 +11,7 @@ import {
     navigateTo,
     ref,
     resolveComponent,
+    useAdminCan,
     useAdminPath,
     useAdminUsers,
     useBetterAuthAdminConfig,
@@ -24,6 +25,7 @@ import {
 import { ADMIN_API } from '../../../constants';
 import type { AdminUser } from '../../types';
 import { useImpersonateItem } from '../../composables/useImpersonateItem';
+import { shownItems } from '../../utils/menu';
 import { providerInfo, sortProviders } from '../../utils/providers';
 
 const UAvatar = resolveComponent('UAvatar');
@@ -36,7 +38,8 @@ const NuxtTime = resolveComponent('NuxtTime');
 const UTooltip = resolveComponent('UTooltip');
 
 const adminPath = useAdminPath();
-const { role: adminRole } = useBetterAuthAdminConfig();
+const { role: adminRole, staffRoles } = useBetterAuthAdminConfig();
+const can = useAdminCan();
 const session = useUserSession();
 const admin = useAdminUsers();
 const toast = useToast();
@@ -49,7 +52,13 @@ const searchField = ref<'email' | 'name'>('email');
 const debouncedSearch = refDebounced(search, 300);
 // Linkable, eg from the home page's Banned card: ?filter=banned
 const routeFilter = String(useRoute().query.filter ?? '');
-const filter = ref(['admins', 'banned', 'unverified'].includes(routeFilter) ? routeFilter : 'all');
+const filter = ref(
+    routeFilter === 'admins'
+        ? `role:${adminRole}`
+        : ['banned', 'unverified', ...staffRoles.map((role) => `role:${role}`)].includes(routeFilter)
+          ? routeFilter
+          : 'all'
+);
 const sorting = ref([{ id: 'createdAt', desc: true }]);
 const rowSelection = ref<Record<string, boolean>>({});
 const columnVisibility = ref<Record<string, boolean>>({});
@@ -57,7 +66,7 @@ const columnVisibility = ref<Record<string, boolean>>({});
 // Better Auth's list-users takes one filter at a time.
 const filters: Record<string, { field: 'role' | 'banned' | 'emailVerified'; value: string } | undefined> = {
     all: undefined,
-    admins: { field: 'role', value: adminRole },
+    ...Object.fromEntries(staffRoles.map((role) => [`role:${role}`, { field: 'role' as const, value: role }])),
     banned: { field: 'banned', value: 'true' },
     unverified: { field: 'emailVerified', value: 'false' }
 };
@@ -134,10 +143,11 @@ async function run(action: () => Promise<unknown>, success: string) {
 
 const impersonateItem = useImpersonateItem();
 
+// Only the actions the admin's role allows; some are off for your own account.
 function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
     const user = row.original;
     const self = isSelf(user);
-    return [
+    return shownItems([
         [
             { type: 'label', label: user.email },
             {
@@ -155,37 +165,42 @@ function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
             }
         ],
         [
-            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => openModal('edit', [user]) },
-            {
+            can({ user: ['update'] }) && {
+                label: 'Edit',
+                icon: 'i-lucide-pencil',
+                onSelect: () => openModal('edit', [user])
+            },
+            can({ user: ['set-role'] }) && {
                 label: 'Change role',
                 icon: 'i-lucide-shield',
                 disabled: self,
                 onSelect: () => openModal('role', [user])
             },
             { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => openModal('password', [user]) },
-            {
+            can({ session: ['revoke'] }) && {
                 label: 'Sign out everywhere',
                 icon: 'i-lucide-log-out',
                 disabled: self,
                 onSelect: () => run(() => admin.revokeSessions(user.id), `${user.name} was signed out everywhere`)
             }
         ],
-        ...[impersonateItem(user)].filter((item) => item !== null).map((item) => [item]),
+        [impersonateItem(user)],
         [
-            user.banned
-                ? {
-                      label: 'Unban',
-                      icon: 'i-lucide-shield-check',
-                      onSelect: () => run(() => admin.unban(user.id), `${user.name} was unbanned`)
-                  }
-                : {
-                      label: 'Ban',
-                      icon: 'i-lucide-ban',
-                      color: 'error',
-                      disabled: self,
-                      onSelect: () => openModal('ban', [user])
-                  },
-            {
+            can({ user: ['ban'] }) &&
+                (user.banned
+                    ? {
+                          label: 'Unban',
+                          icon: 'i-lucide-shield-check',
+                          onSelect: () => run(() => admin.unban(user.id), `${user.name} was unbanned`)
+                      }
+                    : {
+                          label: 'Ban',
+                          icon: 'i-lucide-ban',
+                          color: 'error',
+                          disabled: self,
+                          onSelect: () => openModal('ban', [user])
+                      }),
+            can({ user: ['delete'] }) && {
                 label: 'Delete',
                 icon: 'i-lucide-trash',
                 color: 'error',
@@ -193,7 +208,7 @@ function rowItems(row: Row<AdminUser>): DropdownMenuItem[][] {
                 onSelect: () => openModal('delete', [user])
             }
         ]
-    ];
+    ]);
 }
 
 const sortHeader =
@@ -261,7 +276,9 @@ const columns: TableColumn<AdminUser>[] = [
         cell: ({ row }) =>
             h(UBadge, {
                 label: row.original.role ?? 'user',
-                color: row.original.role === adminRole ? 'primary' : 'neutral',
+                color: (row.original.role ?? 'user').split(',').some((role) => staffRoles.includes(role))
+                    ? 'primary'
+                    : 'neutral',
                 variant: 'subtle',
                 class: 'capitalize'
             })
@@ -331,6 +348,14 @@ const columns: TableColumn<AdminUser>[] = [
 
 const columnLabels: Record<string, string> = { banned: 'Status', emailVerified: 'Email', signIn: 'Sign-in' };
 
+// One filter per staff role, eg "Admins", "Moderators".
+const filterItems = [
+    { label: 'All users', value: 'all' },
+    ...staffRoles.map((role) => ({ label: `${upperFirst(role)}s`, value: `role:${role}` })),
+    { label: 'Banned', value: 'banned' },
+    { label: 'Unverified', value: 'unverified' }
+];
+
 const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));
 </script>
 
@@ -343,7 +368,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                 </template>
 
                 <template #right>
-                    <AdminUsersCreateModal @created="refresh" />
+                    <AdminUsersCreateModal v-if="can({ user: ['create'] })" @created="refresh" />
                 </template>
             </UDashboardNavbar>
         </template>
@@ -370,6 +395,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                 <div class="flex flex-wrap items-center gap-1.5">
                     <template v-if="bulkTargets.length">
                         <UButton
+                            v-if="can({ user: ['ban'] })"
                             label="Ban"
                             color="error"
                             variant="subtle"
@@ -381,6 +407,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                             </template>
                         </UButton>
                         <UButton
+                            v-if="can({ user: ['delete'] })"
                             label="Delete"
                             color="error"
                             variant="subtle"
@@ -395,12 +422,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
 
                     <USelect
                         v-model="filter"
-                        :items="[
-                            { label: 'All users', value: 'all' },
-                            { label: 'Admins', value: 'admins' },
-                            { label: 'Banned', value: 'banned' },
-                            { label: 'Unverified', value: 'unverified' }
-                        ]"
+                        :items="filterItems"
                         :ui="{ trailingIcon: 'group-data-[state=open]:rotate-180 transition-transform duration-200' }"
                         class="min-w-32"
                     />

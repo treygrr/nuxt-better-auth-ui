@@ -5,8 +5,8 @@ import { computed, reactive, ref, useAdminUsers, useBetterAuthAdminConfig, useTo
 
 const emit = defineEmits<{ created: [] }>();
 
-const { role: adminRole } = useBetterAuthAdminConfig();
-const roles = computed(() => [...new Set(['user', adminRole])]);
+const { roles: allRoles } = useBetterAuthAdminConfig();
+const roles = computed(() => allRoles);
 
 const schema = z.object({
     name: z.string().min(1, 'Required'),

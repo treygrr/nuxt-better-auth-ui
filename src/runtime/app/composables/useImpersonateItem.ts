@@ -1,27 +1,29 @@
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { navigateTo, useAdminUsers, useBetterAuthAdminConfig, useToast } from '#imports';
+import { navigateTo, useAdminCan, useAdminUsers, useBetterAuthAdminConfig, useToast } from '#imports';
 
 import type { AdminUser } from '../types';
 
 /**
- * The "Sign in as …" menu item for a user, or null when the module's `impersonation` option is off. Disabled,
- * with the reason, for yourself, admins (Better Auth refuses them without the impersonate-admins permission)
- * and banned users (Better Auth refuses their sessions).
+ * The "Sign in as …" menu item for a user, or null when the module's `impersonation` option is off or the
+ * admin's role can't impersonate. Disabled, with the reason, for yourself, staff (Better Auth refuses them
+ * without the impersonate-admins permission) and banned users (Better Auth refuses their sessions).
  */
 export const useImpersonateItem = () => {
-    const { role: adminRole, impersonation } = useBetterAuthAdminConfig();
+    const { staffRoles, impersonation } = useBetterAuthAdminConfig();
+    const can = useAdminCan();
     const session = useUserSession();
     const admin = useAdminUsers();
     const toast = useToast();
 
     return (user: AdminUser): DropdownMenuItem | null => {
-        if (!impersonation) return null;
+        if (!impersonation || !can({ user: ['impersonate'] })) return null;
+        const staff = (user.role ?? 'user').split(',').some((role) => staffRoles.includes(role));
         const reason =
             user.id === session.user.value?.id
                 ? 'you'
-                : user.role?.split(',').includes(adminRole)
-                  ? 'an admin'
+                : staff && !can({ user: ['impersonate-admins'] })
+                  ? 'staff'
                   : user.banned
                     ? 'banned'
                     : null;

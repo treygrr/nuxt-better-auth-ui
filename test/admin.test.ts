@@ -677,3 +677,80 @@ describe('audit log retention', () => {
         expect(stored()).toEqual(['retention-recent']);
     });
 });
+
+describe('custom roles', () => {
+    // The playground's moderator: user list, get, update and ban; session list and revoke.
+    let moderatorCookie: string;
+    let carolId: string;
+    const post = (path: string, body: unknown, cookie: string) =>
+        fetch(`${base}/api/auth${path}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie },
+            body: JSON.stringify(body)
+        });
+
+    beforeAll(async () => {
+        await signIn('dave', 'sign-up');
+        const daveId = (
+            await (await get('/api/auth/admin/list-users?searchValue=dave@&searchField=email', adminCookie)).json()
+        ).users[0].id;
+        expect((await post('/admin/set-role', { userId: daveId, role: 'moderator' }, adminCookie)).status).toBe(200);
+        moderatorCookie = await signIn('dave', 'sign-in');
+        const created = await post(
+            '/admin/create-user',
+            { name: 'Carol', email: 'carol@roles.test', password: 'password123', role: 'user' },
+            adminCookie
+        );
+        carolId = (await created.json()).user.id;
+    });
+
+    it('opens the admin pages to moderators, not users', async () => {
+        expect((await get('/admin/users', moderatorCookie)).status).toBe(200);
+        expect((await get('/admin/users', userCookie)).status).not.toBe(200);
+    });
+
+    it('lets a moderator do what the role allows', async () => {
+        expect((await get('/api/auth/admin/list-users', moderatorCookie)).status).toBe(200);
+        expect((await post('/admin/ban-user', { userId: carolId }, moderatorCookie)).status).toBe(200);
+        expect((await post('/admin/unban-user', { userId: carolId }, moderatorCookie)).status).toBe(200);
+        expect(
+            (await post('/admin/update-user', { userId: carolId, data: { name: 'Carol B' } }, moderatorCookie)).status
+        ).toBe(200);
+        expect((await get(`/api/_better-auth-admin/users/${carolId}/accounts`, moderatorCookie)).status).toBe(200);
+    });
+
+    it("refuses what it doesn't", async () => {
+        expect((await post('/admin/remove-user', { userId: carolId }, moderatorCookie)).status).toBe(403);
+        expect((await post('/admin/set-role', { userId: carolId, role: 'admin' }, moderatorCookie)).status).toBe(403);
+        expect(
+            (await post('/admin/set-user-password', { userId: carolId, newPassword: 'password456' }, moderatorCookie))
+                .status
+        ).toBe(403);
+        // Changing an email takes set-email.
+        expect(
+            (await post('/admin/update-user', { userId: carolId, data: { email: 'c@roles.test' } }, moderatorCookie))
+                .status
+        ).toBe(403);
+        expect(
+            (
+                await post(
+                    '/admin/create-user',
+                    { name: 'X', email: 'x@roles.test', password: 'password123' },
+                    moderatorCookie
+                )
+            ).status
+        ).toBe(403);
+    });
+
+    it('only accepts configured roles', async () => {
+        expect((await post('/admin/set-role', { userId: carolId, role: 'moderator' }, adminCookie)).status).toBe(200);
+        expect((await post('/admin/set-role', { userId: carolId, role: 'wizard' }, adminCookie)).status).toBe(400);
+        await post('/admin/set-role', { userId: carolId, role: 'user' }, adminCookie);
+    });
+
+    it('treats moderators as staff for impersonation', async () => {
+        const daveId = (await (await get('/api/auth/get-session', moderatorCookie)).json()).user.id;
+        // The admin role doesn't have impersonate-admins, so staff can't be impersonated.
+        expect((await post('/admin/impersonate-user', { userId: daveId }, adminCookie)).status).toBe(403);
+    });
+});

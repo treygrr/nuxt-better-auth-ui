@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { reactive, useAdminUsers, useToast, watch } from '#imports';
+import { reactive, useAdminCan, useAdminUsers, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -33,11 +33,24 @@ watch(
 );
 
 const users = useAdminUsers();
+// Better Auth requires set-email for the email and its verification.
+const canSetEmail = useAdminCan()({ user: ['set-email'] });
 const toast = useToast();
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
     try {
-        await users.update(props.user.id, { ...event.data, image: event.data.image || null });
+        // Only what changed: Better Auth checks a permission per field.
+        const next = { ...event.data, image: event.data.image || null };
+        const current = {
+            name: props.user.name,
+            email: props.user.email,
+            image: props.user.image ?? null,
+            emailVerified: props.user.emailVerified
+        };
+        const changed = Object.fromEntries(
+            Object.entries(next).filter(([key, value]) => value !== current[key as keyof typeof current])
+        );
+        if (Object.keys(changed).length) await users.update(props.user.id, changed);
         toast.add({ title: 'User updated', color: 'success' });
         open.value = false;
         emit('updated');
@@ -55,13 +68,13 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
                     <UInput v-model="state.name" class="w-full" />
                 </UFormField>
                 <UFormField label="Email" name="email">
-                    <UInput v-model="state.email" type="email" class="w-full" />
+                    <UInput v-model="state.email" type="email" class="w-full" :disabled="!canSetEmail" />
                 </UFormField>
                 <UFormField label="Avatar URL" name="image" help="Optional.">
                     <UInput v-model="state.image" class="w-full" />
                 </UFormField>
                 <UFormField name="emailVerified">
-                    <USwitch v-model="state.emailVerified" label="Email verified" />
+                    <USwitch v-model="state.emailVerified" label="Email verified" :disabled="!canSetEmail" />
                 </UFormField>
                 <div class="flex justify-end gap-2">
                     <UButton label="Cancel" color="neutral" variant="subtle" @click="open = false" />

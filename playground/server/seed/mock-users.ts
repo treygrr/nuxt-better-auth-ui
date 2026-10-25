@@ -142,7 +142,7 @@ export async function seedMockUsers(context: SeedContext, count: number, passwor
         }));
 
         // A few fixed cases, so each state shows up.
-        const role = i === 3 || i === 11 ? 'admin' : 'user';
+        const role = i === 3 || i === 11 ? 'admin' : i === 7 ? 'moderator' : 'user';
         const ban =
             i === 5
                 ? { banned: true, banReason: 'Spamming other users', banExpires: null }

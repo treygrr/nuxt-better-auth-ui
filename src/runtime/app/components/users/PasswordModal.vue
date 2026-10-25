@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { reactive, useAdminUsers, useToast, watch } from '#imports';
+import { reactive, useAdminCan, useAdminUsers, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -16,6 +16,7 @@ watch(open, (isOpen) => {
 });
 
 const users = useAdminUsers();
+const canSetPassword = useAdminCan()({ user: ['set-password'] });
 const toast = useToast();
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
@@ -59,9 +60,9 @@ async function sendReset() {
                     />
                 </div>
 
-                <USeparator label="or" />
+                <USeparator v-if="canSetPassword" label="or" />
 
-                <UForm :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
+                <UForm v-if="canSetPassword" :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
                     <UFormField label="Set a new password" name="password" help="At least 8 characters.">
                         <UInput v-model="state.password" type="password" autocomplete="new-password" class="w-full" />
                     </UFormField>

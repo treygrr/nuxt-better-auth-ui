@@ -1,28 +1,29 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, useAdminDashboard, useAdminPath, useLazyFetch } from '#imports';
+import { computed, ref, shallowRef, useAdminCan, useAdminDashboard, useAdminPath, useLazyFetch } from '#imports';
 import { addDays, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, max, startOfDay, sub } from 'date-fns';
-import type { DropdownMenuItem } from '@nuxt/ui';
 import { ADMIN_API } from '../../constants';
 import type { AdminStats, Period, Range } from '../types';
+import { shownItems } from '../utils/menu';
 
 const adminPath = useAdminPath();
 
 const { isNotificationsSlideoverOpen } = useAdminDashboard();
 
-const items = [
+const can = useAdminCan();
+const items = shownItems([
     [
         {
             label: 'New mail',
             icon: 'i-lucide-send',
             to: adminPath('/inbox')
         },
-        {
+        can({ user: ['create'] }) && {
             label: 'New user',
             icon: 'i-lucide-user-plus',
             to: adminPath('/users')
         }
     ]
-] satisfies DropdownMenuItem[][];
+]);
 
 const range = shallowRef<Range>({
     start: sub(new Date(), { days: 14 }),

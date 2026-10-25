@@ -5,6 +5,7 @@ import {
     computed,
     navigateTo,
     ref,
+    useAdminCan,
     useAdminPath,
     useAdminUsers,
     useBetterAuthAdminConfig,
@@ -17,6 +18,7 @@ import {
 import { ADMIN_API } from '../../../constants';
 import type { AdminAccount, AdminAuditEntry, AdminSession, AdminUser } from '../../types';
 import { useImpersonateItem } from '../../composables/useImpersonateItem';
+import { shownItems } from '../../utils/menu';
 import { providerInfo } from '../../utils/providers';
 
 const adminPath = useAdminPath();
@@ -25,6 +27,7 @@ const userId = useRoute().params.id as string;
 const session = useUserSession();
 const admin = useAdminUsers();
 const toast = useToast();
+const can = useAdminCan();
 
 // Fetched during server rendering, with the admin's cookies, and handed to the browser in the payload.
 const {
@@ -38,6 +41,7 @@ const { data: sessions, refresh: refreshSessions } = useLazyFetch('/api/auth/adm
     method: 'POST',
     body: { userId },
     server: false,
+    immediate: can({ session: ['list'] }),
     transform: (result: { sessions: AdminSession[] }) => result.sessions
 });
 const {
@@ -68,7 +72,7 @@ const removeOpen = computed({
 });
 const accountItems = (account: AdminAccount): DropdownMenuItem[][] => {
     const onlyOne = (accounts.value?.length ?? 0) <= 1;
-    return [
+    return shownItems([
         [
             {
                 label: 'Copy account ID',
@@ -80,7 +84,7 @@ const accountItems = (account: AdminAccount): DropdownMenuItem[][] => {
             }
         ],
         [
-            {
+            can({ user: ['update'] }) && {
                 label: onlyOne ? 'Remove (their only sign-in method)' : 'Remove',
                 icon: 'i-lucide-unlink',
                 color: 'error',
@@ -88,7 +92,7 @@ const accountItems = (account: AdminAccount): DropdownMenuItem[][] => {
                 onSelect: () => (removing.value = account)
             }
         ]
-    ];
+    ]);
 };
 
 const isSelf = computed(() => user.value?.id === session.user.value?.id);
@@ -119,13 +123,18 @@ async function run(action: () => Promise<unknown>, success: string) {
 
 const impersonateItem = useImpersonateItem();
 
+// Only the actions the admin's role allows; some are off for your own account.
 const actions = computed<DropdownMenuItem[][]>(() => {
     const current = user.value;
     if (!current) return [];
-    return [
+    return shownItems([
         [
-            { label: 'Edit', icon: 'i-lucide-pencil', onSelect: () => (modal.value = 'edit') },
-            {
+            can({ user: ['update'] }) && {
+                label: 'Edit',
+                icon: 'i-lucide-pencil',
+                onSelect: () => (modal.value = 'edit')
+            },
+            can({ user: ['set-role'] }) && {
                 label: 'Change role',
                 icon: 'i-lucide-shield',
                 disabled: isSelf.value,
@@ -133,22 +142,23 @@ const actions = computed<DropdownMenuItem[][]>(() => {
             },
             { label: 'Password', icon: 'i-lucide-key-round', onSelect: () => (modal.value = 'password') }
         ],
-        ...[impersonateItem(current)].filter((item) => item !== null).map((item) => [item]),
+        [impersonateItem(current)],
         [
-            current.banned
-                ? {
-                      label: 'Unban',
-                      icon: 'i-lucide-shield-check',
-                      onSelect: () => run(() => admin.unban(current.id), `${current.name} was unbanned`)
-                  }
-                : {
-                      label: 'Ban',
-                      icon: 'i-lucide-ban',
-                      color: 'error',
-                      disabled: isSelf.value,
-                      onSelect: () => (modal.value = 'ban')
-                  },
-            {
+            can({ user: ['ban'] }) &&
+                (current.banned
+                    ? {
+                          label: 'Unban',
+                          icon: 'i-lucide-shield-check',
+                          onSelect: () => run(() => admin.unban(current.id), `${current.name} was unbanned`)
+                      }
+                    : {
+                          label: 'Ban',
+                          icon: 'i-lucide-ban',
+                          color: 'error',
+                          disabled: isSelf.value,
+                          onSelect: () => (modal.value = 'ban')
+                      }),
+            can({ user: ['delete'] }) && {
                 label: 'Delete',
                 icon: 'i-lucide-trash',
                 color: 'error',
@@ -156,7 +166,7 @@ const actions = computed<DropdownMenuItem[][]>(() => {
                 onSelect: () => (modal.value = 'delete')
             }
         ]
-    ];
+    ]);
 });
 
 /** A readable device from a user agent, eg "Chrome on Linux". */
@@ -244,7 +254,7 @@ const thisSession = computed(() => session.session.value?.id);
                         </template>
                         <template v-else>until unbanned</template>
                     </template>
-                    <template #actions>
+                    <template v-if="can({ user: ['ban'] })" #actions>
                         <UButton
                             label="Unban"
                             color="error"
@@ -338,8 +348,13 @@ const thisSession = computed(() => session.session.value?.id);
                     </ul>
                 </UPageCard>
 
-                <UPageCard title="Sessions" :description="`Where ${user.name} is signed in.`" variant="subtle">
-                    <template #footer v-if="sessions?.length && !isSelf">
+                <UPageCard
+                    v-if="can({ session: ['list'] })"
+                    title="Sessions"
+                    :description="`Where ${user.name} is signed in.`"
+                    variant="subtle"
+                >
+                    <template #footer v-if="sessions?.length && !isSelf && can({ session: ['revoke'] })">
                         <UButton
                             label="Sign out everywhere"
                             icon="i-lucide-log-out"
@@ -388,7 +403,7 @@ const thisSession = computed(() => session.session.value?.id);
                                 </div>
                             </div>
                             <UButton
-                                v-if="item.id !== thisSession"
+                                v-if="item.id !== thisSession && can({ session: ['revoke'] })"
                                 label="Sign out"
                                 color="neutral"
                                 variant="outline"

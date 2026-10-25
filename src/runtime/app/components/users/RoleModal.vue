@@ -7,8 +7,9 @@ const props = defineProps<{ user: AdminUser }>();
 const open = defineModel<boolean>('open', { default: false });
 const emit = defineEmits<{ updated: [] }>();
 
-const { role: adminRole } = useBetterAuthAdminConfig();
-const roles = computed(() => [...new Set(['user', adminRole, props.user.role ?? 'user'])]);
+const { role: adminRole, roles: allRoles } = useBetterAuthAdminConfig();
+// The configured roles, plus theirs if it's no longer configured.
+const roles = computed(() => [...new Set([...allRoles, props.user.role ?? 'user'])]);
 const role = ref('user');
 watch(open, (isOpen) => {
     if (isOpen) role.value = props.user.role ?? 'user';
@@ -33,7 +34,10 @@ async function onSubmit() {
     <UModal v-model:open="open" title="Change role" :description="user.email">
         <template #body>
             <div class="space-y-4">
-                <UFormField label="Role" :help="`The ${adminRole} role can use these pages.`">
+                <UFormField
+                    label="Role"
+                    :help="`${adminRole} can do everything here; other roles only what they're allowed.`"
+                >
                     <USelect v-model="role" :items="roles" class="w-full" />
                 </UFormField>
                 <div class="flex justify-end gap-2">

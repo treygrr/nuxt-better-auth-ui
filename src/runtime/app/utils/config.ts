@@ -4,6 +4,10 @@ import { useRuntimeConfig } from '#imports';
 export type BetterAuthAdminPublicConfig = {
     route: string;
     role: string;
+    /** Every role: `user`, the admin role, then custom roles. */
+    roles: string[];
+    /** Roles that can open the admin pages. */
+    staffRoles: string[];
     impersonation: boolean;
     auditLog: boolean;
     /** Days the audit log keeps entries; 0 keeps them forever. */
