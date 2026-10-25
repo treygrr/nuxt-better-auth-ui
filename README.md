@@ -500,6 +500,47 @@ betterAuthUi: {
 - Uses Better Auth's words (organization, owner, admin, member) and its default roles. Adds Better Auth's
   `organization`, `member` and `invitation` tables and the session's `activeOrganizationId`: run its migrations.
 
+## Subscriptions with Stripe
+
+Better Auth's Stripe plugin, with its two packages:
+
+```bash
+pnpm add @better-auth/stripe stripe
+```
+
+```ts
+betterAuthUi: {
+    stripe: {
+        enabled: true,
+        plans: [
+            { name: 'basic', priceId: 'price_…', limits: { projects: 5 } },
+            {
+                name: 'pro',
+                priceId: 'price_…',
+                annualDiscountPriceId: 'price_…', // offers "Pay yearly"
+                limits: { projects: 50 },
+                freeTrial: { days: 14 }
+            }
+        ],
+        createCustomerOnSignUp: false,
+        requireEmailVerification: false
+    }
+}
+```
+
+Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in the environment (read at runtime, never from nuxt.config), and
+point a Stripe webhook at `https://your-site/api/auth/stripe/webhook` with `checkout.session.completed` and
+`customer.subscription.created`, `.updated` and `.deleted`. Webhooks stay Better Auth's.
+
+- **Account page:** a "Billing" tab: the current plan (active or on a free trial) and when it renews or ends, the
+  plans with their limits and trials, choosing or switching one (Stripe Checkout, back to the tab), cancelling (through
+  Stripe's billing portal) and resuming before it ends, and "Invoices and payment" for Stripe's billing portal.
+- **Admin:** each user's subscriptions (plan, status, renewal) on their page, read-only: billing changes go through
+  Stripe.
+- Adds Better Auth's `subscription` table and `stripeCustomerId` user column: run its migrations. Not yet: a plan filter
+  on the users list, giving a role while a plan is active (do it in Better Auth's subscription hooks), and
+  organization subscriptions.
+
 ## API keys
 
 Keys for people's scripts, bots and integrations, through Better Auth's API Key plugin. Install its package, then:

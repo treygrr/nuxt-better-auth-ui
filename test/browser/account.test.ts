@@ -11,7 +11,7 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await signUp('Tabby', 'tabby@browser.test');
         const session = await browser.open();
         await signInWithForm(session, 'tabby@browser.test', '/account');
-        for (const tab of ['profile', 'security', 'devices', 'organizations', 'api-keys', 'delete']) {
+        for (const tab of ['profile', 'security', 'devices', 'organizations', 'billing', 'api-keys', 'delete']) {
             await session.go(`/account?tab=${tab}`);
             await expect(session.page.getByRole('tab', { selected: true }).count(), tab).resolves.toBe(1);
         }

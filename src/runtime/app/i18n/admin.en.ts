@@ -424,6 +424,13 @@ export const adminEn = {
         thePasskey: 'the passkey',
         removeFailed: "Couldn't remove the passkey"
     },
+    subscription: {
+        title: 'Subscription',
+        description: "{name}'s plan, from Stripe. Changes go through Stripe's dashboard or their billing tab.",
+        none: 'No subscription.',
+        renews: 'Renews',
+        ends: 'Ends'
+    },
     fields: {
         title: 'More details',
         description: "Your app's own fields.",
@@ -504,6 +511,7 @@ export const adminEn = {
             apiKeys: 'API keys',
             organizations: 'Organizations',
             organizationsNoCreate: "Users can't create them",
+            stripe: 'Subscriptions (Stripe)',
             bearerTokens: 'Bearer tokens',
             jwt: 'JWTs for other services',
             jwksAt: 'Public keys (JWKS): {url}',

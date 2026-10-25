@@ -68,10 +68,12 @@
     "peerDependencies": {
         "@better-auth/api-key": "^1.7.0",
         "@better-auth/passkey": "^1.7.0",
+        "@better-auth/stripe": "^1.7.0",
         "@nuxt/ui": "^4.12.0",
         "@nuxtjs/better-auth": "^0.3.12",
         "better-auth": "^1.7.0",
-        "nuxt": "^4.6.0"
+        "nuxt": "^4.6.0",
+        "stripe": ">=18"
     },
     "peerDependenciesMeta": {
         "@better-auth/api-key": {
@@ -79,11 +81,18 @@
         },
         "@better-auth/passkey": {
             "optional": true
+        },
+        "@better-auth/stripe": {
+            "optional": true
+        },
+        "stripe": {
+            "optional": true
         }
     },
     "devDependencies": {
         "@better-auth/api-key": "1.7.12",
         "@better-auth/passkey": "1.7.12",
+        "@better-auth/stripe": "1.7.12",
         "@nuxt/module-builder": "1.0.3",
         "@nuxt/schema": "4.6.2",
         "@nuxt/ui": "4.12.0",
@@ -95,6 +104,7 @@
         "nuxt": "4.6.2",
         "playwright-core": "1.64.1",
         "prettier": "3.9.9",
+        "stripe": "22.6.2",
         "tailwindcss": "4.3.3",
         "typescript": "6.0.3",
         "vitest": "5.0.5",

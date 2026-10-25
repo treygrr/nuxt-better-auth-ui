@@ -203,7 +203,28 @@ export const authEs = {
             delete: 'Eliminar',
             apiKeys: 'Claves de API',
             organizations: 'Organizaciones',
+            billing: 'Facturación',
             actionNeeded: 'Requiere acción'
+        },
+        billing: {
+            title: 'Tu plan',
+            description: 'Tu suscripción. Stripe gestiona los pagos, las facturas y las tarjetas.',
+            none: 'No tienes suscripción. Elige un plan abajo.',
+            active: 'Activo',
+            trial: 'Prueba gratuita',
+            renewsOn: 'Se renueva el',
+            endsOn: 'Termina el',
+            cancel: 'Cancelar plan',
+            resume: 'Mantener mi plan',
+            resumed: 'Tu plan continúa',
+            portal: 'Facturas y pagos',
+            plans: 'Planes',
+            yearly: 'Pagar anualmente',
+            trialDays: 'Prueba gratuita de {count} días',
+            yourPlan: 'Tu plan',
+            choose: 'Elegir',
+            switch: 'Cambiar a este plan',
+            failed: 'No funcionó'
         },
         organizations: {
             title: 'Organizaciones',

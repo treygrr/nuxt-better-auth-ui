@@ -424,6 +424,14 @@ export const adminEs = {
         thePasskey: 'la llave de acceso',
         removeFailed: 'No se pudo quitar la llave de acceso'
     },
+    subscription: {
+        title: 'Suscripción',
+        description:
+            'El plan de {name}, desde Stripe. Los cambios se hacen en el panel de Stripe o en su pestaña de facturación.',
+        none: 'Sin suscripción.',
+        renews: 'Se renueva',
+        ends: 'Termina'
+    },
     fields: {
         title: 'Más datos',
         description: 'Los campos propios de tu aplicación.',
@@ -505,6 +513,7 @@ export const adminEs = {
             apiKeys: 'Claves de API',
             organizations: 'Organizaciones',
             organizationsNoCreate: 'Los usuarios no pueden crearlas',
+            stripe: 'Suscripciones (Stripe)',
             bearerTokens: 'Tokens Bearer',
             jwt: 'JWT para otros servicios',
             jwksAt: 'Claves públicas (JWKS): {url}',

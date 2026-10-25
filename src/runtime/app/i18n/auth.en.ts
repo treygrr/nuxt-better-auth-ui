@@ -200,7 +200,28 @@ export const authEn = {
             delete: 'Delete',
             apiKeys: 'API keys',
             organizations: 'Organizations',
+            billing: 'Billing',
             actionNeeded: 'Action needed'
+        },
+        billing: {
+            title: 'Your plan',
+            description: 'Your subscription. Payments, invoices and cards are handled by Stripe.',
+            none: "You're not subscribed. Choose a plan below.",
+            active: 'Active',
+            trial: 'Free trial',
+            renewsOn: 'Renews on',
+            endsOn: 'Ends on',
+            cancel: 'Cancel plan',
+            resume: 'Keep my plan',
+            resumed: 'Your plan continues',
+            portal: 'Invoices and payment',
+            plans: 'Plans',
+            yearly: 'Pay yearly',
+            trialDays: '{count}-day free trial',
+            yourPlan: 'Your plan',
+            choose: 'Choose',
+            switch: 'Switch to this plan',
+            failed: "That didn't work"
         },
         organizations: {
             title: 'Organizations',

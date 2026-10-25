@@ -334,6 +334,42 @@ export type OrganizationOptions = {
     teams?: boolean;
 };
 
+/** A Stripe subscription plan, as Better Auth's Stripe plugin takes it (https://better-auth.com/docs/plugins/stripe). */
+export type StripePlan = {
+    /** The plan's name, eg 'pro' (Better Auth stores it lowercased). */
+    name: string;
+    /** The Stripe price, or its lookup key. */
+    priceId?: string;
+    lookupKey?: string;
+    /** A yearly price, which the billing tab offers next to the monthly one. */
+    annualDiscountPriceId?: string;
+    annualDiscountLookupKey?: string;
+    /** What the plan allows, eg `{ projects: 10 }`: shown with the plan, and on the subscription for the app to check. */
+    limits?: Record<string, number>;
+    /** A free trial, once per account (Better Auth prevents repeats). */
+    freeTrial?: { days: number };
+    /** Plans of the same group replace each other. */
+    group?: string;
+};
+
+/** Subscriptions with Stripe, through Better Auth's Stripe plugin (`@better-auth/stripe` and `stripe`). */
+export type StripeOptions = {
+    /**
+     * Adds the plugin: a "Billing" tab on the account page (the plan and its status, choosing or changing one through
+     * Stripe Checkout, cancelling and resuming, invoices and payment methods in Stripe's billing portal), and the
+     * subscription on each user's admin page. Keys come from the environment at runtime: `STRIPE_SECRET_KEY` and
+     * `STRIPE_WEBHOOK_SECRET` (Stripe's webhook points at `/api/auth/stripe/webhook`). Adds a `subscription` table and a
+     * `stripeCustomerId` user column: run Better Auth's migrations.
+     * @default false
+     */
+    enabled: boolean;
+    plans?: StripePlan[];
+    /** A Stripe customer for every new account, at sign-up. Better Auth's default: false (made at first checkout). */
+    createCustomerOnSignUp?: boolean;
+    /** Only users with a verified email can subscribe. Better Auth's default: false. */
+    requireEmailVerification?: boolean;
+};
+
 /** JWTs for services that verify them with the app's JWKS, through Better Auth's JWT plugin. */
 export type JwtOptions = {
     /** Who issues the tokens. Better Auth's default: the app's base URL. */
@@ -397,6 +433,8 @@ export type ModuleOptions = {
     phoneNumber: PhoneNumberOptions;
     /** Organizations, off by default. */
     organization: OrganizationOptions;
+    /** Stripe subscriptions, off by default. */
+    stripe: StripeOptions;
     /**
      * Session tokens in an `Authorization: Bearer` header instead of cookies, for native apps and other servers,
      * through Better Auth's Bearer plugin: sign-ins return the token in a `set-auth-token` header. `{ requireSignature:
@@ -519,6 +557,7 @@ export default defineNuxtModule<ModuleOptions>({
         apiKey: { enabled: false },
         phoneNumber: { enabled: false },
         organization: { enabled: false },
+        stripe: { enabled: false },
         bearer: false,
         jwt: false,
         captcha: false,
@@ -707,6 +746,15 @@ export default defineNuxtModule<ModuleOptions>({
             apiKeyScopes: moduleOptions.apiKey.scopes ?? {},
             // Where organization invitations are accepted (false without organizations).
             invitationPage,
+            // The billing tab's plans, without their Stripe prices.
+            stripePlans: moduleOptions.stripe.enabled
+                ? (moduleOptions.stripe.plans ?? []).map((plan) => ({
+                      name: plan.name.toLowerCase(),
+                      limits: plan.limits ?? {},
+                      trialDays: plan.freeTrial?.days ?? 0,
+                      annual: !!(plan.annualDiscountPriceId || plan.annualDiscountLookupKey)
+                  }))
+                : [],
             signOutRedirect: moduleOptions.signOutRedirect,
             twoFactorRequired: twoFactor.required,
             locale: moduleOptions.locale,
@@ -1057,6 +1105,44 @@ export default defineNuxtModule<ModuleOptions>({
                 ]
             );
         }
+        const stripeOptions = moduleOptions.stripe;
+        if (stripeOptions.enabled) {
+            for (const name of ['@better-auth/stripe', 'stripe']) {
+                if (!(await tryResolveModule(name, nuxt.options.modulesDir))) {
+                    throw new Error(`[better-auth-ui] stripe.enabled needs the ${name} package: install it.`);
+                }
+            }
+            if (!stripeOptions.plans?.length) {
+                throw new Error('[better-auth-ui] stripe.enabled needs plans: stripe.plans.');
+            }
+            const pluginOptions = {
+                ...(stripeOptions.createCustomerOnSignUp !== undefined && {
+                    createCustomerOnSignUp: stripeOptions.createCustomerOnSignUp
+                }),
+                subscription: {
+                    enabled: true,
+                    plans: stripeOptions.plans,
+                    ...(stripeOptions.requireEmailVerification !== undefined && {
+                        requireEmailVerification: stripeOptions.requireEmailVerification
+                    })
+                }
+            };
+            addAuthPlugin(
+                'stripe',
+                [
+                    "import Stripe from 'stripe'",
+                    "import { stripe } from '@better-auth/stripe'",
+                    // The keys are read at runtime, never from nuxt.config. Stripe's client refuses an empty key, which
+                    // the build (loading the auth config) has none of: a placeholder until it's set.
+                    "const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_unset')",
+                    `export default stripe({ ...${JSON.stringify(pluginOptions)}, stripeClient, stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '' })`
+                ],
+                [
+                    "import { stripeClient } from '@better-auth/stripe/client'",
+                    'export default stripeClient({ subscription: true })'
+                ]
+            );
+        }
         if (moduleOptions.bearer) {
             const bearerOptions = moduleOptions.bearer === true ? {} : moduleOptions.bearer;
             addAuthPlugin('bearer', [
@@ -1358,6 +1444,14 @@ export default defineNuxtModule<ModuleOptions>({
                 route: `${ADMIN_API}/users/:id/organizations`,
                 method: 'get',
                 handler: resolve('./runtime/server/api/users/organizations.get')
+            });
+        }
+        // A user's subscriptions (Stripe plugin), which Better Auth only lists for their owner.
+        if (moduleOptions.stripe.enabled) {
+            addServerHandler({
+                route: `${ADMIN_API}/users/:id/subscriptions`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/users/subscriptions.get')
             });
         }
         // A user's API keys (API Key plugin), which Better Auth only lists for their owner.

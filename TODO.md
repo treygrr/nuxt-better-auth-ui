@@ -10,10 +10,10 @@ the app added it, the admin and configuration page show it, Spanish included.
    Left: a UI for Better Auth's teams; the app's own organization roles (dynamic access control) in the role pickers,
    which show Better Auth's defaults; staff changing organizations (Better Auth has no admin endpoints for them, and
    writing its tables directly would bypass its hooks); organization actions in the audit log.
-9. **Stripe** (`@better-auth/stripe`, its own package). Subscriptions: a "Billing" tab on the account page (current
-   plan, upgrade or change, cancel, invoices through Stripe's customer portal), the plan on each user's admin page
-   and a plan filter on the users list, and an option to give a role while a plan is active. Webhooks stay Better
-   Auth's.
+9. **Stripe, what's left.** Done (and tested without reaching Stripe): the plugin, the billing tab, the admin's
+   subscription card. Left: trying Checkout and the billing portal against Stripe's test mode; a plan filter on the
+   users list (Better Auth's list-users can't filter by another table); a role while a plan is active (writing the
+   Admin plugin's role from subscription hooks, without demoting staff); organization subscriptions.
 10. **OAuth popup** (`oauth-popup`). Provider sign-in in a popup instead of leaving the page, so someone signing in
     from inside a running app (an editor, a game, a checkout) keeps their state. An option on the sign-in pages (and
     a component apps can embed), falling back to the redirect where popups are blocked.

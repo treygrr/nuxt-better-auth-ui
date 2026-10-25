@@ -44,6 +44,8 @@ export type AuthCapabilities = {
     phoneNumber: { otpLength: number; signUp: boolean } | null;
     /** Better Auth's Organization plugin: whether users can create organizations (false only when the app said so). */
     organization: { allowCreate: boolean } | null;
+    /** Better Auth's Stripe plugin, with subscriptions: the billing tab. */
+    stripe: boolean;
     /** Better Auth's Bearer plugin: session tokens in an Authorization header. */
     bearer: boolean;
     /** Better Auth's JWT plugin: where services find the public keys that verify its tokens. */
@@ -142,6 +144,7 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
         organization: organization
             ? { allowCreate: organization.options?.allowUserToCreateOrganization !== false }
             : null,
+        stripe: has('stripe'),
         bearer: has('bearer'),
         jwt: jwt ? { jwksUrl: `${(await auth.$context).baseURL}${jwksPath}` } : null,
         haveIBeenPwned: has('have-i-been-pwned'),

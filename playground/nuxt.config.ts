@@ -35,6 +35,21 @@ export default defineNuxtConfig({
         sms: { send: './server/sms/send.ts' },
         // An "Organizations" tab on the account page, invitations by email (to the outbox), admin organization pages.
         organization: { enabled: true },
+        // A "Billing" tab and each user's subscription in the admin. The prices are made up: with STRIPE_SECRET_KEY and
+        // your own test prices, Checkout and the billing portal work; without, the pages show and Stripe calls fail.
+        stripe: {
+            enabled: true,
+            plans: [
+                { name: 'basic', priceId: 'price_playground_basic', limits: { projects: 5 } },
+                {
+                    name: 'pro',
+                    priceId: 'price_playground_pro',
+                    annualDiscountPriceId: 'price_playground_pro_yearly',
+                    limits: { projects: 50 },
+                    freeTrial: { days: 14 }
+                }
+            ]
+        },
         // Session tokens in an Authorization header, and JWTs verified with /api/auth/jwks.
         bearer: true,
         jwt: true,

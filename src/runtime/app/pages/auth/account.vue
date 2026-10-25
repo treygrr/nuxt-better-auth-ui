@@ -14,6 +14,7 @@ import {
 import { needsTwoFactorSetUp, requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 
 import ApiKeysCard from '../../components/account/ApiKeysCard.vue';
+import BillingCard from '../../components/account/BillingCard.vue';
 import ConnectionsCard from '../../components/account/ConnectionsCard.vue';
 import DataCard from '../../components/account/DataCard.vue';
 import DeleteCard from '../../components/account/DeleteCard.vue';
@@ -112,6 +113,9 @@ const tabs = computed<TabsItem[]>(() => [
                   slot: 'organizations'
               }
           ]
+        : []),
+    ...(capabilities.value?.stripe && !isGuest.value
+        ? [{ label: t('account.tabs.billing'), icon: 'i-lucide-credit-card', value: 'billing', slot: 'billing' }]
         : []),
     ...(capabilities.value?.apiKey && !isGuest.value
         ? [{ label: t('account.tabs.apiKeys'), icon: 'i-lucide-key-square', value: 'api-keys', slot: 'api-keys' }]
@@ -222,6 +226,10 @@ const open = (value: string) => {
 
                 <template #organizations>
                     <OrganizationsCard />
+                </template>
+
+                <template #billing>
+                    <BillingCard />
                 </template>
 
                 <template #api-keys>
