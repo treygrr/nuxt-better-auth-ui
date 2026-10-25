@@ -390,6 +390,46 @@ betterAuthUi: {
 - **Last used:** Better Auth's Last Login Method plugin remembers the method in a cookie for 30 days (a non-essential
   cookie, under GDPR); the sign-in page reads it on the server, so there's no flash.
 
+## Phone numbers
+
+Signing in with a code by text, through Better Auth's Phone Number plugin. Texts go through your sender, like emails:
+
+```ts
+betterAuthUi: {
+    phoneNumber: {
+        enabled: true,
+        otpLength: 6,
+        expiresIn: 300, // seconds
+        allowedAttempts: 3,
+        signUp: false // true: a code to a new number creates an account
+    },
+    sms: { send: './server/sms/send.ts' }
+}
+```
+
+```ts
+// server/sms/send.ts
+import { defineBetterAuthSmsSender } from '@treygrr/nuxt-better-auth-ui/sms';
+
+export default defineBetterAuthSmsSender(async ({ to, text, sms, code }) => {
+    await twilio.messages.create({ to, from: '+15550000000', body: text });
+});
+```
+
+- **Sign-in page:** "Text me a code" asks for the number (spaces, dashes and brackets are dropped; include the country
+  code), texts a code, and signs in with it; users with two-factor on are asked for their code next. With `signUp`, a
+  new number gets an account named after it, with a generated `<digits>@phone-number.invalid` email that the module
+  never emails (they can add a real one from their account). Without it, unknown numbers are told to sign in another
+  way and add their number from their account.
+- **Account page:** a phone number card: add or change the number (verified with a code, Better Auth's
+  `updatePhoneNumber`), or remove it.
+- **The texts:** "123456 is your App code. It expires in 5 minutes." in the app's language, with the code first so
+  phones offer to fill it in. Your sender gets `sms` (`phone-code` or `phone-reset`) and `code` to write its own.
+  Sent in the background, as Better Auth advises.
+- Texts cost money and `send-otp` texts any number, so the captcha guards it by default, along with Better Auth's rate
+  limits. Admins see a user's number on their page. Adds `phoneNumber` and `phoneNumberVerified` user columns: run
+  Better Auth's migrations.
+
 ## Signing in devices
 
 For apps on devices without a browser or keyboard (a TV, a console, a CLI, a desktop app): the device shows "Go to

@@ -55,6 +55,7 @@ const CHALLENGED = [
     '/sign-in/social',
     '/magic-link/verify',
     '/sign-in/email-otp',
+    '/phone-number/verify',
     '/one-tap/callback'
 ];
 const PASSWORD_PATHS = ['/change-password', '/reset-password', '/set-password', '/admin/set-user-password'];

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { base, linkIn, waitForEmail } from '../helpers';
+import { base, linkIn, waitForEmail, waitForSms } from '../helpers';
 import { hasBrowser, signInWithForm, signUp, useBrowser } from './browser';
 
 // The sign-in pages in a real browser: the forms, hydration, and what they do next.
@@ -69,6 +69,24 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         await session.page.locator('[aria-label="Code"] input').first().click();
         await session.page.keyboard.type(email.subject.match(/\d{6}$/)![0]);
         await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
+        expect(session.problems).toEqual([]);
+    });
+
+    it('signs in with a code by text', async () => {
+        const session = await browser.open();
+        await session.noPasskeyAutofill();
+        await session.go('/login?redirect=/account');
+        await session.page.getByRole('button', { name: 'Text me a code' }).click();
+        await session.page.getByLabel('Phone number').fill('+1 (555) 000-4444');
+        await session.page.getByRole('button', { name: 'Send code' }).click();
+        await session.page.getByText('Enter your code').waitFor();
+
+        const { code } = await waitForSms('+15550004444');
+        await session.page.locator('[aria-label="Code"] input').first().click();
+        await session.page.keyboard.type(code);
+        await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
+        // Better Auth names a phone sign-up after its number, so it shows as the name and on the phone card.
+        await session.page.getByText('+15550004444').first().waitFor();
         expect(session.problems).toEqual([]);
     });
 

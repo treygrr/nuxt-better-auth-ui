@@ -35,7 +35,19 @@ export const authEs = {
             password: 'tu contraseña',
             passkey: 'una llave de acceso',
             magicLink: 'un enlace de inicio de sesión',
-            emailCode: 'un código por correo'
+            emailCode: 'un código por correo',
+            phone: 'un código por SMS'
+        },
+        phone: {
+            button: 'Enviarme un código por SMS',
+            title: 'Inicia sesión con tu teléfono',
+            description: 'Te enviaremos por SMS un código para escribirlo aquí.',
+            label: 'Número de teléfono',
+            placeholder: '+34 612 345 678',
+            submit: 'Enviar código',
+            failed: 'No se pudo enviar el código',
+            enterDescription: 'Enviamos un código a {phone}. Caduca en unos minutos.',
+            noAccount: 'Ninguna cuenta tiene ese número. Inicia sesión de otra forma y añádelo desde tu cuenta.'
         },
         verifyFirst: {
             title: 'Primero verifica tu correo',
@@ -179,6 +191,25 @@ export const authEs = {
             delete: 'Eliminar',
             apiKeys: 'Claves de API',
             actionNeeded: 'Requiere acción'
+        },
+        phone: {
+            title: 'Número de teléfono',
+            description: 'Para iniciar sesión con un código por SMS.',
+            none: 'Aún no tienes número de teléfono.',
+            verified: 'Verificado',
+            unverified: 'Sin verificar',
+            add: 'Añadir un número de teléfono',
+            change: 'Cambiar',
+            remove: 'Quitar',
+            label: 'Número de teléfono',
+            placeholder: '+34 612 345 678',
+            send: 'Enviarme un código',
+            enterDescription: 'Escribe el código que enviamos a {phone}.',
+            codeLabel: 'Código',
+            verify: 'Verificar',
+            saved: 'Número de teléfono guardado',
+            removed: 'Número de teléfono quitado',
+            failed: 'No funcionó'
         },
         apiKeys: {
             title: 'Claves de API',
@@ -425,6 +456,11 @@ export const authEs = {
         INVALID_OTP: 'Ese código no es correcto.',
         OTP_EXPIRED: 'Ese código caducó. Pide uno nuevo.',
         TOO_MANY_ATTEMPTS: 'Demasiados intentos. Pide un código nuevo.',
+        // Las de Phone Number.
+        INVALID_PHONE_NUMBER: 'Ese número de teléfono no es válido. Incluye el prefijo del país, p. ej. +34.',
+        PHONE_NUMBER_EXIST: 'Otra cuenta ya usa ese número de teléfono.',
+        OTP_NOT_FOUND: 'Ese código caducó. Pide uno nuevo.',
+        PHONE_NUMBER_NOT_VERIFIED: 'Verifica primero tu número: te enviamos un código por SMS.',
         // Las de Anonymous.
         ANONYMOUS_USERS_CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY: 'Ya estás usando una cuenta de invitado.',
         DELETE_ANONYMOUS_USER_DISABLED: 'Las cuentas de invitado no se pueden borrar aquí.',

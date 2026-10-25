@@ -23,6 +23,7 @@ import GuestCard from '../../components/account/GuestCard.vue';
 import OverviewCard from '../../components/account/OverviewCard.vue';
 import PasskeysCard from '../../components/account/PasskeysCard.vue';
 import PasswordCard from '../../components/account/PasswordCard.vue';
+import PhoneCard from '../../components/account/PhoneCard.vue';
 import ProfileCard from '../../components/account/ProfileCard.vue';
 import TwoFactorCard from '../../components/account/TwoFactorCard.vue';
 import {
@@ -181,6 +182,7 @@ const open = (value: string) => {
                     <div class="space-y-6">
                         <ProfileCard />
                         <EmailCard v-if="!isGuest" />
+                        <PhoneCard v-if="capabilities?.phoneNumber && !isGuest" />
                         <DataCard />
                     </div>
                 </template>

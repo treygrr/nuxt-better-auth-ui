@@ -40,6 +40,9 @@ export interface AdminUser {
     banExpires?: string | Date | null;
     /** With the Two-Factor plugin. */
     twoFactorEnabled?: boolean | null;
+    /** With the Phone Number plugin. */
+    phoneNumber?: string | null;
+    phoneNumberVerified?: boolean | null;
     /** With the Anonymous plugin: a guest account, whose email is generated. */
     isAnonymous?: boolean | null;
     /** With the Username plugin: normalised (lowercase), and as they typed it. */

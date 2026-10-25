@@ -65,6 +65,8 @@ async function deliver<Name extends BetterAuthEmailName>(name: Name, data: Bette
     if (!emailConfig.send) {
         throw new Error('[better-auth-ui] No email sender: set betterAuthUi.emails.send to a file exporting one');
     }
+    // `.invalid` is reserved and never delivers (RFC 2606): the generated addresses of guests and phone-only sign-ups.
+    if (recipient(data).toLowerCase().endsWith('.invalid')) return;
     const message = await renderEmail(
         name,
         data,

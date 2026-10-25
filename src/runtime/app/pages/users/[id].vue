@@ -376,6 +376,23 @@ const thisSession = computed(() => session.session.value?.id);
                     <dl class="grid grid-cols-[auto_1fr] gap-x-8 gap-y-3 text-sm">
                         <dt class="text-muted">{{ t('admin.user.details.userId') }}</dt>
                         <dd class="font-mono truncate">{{ user.id }}</dd>
+                        <!-- With the Phone Number plugin. -->
+                        <template v-if="user.phoneNumber">
+                            <dt class="text-muted">{{ t('admin.user.details.phone') }}</dt>
+                            <dd class="flex items-center gap-2">
+                                {{ user.phoneNumber }}
+                                <UBadge
+                                    :label="
+                                        user.phoneNumberVerified
+                                            ? t('admin.user.details.phoneVerified')
+                                            : t('admin.user.details.phoneUnverified')
+                                    "
+                                    :color="user.phoneNumberVerified ? 'success' : 'warning'"
+                                    variant="outline"
+                                    size="sm"
+                                />
+                            </dd>
+                        </template>
                         <dt class="text-muted">{{ t('admin.common.joined') }}</dt>
                         <dd><NuxtTime :datetime="user.createdAt" date-style="medium" time-style="short" /></dd>
                         <dt class="text-muted">{{ t('admin.user.details.lastUpdated') }}</dt>

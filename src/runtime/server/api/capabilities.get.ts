@@ -40,6 +40,8 @@ export type AuthCapabilities = {
     deviceAuthorization: boolean;
     /** Better Auth's API Key plugin: API keys on the account page. */
     apiKey: boolean;
+    /** Better Auth's Phone Number plugin: codes by text, this many digits long, and whether a new number signs up. */
+    phoneNumber: { otpLength: number; signUp: boolean } | null;
     /** Better Auth's Bearer plugin: session tokens in an Authorization header. */
     bearer: boolean;
     /** Better Auth's JWT plugin: where services find the public keys that verify its tokens. */
@@ -86,6 +88,7 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
     const usernameOptions = (username?.options ?? {}) as UsernamePluginOptions;
     const emailOtp = options.plugins?.find((plugin) => plugin.id === 'email-otp');
     const anonymous = options.plugins?.find((plugin) => plugin.id === 'anonymous');
+    const phone = options.plugins?.find((plugin) => plugin.id === 'phone-number');
     const jwt = options.plugins?.find((plugin) => plugin.id === 'jwt');
     // Better Auth's base URL includes its base path (eg /api/auth); its default JWKS path is /jwks.
     const jwksPath = (jwt?.options?.jwks as { jwksPath?: string } | undefined)?.jwksPath ?? '/jwks';
@@ -125,6 +128,13 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
         anonymous: anonymous ? { deleteAccount: anonymous.options?.disableDeleteAnonymousUser !== true } : null,
         deviceAuthorization: has('device-authorization'),
         apiKey: has('api-key'),
+        // Better Auth's default: 6 digits.
+        phoneNumber: phone
+            ? {
+                  otpLength: (phone.options?.otpLength as number | undefined) || 6,
+                  signUp: !!phone.options?.signUpOnVerification
+              }
+            : null,
         bearer: has('bearer'),
         jwt: jwt ? { jwksUrl: `${(await auth.$context).baseURL}${jwksPath}` } : null,
         haveIBeenPwned: has('have-i-been-pwned'),

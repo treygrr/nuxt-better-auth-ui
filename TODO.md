@@ -5,8 +5,6 @@
 Each follows the module's pattern: a `betterAuthUi` flag adds the plugin, the pages pick it up whether the module or
 the app added it, the admin and configuration page show it, Spanish included.
 
-5. **Phone number** (`phone-number`). Sign in with an SMS code, verify a phone. Needs an SMS sender, like emails
-   (`defineBetterAuthSmsSender`, SMS templates, Spanish). Costs money per message.
 6. **Additional fields / custom session** (`additional-fields`, `custom-session`). Show (and let admins edit) the
    app's own user fields (eg a company, a plan, a region, a gamertag) on the admin user page, read from Better
    Auth's schema.

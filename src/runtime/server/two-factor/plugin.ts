@@ -12,7 +12,7 @@ const verifications = (ctx: { context: { internalAdapter: unknown } }) =>
 /**
  * Sign-ins that create a session without a password, which Better Auth's Two-Factor plugin doesn't challenge
  * (https://better-auth.com/docs/plugins/2fa#sign-in-with-2fa): social and Generic OAuth callbacks, social ID tokens,
- * magic links, email OTP and One Tap.
+ * magic links, email OTP, phone number codes and One Tap.
  */
 const PASSWORDLESS_SIGN_INS = new Set([
     '/callback/:id',
@@ -20,6 +20,7 @@ const PASSWORDLESS_SIGN_INS = new Set([
     '/sign-in/social',
     '/magic-link/verify',
     '/sign-in/email-otp',
+    '/phone-number/verify',
     '/one-tap/callback'
 ]);
 

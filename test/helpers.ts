@@ -49,6 +49,23 @@ export async function waitForEmail(to: string, email?: string) {
 /** The first link in an email. */
 export const linkIn = (message: { text: string }) => message.text.match(/https?:\/\/\S+/)![0];
 
+/** The newest text to a number, waiting for it (sent in the background), newer than `after` if given. */
+export async function waitForSms(to: string, after?: string) {
+    for (let tries = 0; tries < 50; tries++) {
+        const texts = (await (await fetch(`${base}/api/_playground/sms`)).json()) as Array<{
+            to: string;
+            text: string;
+            code: string;
+            sms: string;
+            sentAt: string;
+        }>;
+        const found = texts.find((text) => text.to === to && (!after || text.sentAt > after));
+        if (found) return found;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    throw new Error(`No text to ${to}`);
+}
+
 /** The playground's outbox: the emails it "sent", newest first. */
 export const outbox = async () =>
     (await (await fetch(`${base}/api/_playground/outbox`)).json()) as Array<{

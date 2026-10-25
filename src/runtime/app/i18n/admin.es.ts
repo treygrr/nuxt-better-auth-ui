@@ -244,6 +244,9 @@ export const adminEs = {
         details: {
             title: 'Detalles',
             userId: 'ID de usuario',
+            phone: 'Teléfono',
+            phoneVerified: 'Verificado',
+            phoneUnverified: 'Sin verificar',
             lastUpdated: 'Última actualización',
             notSinceTracking: 'Ninguna desde que empezó el seguimiento'
         },
@@ -456,6 +459,8 @@ export const adminEs = {
             magicLinks: 'Enlaces mágicos',
             emailCodes: 'Códigos por correo',
             digits: '{count} dígitos',
+            phoneCodes: 'Códigos por SMS',
+            phoneSignUp: 'Un número nuevo crea una cuenta',
             guestAccounts: 'Cuentas de invitado',
             deviceSignIn: 'Inicio de sesión en dispositivos',
             apiKeys: 'Claves de API',

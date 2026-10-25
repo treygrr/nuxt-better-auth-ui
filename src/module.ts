@@ -282,6 +282,29 @@ export type ApiKeyOptions = {
     enableSessions?: boolean;
 };
 
+/** Signing in with a code by text, through Better Auth's Phone Number plugin (https://better-auth.com/docs/plugins/phone-number). */
+export type PhoneNumberOptions = {
+    /**
+     * Adds the plugin: "Text me a code" on the sign-in page, and a phone number card on the account page (add, change
+     * or remove a number, verified with a code). Texts go through `sms.send`. Adds `phoneNumber` and
+     * `phoneNumberVerified` user columns: run Better Auth's migrations. Texts cost money: keep the captcha on.
+     * @default false
+     */
+    enabled: boolean;
+    /** Digits in a code. Better Auth's default: 6. */
+    otpLength?: number;
+    /** Seconds a code lasts. Better Auth's default: 300. */
+    expiresIn?: number;
+    /** Wrong tries before a code stops working. Better Auth's default: 3. */
+    allowedAttempts?: number;
+    /**
+     * A code to a new number creates an account (Better Auth's `signUpOnVerification`), with a generated email at
+     * `<digits>@phone-number.invalid`, which the module never emails; they can add a real one from their account.
+     * @default false
+     */
+    signUp?: boolean;
+};
+
 /** JWTs for services that verify them with the app's JWKS, through Better Auth's JWT plugin. */
 export type JwtOptions = {
     /** Who issues the tokens. Better Auth's default: the app's base URL. */
@@ -341,6 +364,8 @@ export type ModuleOptions = {
     deviceAuthorization: DeviceAuthorizationOptions;
     /** API keys, off by default. */
     apiKey: ApiKeyOptions;
+    /** Signing in with a code by text, off by default. */
+    phoneNumber: PhoneNumberOptions;
     /**
      * Session tokens in an `Authorization: Bearer` header instead of cookies, for native apps and other servers,
      * through Better Auth's Bearer plugin: sign-ins return the token in a `set-auth-token` header. `{ requireSignature:
@@ -389,17 +414,23 @@ export type ModuleOptions = {
          */
         templates?: Partial<Record<BetterAuthEmailName, string>>;
     };
+    /** Texts (phone number codes), relative to the project root like `emails`. */
+    sms: {
+        /** A file whose default export delivers texts: `defineBetterAuthSmsSender(async ({ to, text }) => …)`. */
+        send?: string;
+    };
 };
 
 /**
- * The Better Auth paths the captcha guards, by default: signing up, and asking for a magic link or an email code
- * (which can sign up, and send email to any address).
+ * The Better Auth paths the captcha guards, by default: signing up, and asking for a magic link, an email code or a
+ * text (which can sign up, and send to any address or number; texts cost money).
  */
-const captchaEndpoints = ({ captcha, magicLink, emailOtp }: ModuleOptions) =>
+const captchaEndpoints = ({ captcha, magicLink, emailOtp, phoneNumber }: ModuleOptions) =>
     (captcha && captcha.endpoints) || [
         '/sign-up/email',
         ...(magicLink.enabled ? ['/sign-in/magic-link'] : []),
-        ...(emailOtp.enabled ? ['/email-otp/send-verification-otp'] : [])
+        ...(emailOtp.enabled ? ['/email-otp/send-verification-otp'] : []),
+        ...(phoneNumber.enabled ? ['/phone-number/send-otp'] : [])
     ];
 
 /** `securityAlerts: true` turns every alert on; an object turns on the ones it names. False when none are. */
@@ -455,13 +486,15 @@ export default defineNuxtModule<ModuleOptions>({
         anonymous: { enabled: false },
         deviceAuthorization: { enabled: false },
         apiKey: { enabled: false },
+        phoneNumber: { enabled: false },
         bearer: false,
         jwt: false,
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
         securityAlerts: false,
-        emails: {}
+        emails: {},
+        sms: {}
     },
     // Installed before this module, in order, and checked against these versions.
     moduleDependencies: {
@@ -907,6 +940,40 @@ export default defineNuxtModule<ModuleOptions>({
                 method: 'post',
                 handler: resolve('./runtime/server/api/api-keys.post')
             });
+        }
+        const { phoneNumber } = moduleOptions;
+        if (phoneNumber.enabled) {
+            if (!moduleOptions.sms.send) {
+                throw new Error('[better-auth-ui] phoneNumber sends codes by text: set sms.send too.');
+            }
+            const smsSend = await emailFile('sms.send', moduleOptions.sms.send);
+            nuxt.hook('nitro:config', (nitroConfig) => {
+                (nitroConfig.virtual ??= {})['#better-auth-ui/sms-config'] = () =>
+                    [
+                        `import send from ${JSON.stringify(smsSend)}`,
+                        `export const smsConfig = { send, locale: ${JSON.stringify(moduleOptions.locale)} }`
+                    ].join('\n');
+            });
+            const phoneOptions = {
+                ...(phoneNumber.otpLength !== undefined && { otpLength: phoneNumber.otpLength }),
+                ...(phoneNumber.expiresIn !== undefined && { expiresIn: phoneNumber.expiresIn }),
+                ...(phoneNumber.allowedAttempts !== undefined && { allowedAttempts: phoneNumber.allowedAttempts })
+            };
+            addAuthPlugin(
+                'phone-number',
+                [
+                    "import { phoneNumber } from 'better-auth/plugins'",
+                    `import { betterAuthSms } from ${JSON.stringify(resolve('./runtime/server/sms/index'))}`,
+                    `const sms = betterAuthSms(${phoneNumber.expiresIn ?? 300})`,
+                    `export default phoneNumber({ ...${JSON.stringify(phoneOptions)}, sendOTP: sms.phoneCode, sendPasswordResetOTP: sms.resetCode${
+                        phoneNumber.signUp
+                            ? // A reserved domain (RFC 2606), which the module's emails skip.
+                              ", signUpOnVerification: { getTempEmail: (number) => `${number.replace(/\\D/g, '')}@phone-number.invalid` }"
+                            : ''
+                    } })`
+                ],
+                ["import { phoneNumberClient } from 'better-auth/client/plugins'", 'export default phoneNumberClient()']
+            );
         }
         if (moduleOptions.bearer) {
             const bearerOptions = moduleOptions.bearer === true ? {} : moduleOptions.bearer;

@@ -35,7 +35,19 @@ export const authEn = {
             password: 'your password',
             passkey: 'a passkey',
             magicLink: 'a sign-in link',
-            emailCode: 'a code by email'
+            emailCode: 'a code by email',
+            phone: 'a code by text'
+        },
+        phone: {
+            button: 'Text me a code',
+            title: 'Sign in with your phone',
+            description: "We'll text you a code to type in here.",
+            label: 'Phone number',
+            placeholder: '+1 555 123 4567',
+            submit: 'Send code',
+            failed: "Couldn't send the code",
+            enterDescription: 'We texted a code to {phone}. It expires in a few minutes.',
+            noAccount: 'No account has that phone number. Sign in another way, then add it from your account.'
         },
         verifyFirst: {
             title: 'Verify your email first',
@@ -176,6 +188,25 @@ export const authEn = {
             delete: 'Delete',
             apiKeys: 'API keys',
             actionNeeded: 'Action needed'
+        },
+        phone: {
+            title: 'Phone number',
+            description: 'For signing in with a code by text.',
+            none: 'No phone number yet.',
+            verified: 'Verified',
+            unverified: 'Not verified',
+            add: 'Add a phone number',
+            change: 'Change',
+            remove: 'Remove',
+            label: 'Phone number',
+            placeholder: '+1 555 123 4567',
+            send: 'Text me a code',
+            enterDescription: 'Enter the code we texted to {phone}.',
+            codeLabel: 'Code',
+            verify: 'Verify',
+            saved: 'Phone number saved',
+            removed: 'Phone number removed',
+            failed: "That didn't work"
         },
         apiKeys: {
             title: 'API keys',
@@ -424,6 +455,11 @@ export const authEn = {
         INVALID_OTP: "That code isn't right.",
         OTP_EXPIRED: 'That code has expired. Ask for a new one.',
         TOO_MANY_ATTEMPTS: 'Too many tries. Ask for a new code.',
+        // Phone Number's.
+        INVALID_PHONE_NUMBER: "That phone number isn't valid. Include the country code, eg +1.",
+        PHONE_NUMBER_EXIST: 'Another account already uses that phone number.',
+        OTP_NOT_FOUND: 'That code has expired. Ask for a new one.',
+        PHONE_NUMBER_NOT_VERIFIED: 'Verify your phone number first: we’ve texted you a code.',
         // Anonymous's.
         ANONYMOUS_USERS_CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY: "You're already using a guest account.",
         DELETE_ANONYMOUS_USER_DISABLED: "Guest accounts can't be deleted here.",

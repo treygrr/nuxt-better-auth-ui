@@ -115,6 +115,7 @@ function signInMethod(path: string, body: Body) {
     if (path === '/sign-in/social' && typeof body.provider === 'string') return body.provider;
     if (path === '/verify-email') return 'verification link';
     if (path === '/device/token') return 'device';
+    if (path === '/phone-number/verify') return 'phone';
     const [, kind, method] = path.split('/');
     return kind === 'sign-in' || kind === 'sign-up' ? method : path;
 }

@@ -30,6 +30,9 @@ export default defineNuxtConfig({
         deviceAuthorization: { enabled: true, clients: { 'playground-tv': 'Playground TV' } },
         // An "API keys" tab on the account page, with two permissions to pick from.
         apiKey: { enabled: true, prefix: 'pg_', scopes: { projects: ['read', 'write'] } },
+        // "Text me a code" on sign-in (a new number signs up) and a phone card on the account page; texts to the outbox.
+        phoneNumber: { enabled: true, signUp: true },
+        sms: { send: './server/sms/send.ts' },
         // Session tokens in an Authorization header, and JWTs verified with /api/auth/jwks.
         bearer: true,
         jwt: true,

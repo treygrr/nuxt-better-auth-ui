@@ -30,6 +30,10 @@
         "./emails": {
             "types": "./dist/emails.d.mts",
             "import": "./dist/emails.mjs"
+        },
+        "./sms": {
+            "types": "./dist/sms.d.mts",
+            "import": "./dist/sms.mjs"
         }
     },
     "main": "./dist/module.mjs",

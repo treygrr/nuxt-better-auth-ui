@@ -246,6 +246,9 @@ export const adminEn = {
         details: {
             title: 'Details',
             userId: 'User ID',
+            phone: 'Phone',
+            phoneVerified: 'Verified',
+            phoneUnverified: 'Not verified',
             lastUpdated: 'Last updated',
             notSinceTracking: 'Not since tracking started'
         },
@@ -455,6 +458,8 @@ export const adminEn = {
             magicLinks: 'Magic links',
             emailCodes: 'Codes by email',
             digits: '{count} digits',
+            phoneCodes: 'Codes by text',
+            phoneSignUp: 'A new number creates an account',
             guestAccounts: 'Guest accounts',
             deviceSignIn: 'Device sign-in (codes)',
             apiKeys: 'API keys',

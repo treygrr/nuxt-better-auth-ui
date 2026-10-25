@@ -57,6 +57,12 @@ type EmailOtpClient = {
         ): Result;
     };
 };
+type PhoneClient = {
+    phoneNumber: {
+        sendOtp(input: { phoneNumber: string }, options?: { headers?: Record<string, string> }): Result;
+        verify(input: { phoneNumber: string; code: string }): Result;
+    };
+};
 
 // How they signed in last time, from the Last Login Method plugin's cookie (read on the server too).
 const lastMethod = useCookie<string | null>('better-auth.last_used_login_method', { readonly: true });
@@ -68,15 +74,17 @@ const lastUsedLabel = computed(() => {
     if (method === 'passkey') return t('signIn.methods.passkey');
     if (method === 'magic-link') return t('signIn.methods.magicLink');
     if (method === 'email-otp') return t('signIn.methods.emailCode');
+    if (method === 'phone-number') return t('signIn.methods.phone');
     return providerInfo(method).label;
 });
 
-// Signing in with a password, or (with magic links or email codes) asking for a link or a code instead.
-const mode = ref<'password' | 'link' | 'linkSent' | 'code' | 'codeSent'>('password');
+// Signing in with a password, or (with magic links, email codes or phone numbers) asking for a link or a code instead.
+const mode = ref<'password' | 'link' | 'linkSent' | 'code' | 'codeSent' | 'phone' | 'phoneSent'>('password');
 const linkSentTo = ref('');
 const captcha = useCaptcha('/sign-in/email');
 const linkCaptcha = useCaptcha('/sign-in/magic-link');
 const codeCaptcha = useCaptcha('/email-otp/send-verification-otp');
+const phoneCaptcha = useCaptcha('/phone-number/send-otp');
 
 const fields = computed<AuthFormField[]>(() =>
     capabilities.value?.emailAndPassword
@@ -151,6 +159,18 @@ const providers = computed<ButtonProps[]>(() => [
                   ...highlight('email-otp'),
                   onClick: () => {
                       mode.value = 'code';
+                  }
+              }
+          ]
+        : []),
+    ...(capabilities.value?.phoneNumber
+        ? [
+              {
+                  label: t('signIn.phone.button'),
+                  icon: 'i-lucide-smartphone',
+                  ...highlight('phone-number'),
+                  onClick: () => {
+                      mode.value = 'phone';
                   }
               }
           ]
@@ -302,6 +322,73 @@ async function signInWithCode() {
     );
     if (emailOtp.error.value) pin.value = [];
 }
+
+// A code by text (Phone Number plugin): send it, then sign in with it, or sign up (when the app allows it).
+const phoneFields = computed<AuthFormField[]>(() => [
+    {
+        name: 'phone',
+        type: 'tel',
+        label: t('signIn.phone.label'),
+        placeholder: t('signIn.phone.placeholder'),
+        autocomplete: 'tel',
+        required: true
+    }
+]);
+/** As typed, without the spaces, dashes and brackets people write numbers with: Better Auth matches it exactly. */
+const normalisePhone = (value: string) => value.replace(/[\s().-]/g, '');
+const phoneSentTo = ref('');
+const sendingPhone = ref(false);
+const phoneSendError = ref<{ message?: string; code?: string } | null>(null);
+const phoneError = ref<{ message?: string; code?: string } | null>(null);
+const phonePin = ref<Array<number | undefined>>([]);
+const phoneResent = ref(false);
+const verifyingPhone = ref(false);
+async function sendPhoneCode(to: string) {
+    captchaMissing.value = phoneCaptcha.missing();
+    if (captchaMissing.value) return false;
+    sendingPhone.value = true;
+    const client = useAuthClient() as unknown as PhoneClient;
+    const { error } = await client.phoneNumber.sendOtp({ phoneNumber: to }, { headers: phoneCaptcha.headers() });
+    sendingPhone.value = false;
+    phoneCaptcha.reset();
+    phoneSendError.value = error;
+    return !error;
+}
+async function askForPhoneCode(event: FormSubmitEvent<{ phone: string }>) {
+    const to = normalisePhone(event.data.phone);
+    if (!(await sendPhoneCode(to))) return;
+    phoneSentTo.value = to;
+    phonePin.value = [];
+    phoneError.value = null;
+    phoneResent.value = false;
+    mode.value = 'phoneSent';
+}
+async function resendPhoneCode() {
+    phonePin.value = [];
+    phoneError.value = null;
+    phoneResent.value = await sendPhoneCode(phoneSentTo.value);
+}
+async function signInWithPhone() {
+    phoneResent.value = false;
+    verifyingPhone.value = true;
+    const client = useAuthClient() as unknown as PhoneClient;
+    const { data, error } = await client.phoneNumber.verify({
+        phoneNumber: phoneSentTo.value,
+        code: phonePin.value.join('')
+    });
+    verifyingPhone.value = false;
+    phoneError.value = error;
+    if (error) {
+        phonePin.value = [];
+        return;
+    }
+    await fetchSession({ force: true });
+    await afterPassword({ data: data as SignedIn['data'] });
+}
+// Without sign-ups, Better Auth can't find an account for an unknown number and says it couldn't update one.
+const phoneErrorMessage = computed(() =>
+    phoneError.value?.code === 'FAILED_TO_UPDATE_USER' ? t('signIn.phone.noAccount') : errorMessage(phoneError.value)
+);
 </script>
 
 <template>
@@ -436,6 +523,99 @@ async function signInWithCode() {
                         @click="resendCode"
                     />
                     <UButton :label="t('common.back')" variant="ghost" color="neutral" @click="mode = 'password'" />
+                </div>
+            </div>
+
+            <!-- Asking for a code by text. -->
+            <UAuthForm
+                v-else-if="mode === 'phone'"
+                :fields="phoneFields"
+                :title="t('signIn.phone.title')"
+                :description="t('signIn.phone.description')"
+                icon="i-lucide-smartphone"
+                :loading="sendingPhone"
+                :submit="{ label: t('signIn.phone.submit') }"
+                @submit="askForPhoneCode"
+            >
+                <template #validation>
+                    <Captcha
+                        v-if="phoneCaptcha.enabled"
+                        :ref="(el) => (phoneCaptcha.widget.value = el as never)"
+                        v-model="phoneCaptcha.token.value"
+                    />
+                    <UAlert
+                        v-if="captchaMissing || phoneSendError"
+                        color="error"
+                        icon="i-lucide-circle-alert"
+                        :title="t('signIn.phone.failed')"
+                        :description="captchaMissing ? t('captcha.required') : errorMessage(phoneSendError)"
+                    />
+                </template>
+                <template #footer>
+                    <UButton
+                        :label="t('signIn.magicLink.usePassword')"
+                        variant="link"
+                        color="neutral"
+                        @click="mode = 'password'"
+                    />
+                </template>
+            </UAuthForm>
+
+            <!-- Typing the texted code in. -->
+            <div v-else-if="mode === 'phoneSent'" class="space-y-5 text-center">
+                <UIcon name="i-lucide-message-square-text" class="size-10 text-primary mx-auto" />
+                <div class="space-y-1">
+                    <h1 class="text-xl font-semibold text-highlighted">{{ t('signIn.emailCode.enterTitle') }}</h1>
+                    <p class="text-muted">{{ t('signIn.phone.enterDescription', { phone: phoneSentTo }) }}</p>
+                </div>
+                <div class="flex justify-center">
+                    <UPinInput
+                        v-model="phonePin"
+                        :length="capabilities?.phoneNumber?.otpLength ?? 6"
+                        type="number"
+                        otp
+                        autofocus
+                        size="xl"
+                        :disabled="verifyingPhone"
+                        :aria-label="t('signIn.emailCode.codeLabel')"
+                        @complete="signInWithPhone"
+                    />
+                </div>
+                <Captcha
+                    v-if="phoneCaptcha.enabled"
+                    :ref="(el) => (phoneCaptcha.widget.value = el as never)"
+                    v-model="phoneCaptcha.token.value"
+                />
+                <UAlert
+                    v-if="phoneError || phoneSendError || captchaMissing"
+                    color="error"
+                    icon="i-lucide-circle-alert"
+                    :title="phoneError ? t('signIn.emailCode.wrongCode') : t('signIn.phone.failed')"
+                    :description="
+                        captchaMissing
+                            ? t('captcha.required')
+                            : phoneError
+                              ? phoneErrorMessage
+                              : errorMessage(phoneSendError)
+                    "
+                    class="text-start"
+                />
+                <UAlert
+                    v-else-if="phoneResent"
+                    color="success"
+                    icon="i-lucide-check"
+                    :title="t('signIn.emailCode.resent')"
+                    class="text-start"
+                />
+                <div class="flex flex-wrap justify-center gap-2">
+                    <UButton
+                        :label="t('signIn.emailCode.resend')"
+                        variant="subtle"
+                        color="neutral"
+                        :loading="sendingPhone"
+                        @click="resendPhoneCode"
+                    />
+                    <UButton :label="t('common.back')" variant="ghost" color="neutral" @click="mode = 'phone'" />
                 </div>
             </div>
 
