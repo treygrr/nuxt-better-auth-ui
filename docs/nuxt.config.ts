@@ -28,6 +28,13 @@ export default defineNuxtConfig({
     }
   },
 
+  // `::field` with a default, for options (app/components/content/DocsField.vue).
+  mdc: {
+    components: {
+      map: { field: 'DocsField' }
+    }
+  },
+
   experimental: {
     asyncContext: true
   },
@@ -62,15 +69,20 @@ export default defineNuxtConfig({
       title: 'Nuxt Better Auth UI - Full Documentation',
       description: 'The full documentation for the Nuxt Better Auth UI module.'
     },
+    // One per folder in content/.
     sections: [
-      {
-        title: 'Getting Started',
-        contentCollection: 'docs',
-        contentFilters: [
-          { field: 'path', operator: 'LIKE', value: '/getting-started%' }
-        ]
-      }
-    ]
+      ['Getting Started', '/getting-started'],
+      ['Sign-in', '/sign-in'],
+      ['Organizations', '/organizations'],
+      ['Admin dashboard', '/admin'],
+      ['Integrations', '/integrations'],
+      ['Customization', '/customization'],
+      ['Reference', '/reference']
+    ].map(([title, path]) => ({
+      title: title!,
+      contentCollection: 'docs' as const,
+      contentFilters: [{ field: 'path', operator: 'LIKE' as const, value: `${path}%` }]
+    }))
   },
 
   ogImage: {

@@ -23,3 +23,9 @@
 :root {
   --ui-container: var(--container-8xl);
 }
+
+/* Long option paths and URLs in running text wrap on phones instead of widening the page. */
+p > code,
+li > code {
+  overflow-wrap: anywhere;
+}
