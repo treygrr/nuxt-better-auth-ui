@@ -484,6 +484,7 @@ export const adminEs = {
         sections: {
             signIn: 'Inicio de sesión',
             security: 'Seguridad',
+            integrations: 'Aplicaciones e integraciones',
             selfService: 'Autoservicio',
             emails: 'Correos',
             records: 'Registros de administración'

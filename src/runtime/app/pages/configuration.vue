@@ -109,25 +109,7 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                     hint: c.phoneNumber?.signUp ? t('admin.configuration.rows.phoneSignUp') : undefined
                 },
                 { label: t('admin.configuration.rows.guestAccounts'), ...on(!!c.anonymous) },
-                { label: t('admin.configuration.rows.deviceSignIn'), ...on(c.deviceAuthorization) },
-                { label: t('admin.configuration.rows.apiKeys'), ...on(c.apiKey) },
-                { label: t('admin.configuration.rows.stripe'), ...on(c.stripe) },
-                {
-                    label: t('admin.configuration.rows.organizations'),
-                    ...on(!!c.organization),
-                    hint:
-                        c.organization && !c.organization.allowCreate
-                            ? t('admin.configuration.rows.organizationsNoCreate')
-                            : undefined
-                },
-                { label: t('admin.configuration.rows.bearerTokens'), ...on(c.bearer) },
                 { label: t('admin.configuration.rows.oauthPopup'), ...on(c.oauthPopup) },
-                {
-                    label: t('admin.configuration.rows.jwt'),
-                    ...on(!!c.jwt),
-                    // Where services fetch the public keys that verify the tokens.
-                    hint: c.jwt ? t('admin.configuration.rows.jwksAt', { url: c.jwt.jwksUrl }) : undefined
-                },
                 {
                     label: t('admin.configuration.rows.usernames'),
                     ...(c.username
@@ -216,6 +198,30 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                     label: t('admin.configuration.rows.impersonation'),
                     ...on(config.impersonation, t('admin.configuration.rows.impersonationOn')),
                     hint: config.impersonation ? undefined : 'betterAuthUi.admin.impersonation'
+                }
+            ]
+        },
+        {
+            title: t('admin.configuration.sections.integrations'),
+            icon: 'i-lucide-blocks',
+            rows: [
+                {
+                    label: t('admin.configuration.rows.organizations'),
+                    ...on(!!c.organization),
+                    hint:
+                        c.organization && !c.organization.allowCreate
+                            ? t('admin.configuration.rows.organizationsNoCreate')
+                            : undefined
+                },
+                { label: t('admin.configuration.rows.stripe'), ...on(c.stripe) },
+                { label: t('admin.configuration.rows.apiKeys'), ...on(c.apiKey) },
+                { label: t('admin.configuration.rows.deviceSignIn'), ...on(c.deviceAuthorization) },
+                { label: t('admin.configuration.rows.bearerTokens'), ...on(c.bearer) },
+                {
+                    label: t('admin.configuration.rows.jwt'),
+                    ...on(!!c.jwt),
+                    // Where services fetch the public keys that verify the tokens.
+                    hint: c.jwt ? t('admin.configuration.rows.jwksAt', { url: c.jwt.jwksUrl }) : undefined
                 }
             ]
         },
@@ -379,8 +385,14 @@ const allows = (role: string, resource: string, action: string) =>
                     {{ t('admin.configuration.introAfter') }}
                 </p>
 
-                <div class="grid items-start gap-4 sm:gap-6 lg:grid-cols-2">
-                    <UPageCard v-for="section in sections" :key="section.title" variant="subtle">
+                <!-- Two columns the cards flow down, each under the last, so cards of different lengths leave no gaps. -->
+                <div class="lg:columns-2 gap-6 -mb-4 sm:-mb-6">
+                    <UPageCard
+                        v-for="section in sections"
+                        :key="section.title"
+                        variant="subtle"
+                        class="break-inside-avoid mb-4 sm:mb-6"
+                    >
                         <template #title><CardTitle :icon="section.icon" :title="section.title" /></template>
                         <dl class="divide-y divide-default text-sm">
                             <div

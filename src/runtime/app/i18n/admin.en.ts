@@ -482,6 +482,7 @@ export const adminEn = {
         sections: {
             signIn: 'Signing in',
             security: 'Security',
+            integrations: 'Apps and integrations',
             selfService: 'Self-service',
             emails: 'Emails',
             records: 'Admin records'
