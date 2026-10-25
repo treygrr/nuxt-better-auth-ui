@@ -313,6 +313,21 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
     ];
 });
 
+/**
+ * The sections in two columns, in order, each to the column that's shorter so far (by rows, plus a card's heading):
+ * on wide screens they sit side by side without gaps; on narrow ones the columns stack.
+ */
+const columns = computed(() => {
+    const result: Array<typeof sections.value> = [[], []];
+    const heights = [0, 0];
+    for (const section of sections.value) {
+        const shorter = heights[0]! <= heights[1]! ? 0 : 1;
+        result[shorter]!.push(section);
+        heights[shorter]! += section.rows.length + 2;
+    }
+    return result;
+});
+
 // The emails in words; the template name (for betterAuthUi.emails.templates) shows under each.
 const EMAIL_LABELS: Record<(typeof EMAIL_NAMES)[number], MessageKey> = {
     'verify-email': 'admin.configuration.emails.verifyEmail',
@@ -385,42 +400,41 @@ const allows = (role: string, resource: string, action: string) =>
                     {{ t('admin.configuration.introAfter') }}
                 </p>
 
-                <!-- Two columns the cards flow down, each under the last, so cards of different lengths leave no gaps. -->
-                <div class="lg:columns-2 gap-6 -mb-4 sm:-mb-6">
-                    <UPageCard
-                        v-for="section in sections"
-                        :key="section.title"
-                        variant="subtle"
-                        class="break-inside-avoid mb-4 sm:mb-6"
-                    >
-                        <template #title><CardTitle :icon="section.icon" :title="section.title" /></template>
-                        <dl class="divide-y divide-default text-sm">
-                            <div
-                                v-for="row in section.rows"
-                                :key="row.label"
-                                class="flex items-start justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
-                            >
-                                <dt class="text-muted shrink-0 max-w-1/2">{{ row.label }}</dt>
-                                <!-- Long values (in any language) wrap inside the card. -->
-                                <dd class="text-end min-w-0">
-                                    <span class="inline-flex flex-wrap justify-end items-center gap-1.5">
-                                        <UBadge
-                                            v-if="row.value"
-                                            :label="row.value"
-                                            :color="row.color ?? 'neutral'"
-                                            variant="subtle"
-                                            :ui="{ label: 'whitespace-normal text-end' }"
-                                            class="max-w-full h-auto"
-                                        />
-                                        <UTooltip v-for="icon in row.icons" :key="icon.label" :text="icon.label">
-                                            <UIcon :name="icon.name" :aria-label="icon.label" class="size-5" />
-                                        </UTooltip>
-                                    </span>
-                                    <span v-if="row.hint" class="block text-xs text-dimmed mt-1">{{ row.hint }}</span>
-                                </dd>
-                            </div>
-                        </dl>
-                    </UPageCard>
+                <!-- Two columns of cards, each card under the last, so cards of different lengths leave no gaps. -->
+                <div class="grid items-start gap-4 sm:gap-6 lg:grid-cols-2">
+                    <div v-for="(column, index) in columns" :key="index" class="flex flex-col gap-4 sm:gap-6">
+                        <UPageCard v-for="section in column" :key="section.title" variant="subtle">
+                            <template #title><CardTitle :icon="section.icon" :title="section.title" /></template>
+                            <dl class="divide-y divide-default text-sm">
+                                <div
+                                    v-for="row in section.rows"
+                                    :key="row.label"
+                                    class="flex items-start justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
+                                >
+                                    <dt class="text-muted shrink-0 max-w-1/2">{{ row.label }}</dt>
+                                    <!-- Long values (in any language) wrap inside the card. -->
+                                    <dd class="text-end min-w-0">
+                                        <span class="inline-flex flex-wrap justify-end items-center gap-1.5">
+                                            <UBadge
+                                                v-if="row.value"
+                                                :label="row.value"
+                                                :color="row.color ?? 'neutral'"
+                                                variant="subtle"
+                                                :ui="{ label: 'whitespace-normal text-end' }"
+                                                class="max-w-full h-auto"
+                                            />
+                                            <UTooltip v-for="icon in row.icons" :key="icon.label" :text="icon.label">
+                                                <UIcon :name="icon.name" :aria-label="icon.label" class="size-5" />
+                                            </UTooltip>
+                                        </span>
+                                        <span v-if="row.hint" class="block text-xs text-dimmed mt-1">{{
+                                            row.hint
+                                        }}</span>
+                                    </dd>
+                                </div>
+                            </dl>
+                        </UPageCard>
+                    </div>
                 </div>
 
                 <UPageCard variant="subtle">
