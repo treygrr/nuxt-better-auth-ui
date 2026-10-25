@@ -135,6 +135,13 @@ export const authEs = {
         slugHelp: 'Minúsculas, números y guiones, para su dirección.',
         slugTaken: 'Ese identificador ya está en uso.',
         commaSeparated: 'Separa los valores con comas.',
+        switcher: {
+            choose: 'Elige una organización',
+            organizations: 'Organizaciones',
+            teams: 'Equipos',
+            manage: 'Gestionar organización',
+            create: 'Crear organización'
+        },
         tabs: {
             general: 'General',
             members: 'Miembros',

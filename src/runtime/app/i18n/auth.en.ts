@@ -133,6 +133,13 @@ export const authEn = {
         slugHelp: 'Lowercase letters, numbers and dashes, for its address.',
         slugTaken: 'That slug is taken.',
         commaSeparated: 'Separate values with commas.',
+        switcher: {
+            choose: 'Choose an organization',
+            organizations: 'Organizations',
+            teams: 'Teams',
+            manage: 'Manage organization',
+            create: 'Create organization'
+        },
         tabs: {
             general: 'General',
             members: 'Members',

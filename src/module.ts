@@ -10,6 +10,7 @@ import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
 import { ADMIN_API, UI_API } from './runtime/constants';
 import { safeLocalPath } from './runtime/app/utils/redirect';
 import {
+    addComponent,
     addComponentsDir,
     addImports,
     addServerHandler,
@@ -773,6 +774,14 @@ export default defineNuxtModule<ModuleOptions>({
             ? `/${(organizationOptions.page ?? '/organization').replace(/^\/+|\/+$/g, '')}`
             : false;
         if (invitationPage && organizationPage) {
+            // For apps: the active organization, and a switcher for their header or sidebar.
+            addImports([
+                { name: 'useActiveOrganization', from: resolve('./runtime/app/composables/useActiveOrganization') }
+            ]);
+            addComponent({
+                name: 'AuthOrganizationSwitcher',
+                filePath: resolve('./runtime/app/organization-switcher/OrganizationSwitcher.vue')
+            });
             extendPages((pages) => {
                 pages.push(
                     {

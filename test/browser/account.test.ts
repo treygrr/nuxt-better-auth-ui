@@ -76,6 +76,15 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await session.page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
         await session.page.getByText('Created reviewer').waitFor();
         expect(session.problems).toEqual([]);
+
+        // The switcher an app shows: the active organization, and its teams to switch to.
+        await session.go('/');
+        await session.page.getByRole('button', { name: 'Orla and Co' }).click();
+        // Their teams: Better Auth's default one, named after the organization when it was created.
+        await session.page.getByRole('menuitem', { name: 'Orla & Co' }).click();
+        await session.page.getByRole('button', { name: 'Orla and Co' }).click();
+        await expect(session.page.getByRole('menu').innerText()).resolves.toContain('Manage organization');
+        expect(session.problems).toEqual([]);
     });
 
     it('creates an API key, shows it once, and revokes it', async () => {
