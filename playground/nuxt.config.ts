@@ -18,6 +18,8 @@ export default defineNuxtConfig({
             templates: { 'verify-email': './server/emails/verify-email.ts' }
         }
     },
+    // On the port of NUXT_PUBLIC_SITE_URL, so OAuth callbacks (built from it) reach this dev server.
+    devServer: { port: Number(new URL(process.env.NUXT_PUBLIC_SITE_URL || 'http://localhost:3001').port) || 3001 },
     css: ['~/assets/css/main.css'],
     compatibilityDate: '2026-06-30',
     devtools: { enabled: false }
