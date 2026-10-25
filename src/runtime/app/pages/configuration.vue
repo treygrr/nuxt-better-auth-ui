@@ -101,6 +101,7 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                         ? on(true, t('admin.configuration.rows.digits', { count: c.emailOtp.otpLength }))
                         : on(false))
                 },
+                { label: t('admin.configuration.rows.guestAccounts'), ...on(!!c.anonymous) },
                 {
                     label: t('admin.configuration.rows.usernames'),
                     ...(c.username

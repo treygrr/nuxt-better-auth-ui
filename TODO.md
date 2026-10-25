@@ -5,9 +5,6 @@
 Each follows the module's pattern: a `betterAuthUi` flag adds the plugin, the pages pick it up whether the module or
 the app added it, the admin and configuration page show it, Spanish included.
 
-1. **Anonymous** (`anonymous`). "Continue as a guest" on the sign-in page: a real account with no email, so people
-   start straight away. The account page nudges "Keep your account: add an email or connect a provider", which links
-   the guest account (Better Auth's `onLinkAccount` moves their data). Admin: a "Guest" badge and filter.
 2. **Device authorization** (`device-authorization`). The "go to example.com/device and enter ABCD-1234" flow (OAuth
    device grant) for apps on devices with no browser or keyboard: TVs, consoles, CLIs, desktop apps. A `/device`
    page to enter and approve the code; the device side is the app's.

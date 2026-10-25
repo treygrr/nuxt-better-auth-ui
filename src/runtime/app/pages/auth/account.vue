@@ -18,6 +18,7 @@ import DataCard from '../../components/account/DataCard.vue';
 import DeleteCard from '../../components/account/DeleteCard.vue';
 import DevicesCard from '../../components/account/DevicesCard.vue';
 import EmailCard from '../../components/account/EmailCard.vue';
+import GuestCard from '../../components/account/GuestCard.vue';
 import OverviewCard from '../../components/account/OverviewCard.vue';
 import PasskeysCard from '../../components/account/PasskeysCard.vue';
 import PasswordCard from '../../components/account/PasswordCard.vue';
@@ -63,6 +64,10 @@ const twoFactorSummary = computed(() =>
 );
 const passkeyCount = computed(() => (passkeys ? passkeys.value.length : null));
 
+// A guest (Anonymous plugin) has a generated email and nothing to sign in with again: they keep the account by
+// signing up or in, so it shows that instead of email, password and security settings.
+const isGuest = computed(() => (user.value as { isAnonymous?: boolean | null } | null)?.isAnonymous === true);
+
 const hasPassword = computed(() => accounts.value.some((account) => account.providerId === 'credential'));
 const showConnections = computed(
     () =>
@@ -72,15 +77,19 @@ const showConnections = computed(
 
 const tabs = computed<TabsItem[]>(() => [
     { label: t('account.tabs.profile'), icon: 'i-lucide-user-round', value: 'profile', slot: 'profile' },
-    {
-        label: t('account.tabs.security'),
-        icon: 'i-lucide-shield-check',
-        value: 'security',
-        slot: 'security',
-        badge: twoFactorSetUpNeeded.value
-            ? { label: t('account.tabs.actionNeeded'), color: 'warning', variant: 'subtle' }
-            : undefined
-    },
+    ...(isGuest.value
+        ? []
+        : [
+              {
+                  label: t('account.tabs.security'),
+                  icon: 'i-lucide-shield-check',
+                  value: 'security',
+                  slot: 'security',
+                  badge: twoFactorSetUpNeeded.value
+                      ? { label: t('account.tabs.actionNeeded'), color: 'warning' as const, variant: 'subtle' as const }
+                      : undefined
+              }
+          ]),
     {
         label: t('account.tabs.devices'),
         icon: 'i-lucide-monitor-smartphone',
@@ -91,7 +100,7 @@ const tabs = computed<TabsItem[]>(() => [
                 ? { label: String(sessions.value.length), color: 'neutral', variant: 'soft' }
                 : undefined
     },
-    ...(capabilities.value?.deleteUser
+    ...(capabilities.value?.deleteUser && !isGuest.value
         ? [{ label: t('account.tabs.delete'), icon: 'i-lucide-trash-2', value: 'delete', slot: 'delete' }]
         : [])
 ]);
@@ -120,8 +129,11 @@ const open = (value: string) => {
                 :sessions="sessions"
                 :two-factor="twoFactorSummary"
                 :passkeys="passkeyCount"
+                :guest="isGuest"
                 @open="open"
             />
+
+            <GuestCard v-if="isGuest" />
 
             <UAlert
                 v-if="twoFactorSetUpNeeded"
@@ -164,7 +176,7 @@ const open = (value: string) => {
                 <template #profile>
                     <div class="space-y-6">
                         <ProfileCard />
-                        <EmailCard />
+                        <EmailCard v-if="!isGuest" />
                         <DataCard />
                     </div>
                 </template>

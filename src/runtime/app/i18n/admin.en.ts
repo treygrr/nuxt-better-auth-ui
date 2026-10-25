@@ -2,6 +2,7 @@
 export const adminEn = {
     // Shared by several pages and modals.
     common: {
+        guest: 'Guest',
         cancel: 'Cancel',
         save: 'Save',
         remove: 'Remove',
@@ -202,8 +203,10 @@ export const adminEn = {
             role: '{role}s',
             banned: 'Banned',
             unverified: 'Unverified',
-            noTwoFactor: 'Two-factor off'
+            noTwoFactor: 'Two-factor off',
+            guests: 'Guests'
         },
+        guestAccount: 'Guest account',
         searchByEmail: 'Search by email…',
         searchByName: 'Search by name…',
         display: 'Display',
@@ -433,6 +436,7 @@ export const adminEn = {
             magicLinks: 'Magic links',
             emailCodes: 'Codes by email',
             digits: '{count} digits',
+            guestAccounts: 'Guest accounts',
             usernames: 'Usernames',
             usernameImmutable: "Can't be changed once set",
             lastUsed: 'Last-used hint',

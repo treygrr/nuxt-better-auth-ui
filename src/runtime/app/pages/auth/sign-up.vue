@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { AuthFormField, ButtonProps, FormSubmitEvent } from '@nuxt/ui';
-import { useSignIn, useSignUp } from '@nuxtjs/better-auth/composables';
+import { useSignIn, useSignUp, useUserSession } from '@nuxtjs/better-auth/composables';
 import {
     computed,
     navigateTo,
@@ -29,6 +29,10 @@ const route = useRoute();
 const oauthError = computed(() =>
     typeof route.query.error === 'string' ? oauthErrorMessage(route.query.error, t) : null
 );
+
+// Guests (Anonymous plugin) may come here to keep their account: signing up moves them to the new one.
+const { user } = useUserSession();
+const isGuest = computed(() => (user.value as { isAnonymous?: boolean | null } | null)?.isAnonymous === true);
 
 const signUp = useSignUp('email');
 const social = useSignIn('social');
@@ -143,12 +147,23 @@ async function onSubmit(event: FormSubmitEvent<SignUpData>) {
                 :submit="{ label: t('signUp.submit') }"
                 @submit="onSubmit"
             >
-                <template v-if="pages.signIn" #description>
-                    {{ t('signUp.haveAccount') }}
-                    <ULink :to="{ path: pages.signIn, query: $route.query }" class="text-primary font-medium">{{
-                        t('signUp.signIn')
-                    }}</ULink
-                    >.
+                <template v-if="pages.signIn || isGuest" #description>
+                    <UAlert
+                        v-if="isGuest"
+                        color="info"
+                        variant="subtle"
+                        icon="i-lucide-user-round"
+                        :title="t('signIn.guest.keepTitle')"
+                        :description="t('signIn.guest.keepDescription')"
+                        class="mb-3 text-start"
+                    />
+                    <template v-if="pages.signIn">
+                        {{ t('signUp.haveAccount') }}
+                        <ULink :to="{ path: pages.signIn, query: $route.query }" class="text-primary font-medium">{{
+                            t('signUp.signIn')
+                        }}</ULink
+                        >.
+                    </template>
                 </template>
                 <template #validation>
                     <Captcha

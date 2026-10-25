@@ -72,6 +72,29 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         expect(session.problems).toEqual([]);
     });
 
+    it('continues as a guest, then keeps the account by signing up', async () => {
+        const session = await browser.open();
+        await session.noPasskeyAutofill();
+        await session.go('/login?redirect=/account');
+        await session.page.getByRole('button', { name: 'Continue as a guest' }).click();
+        await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
+        await session.page.getByText("You're using a guest account").waitFor();
+        expect(session.problems).toEqual([]);
+
+        await session.page.getByRole('link', { name: 'Create an account' }).click();
+        await session.page.waitForURL((url) => url.pathname === '/signup', { timeout: 10_000 });
+        await session.page.getByText('Sign in or create an account to keep it').waitFor();
+        await session.page.getByLabel('Name', { exact: true }).fill('Gwen');
+        await session.page.getByLabel('Username', { exact: true }).fill('gwen_guest');
+        await session.page.getByLabel('Email', { exact: true }).fill('gwen@browser.test');
+        await session.page.getByLabel('Password', { exact: true }).fill('password123');
+        await session.page.getByRole('button', { name: 'Create account' }).click();
+        await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
+        await session.page.getByText('@gwen_guest · gwen@browser.test').waitFor();
+        await session.page.getByText("You're using a guest account").waitFor({ state: 'detached', timeout: 5_000 });
+        expect(session.problems).toEqual([]);
+    });
+
     it('asks for a new password from a reset link', async () => {
         await signUp('Reza', 'reza@browser.test');
         const session = await browser.open();

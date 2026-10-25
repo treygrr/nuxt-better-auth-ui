@@ -58,7 +58,9 @@ const routeFilter = String(useRoute().query.filter ?? '');
 const filter = ref(
     routeFilter === 'admins'
         ? `role:${adminRole}`
-        : ['banned', 'unverified', 'no-two-factor', ...staffRoles.map((role) => `role:${role}`)].includes(routeFilter)
+        : ['banned', 'unverified', 'no-two-factor', 'guests', ...staffRoles.map((role) => `role:${role}`)].includes(
+                routeFilter
+            )
           ? routeFilter
           : 'all'
 );
@@ -69,14 +71,16 @@ const columnVisibility = ref<Record<string, boolean>>({});
 // Better Auth's list-users takes one filter at a time.
 const filters: Record<
     string,
-    { field: 'role' | 'banned' | 'emailVerified' | 'twoFactorEnabled'; value: string } | undefined
+    { field: 'role' | 'banned' | 'emailVerified' | 'twoFactorEnabled' | 'isAnonymous'; value: string } | undefined
 > = {
     all: undefined,
     ...Object.fromEntries(staffRoles.map((role) => [`role:${role}`, { field: 'role' as const, value: role }])),
     banned: { field: 'banned', value: 'true' },
     unverified: { field: 'emailVerified', value: 'false' },
     // The Two-Factor plugin's column on the user.
-    'no-two-factor': { field: 'twoFactorEnabled', value: 'false' }
+    'no-two-factor': { field: 'twoFactorEnabled', value: 'false' },
+    // The Anonymous plugin's column.
+    guests: { field: 'isAnonymous', value: 'true' }
 };
 const { capabilities } = useAuthCapabilities();
 
@@ -315,9 +319,12 @@ const columns = computed<TableColumn<AdminUser>[]>(() => [
                     h(
                         'p',
                         { class: 'text-muted' },
-                        row.original.username
-                            ? `@${row.original.displayUsername || row.original.username} · ${row.original.email}`
-                            : row.original.email
+                        // Guests' (Anonymous plugin) emails are generated.
+                        row.original.isAnonymous
+                            ? t('admin.users.guestAccount')
+                            : row.original.username
+                              ? `@${row.original.displayUsername || row.original.username} · ${row.original.email}`
+                              : row.original.email
                     )
                 ])
             ])
@@ -347,9 +354,11 @@ const columns = computed<TableColumn<AdminUser>[]>(() => [
         accessorKey: 'emailVerified',
         header: t('admin.users.columns.email'),
         cell: ({ row }) =>
-            row.original.emailVerified
-                ? h(UBadge, { label: t('admin.common.verified'), color: 'success', variant: 'outline' })
-                : h(UBadge, { label: t('admin.common.unverified'), color: 'warning', variant: 'outline' })
+            row.original.isAnonymous
+                ? h(UBadge, { label: t('admin.common.guest'), color: 'neutral', variant: 'outline' })
+                : row.original.emailVerified
+                  ? h(UBadge, { label: t('admin.common.verified'), color: 'success', variant: 'outline' })
+                  : h(UBadge, { label: t('admin.common.unverified'), color: 'warning', variant: 'outline' })
     },
     {
         id: 'signIn',
@@ -357,6 +366,7 @@ const columns = computed<TableColumn<AdminUser>[]>(() => [
         cell: ({ row }) => {
             const ids = providers.value[row.original.id];
             if (!ids) return providersStatus.value === 'pending' ? h('span', { class: 'text-dimmed' }, '…') : null;
+            if (!ids.length && row.original.isAnonymous) return h('span', { class: 'text-dimmed' }, '—');
             if (!ids.length) return h(UBadge, { label: t('admin.users.none'), color: 'warning', variant: 'outline' });
             return h('div', { class: 'flex items-center gap-1.5' }, [
                 ...sortProviders(ids).map((id) =>
@@ -453,7 +463,8 @@ const columnLabels = computed<Record<string, string>>(() => ({
     createdAt: t('admin.users.columns.joined')
 }));
 
-// One filter per staff role, eg "Admins", "Moderators"; "Two-factor off" when the app uses two-factor.
+// One filter per staff role, eg "Admins", "Moderators"; "Two-factor off" when the app uses two-factor, "Guests"
+// with guest accounts.
 const filterItems = computed(() => [
     { label: t('admin.users.filters.all'), value: 'all' },
     ...staffRoles.map((role) => ({
@@ -462,7 +473,8 @@ const filterItems = computed(() => [
     })),
     { label: t('admin.users.filters.banned'), value: 'banned' },
     { label: t('admin.users.filters.unverified'), value: 'unverified' },
-    ...(capabilities.value?.twoFactor ? [{ label: t('admin.users.filters.noTwoFactor'), value: 'no-two-factor' }] : [])
+    ...(capabilities.value?.twoFactor ? [{ label: t('admin.users.filters.noTwoFactor'), value: 'no-two-factor' }] : []),
+    ...(capabilities.value?.anonymous ? [{ label: t('admin.users.filters.guests'), value: 'guests' }] : [])
 ]);
 
 const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));

@@ -66,6 +66,12 @@ export const authEs = {
             wrongCode: 'No se pudo iniciar sesión con ese código',
             resend: 'Enviar un código nuevo',
             resent: 'Código nuevo enviado'
+        },
+        guest: {
+            button: 'Continuar como invitado',
+            failed: 'No se pudo crear una cuenta de invitado',
+            keepTitle: 'Estás usando una cuenta de invitado',
+            keepDescription: 'Inicia sesión o crea una cuenta para conservarla, con todo lo que hiciste como invitado.'
         }
     },
     signUp: {
@@ -149,6 +155,18 @@ export const authEs = {
             title: 'Activa la verificación en dos pasos',
             description: 'Tu cuenta la requiere. Actívala en Seguridad para seguir usando el sitio.',
             action: 'Activarla'
+        },
+        guest: {
+            badge: 'Invitado',
+            title: 'Estás usando una cuenta de invitado',
+            description:
+                'Crea una cuenta o inicia sesión para conservarla, con todo lo que hiciste como invitado. Si cierras sesión, no podrás volver a una cuenta de invitado.',
+            signUp: 'Crear una cuenta',
+            signIn: 'Iniciar sesión',
+            delete: 'Borrar cuenta de invitado',
+            deleteTitle: '¿Borrar esta cuenta de invitado?',
+            deleteDescription: 'Se borra todo lo que hiciste como invitado y se cierra tu sesión.',
+            deleteFailed: 'No se pudo borrar la cuenta de invitado'
         },
         passkeySession: {
             title: 'Iniciaste sesión con tu llave de acceso',
@@ -346,6 +364,9 @@ export const authEs = {
         INVALID_OTP: 'Ese código no es correcto.',
         OTP_EXPIRED: 'Ese código caducó. Pide uno nuevo.',
         TOO_MANY_ATTEMPTS: 'Demasiados intentos. Pide un código nuevo.',
+        // Las de Anonymous.
+        ANONYMOUS_USERS_CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY: 'Ya estás usando una cuenta de invitado.',
+        DELETE_ANONYMOUS_USER_DISABLED: 'Las cuentas de invitado no se pueden borrar aquí.',
         ACCOUNT_TEMPORARILY_LOCKED:
             'Demasiados códigos incorrectos. Tu cuenta está bloqueada por un rato; inténtalo más tarde.',
         MISSING_RESPONSE: 'Completa la verificación para demostrar que no eres un bot.',

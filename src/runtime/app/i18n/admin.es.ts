@@ -1,6 +1,7 @@
 /** The admin dashboard's words, in Spanish: the same keys as admin.en.ts. */
 export const adminEs = {
     common: {
+        guest: 'Invitado',
         cancel: 'Cancelar',
         save: 'Guardar',
         remove: 'Quitar',
@@ -200,8 +201,10 @@ export const adminEs = {
             role: 'Rol: {role}',
             banned: 'Suspendidos',
             unverified: 'Sin verificar',
-            noTwoFactor: 'Sin verificación en dos pasos'
+            noTwoFactor: 'Sin verificación en dos pasos',
+            guests: 'Invitados'
         },
+        guestAccount: 'Cuenta de invitado',
         searchByEmail: 'Buscar por correo…',
         searchByName: 'Buscar por nombre…',
         display: 'Columnas',
@@ -434,6 +437,7 @@ export const adminEs = {
             magicLinks: 'Enlaces mágicos',
             emailCodes: 'Códigos por correo',
             digits: '{count} dígitos',
+            guestAccounts: 'Cuentas de invitado',
             usernames: 'Nombres de usuario',
             usernameImmutable: 'No se pueden cambiar una vez elegidos',
             lastUsed: 'Último método usado',

@@ -24,6 +24,8 @@ export default defineNuxtConfig({
         magicLink: { enabled: true },
         // "Email me a code" on sign-in, to the outbox.
         emailOtp: { enabled: true },
+        // "Continue as a guest" on sign-in; guests keep their account by signing up or in.
+        anonymous: { enabled: true, onLinkAccount: './server/auth/link-guest.ts' },
         lastLoginMethod: true,
         // Emails (to the outbox) about new-device sign-ins, password changes, two-factor and passkeys.
         securityAlerts: true,

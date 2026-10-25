@@ -64,6 +64,12 @@ export const authEn = {
             wrongCode: "Couldn't sign in with that code",
             resend: 'Send a new code',
             resent: 'New code sent'
+        },
+        guest: {
+            button: 'Continue as a guest',
+            failed: "Couldn't start a guest account",
+            keepTitle: "You're using a guest account",
+            keepDescription: 'Sign in or create an account to keep it, and everything you did as a guest.'
         }
     },
     signUp: {
@@ -146,6 +152,18 @@ export const authEn = {
             title: 'Set up two-factor authentication',
             description: 'Your account requires it. Set it up under Security to keep using the site.',
             action: 'Set it up'
+        },
+        guest: {
+            badge: 'Guest',
+            title: "You're using a guest account",
+            description:
+                "Create an account or sign in to keep it, with everything you did as a guest. Once you sign out, you can't get back to a guest account.",
+            signUp: 'Create an account',
+            signIn: 'Sign in',
+            delete: 'Delete guest account',
+            deleteTitle: 'Delete this guest account?',
+            deleteDescription: 'Everything you did as a guest is deleted, and you’re signed out.',
+            deleteFailed: "Couldn't delete the guest account"
         },
         passkeySession: {
             title: 'Signed in with your passkey',
@@ -345,6 +363,9 @@ export const authEn = {
         INVALID_OTP: "That code isn't right.",
         OTP_EXPIRED: 'That code has expired. Ask for a new one.',
         TOO_MANY_ATTEMPTS: 'Too many tries. Ask for a new code.',
+        // Anonymous's.
+        ANONYMOUS_USERS_CANNOT_SIGN_IN_AGAIN_ANONYMOUSLY: "You're already using a guest account.",
+        DELETE_ANONYMOUS_USER_DISABLED: "Guest accounts can't be deleted here.",
         ACCOUNT_TEMPORARILY_LOCKED: 'Too many wrong codes. Your account is locked for a while; try again later.',
         MISSING_RESPONSE: "Complete the check to show you're not a bot.",
         VERIFICATION_FAILED: "The bot check didn't pass. Try it again."

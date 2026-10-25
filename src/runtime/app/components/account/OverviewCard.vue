@@ -18,6 +18,8 @@ const props = defineProps<{
     twoFactor: { enabled: boolean; required: boolean } | null;
     /** How many passkeys; null when the app doesn't use the Passkey plugin. */
     passkeys: number | null;
+    /** A guest account (Anonymous plugin): its email is generated, and only its devices are worth a tile. */
+    guest?: boolean;
 }>();
 const emit = defineEmits<{ open: [tab: string] }>();
 
@@ -61,7 +63,15 @@ type Tile = {
     tab: string;
     providers?: string[];
 };
+const devicesTile = computed<Tile>(() => ({
+    label: t('account.overview.devices'),
+    value: t('account.overview.signedIn', { count: props.sessions.length }),
+    icon: 'i-lucide-monitor-smartphone',
+    color: 'primary',
+    tab: 'devices'
+}));
 const tiles = computed<Tile[]>(() => {
+    if (props.guest) return [devicesTile.value];
     const verified = profile.value?.emailVerified === true;
     const list: Tile[] = [
         {
@@ -103,13 +113,7 @@ const tiles = computed<Tile[]>(() => {
             tab: 'security',
             providers: methods.value
         },
-        {
-            label: t('account.overview.devices'),
-            value: t('account.overview.signedIn', { count: props.sessions.length }),
-            icon: 'i-lucide-monitor-smartphone',
-            color: 'primary',
-            tab: 'devices'
-        }
+        devicesTile.value
     );
     return list;
 });
@@ -148,12 +152,19 @@ const columns: Record<number, string> = { 3: 'sm:grid-cols-3', 4: 'sm:grid-cols-
             </div>
             <div class="-mt-2 min-w-0">
                 <h1 class="text-xl font-semibold text-highlighted truncate">{{ profile?.name }}</h1>
-                <p class="text-sm text-muted truncate">
+                <p v-if="!guest" class="text-sm text-muted truncate">
                     <template v-if="handle">@{{ handle }} · </template>{{ profile?.email }}
                 </p>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 text-sm text-muted">
+                <UBadge
+                    v-if="guest"
+                    :label="t('account.guest.badge')"
+                    icon="i-lucide-user-round"
+                    color="neutral"
+                    variant="subtle"
+                />
                 <UBadge
                     v-for="role in roles"
                     :key="role"

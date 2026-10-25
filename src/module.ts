@@ -211,6 +211,28 @@ export type EmailOtpOptions = {
     disableSignUp?: boolean;
 };
 
+/** Guest accounts, through Better Auth's Anonymous plugin (https://better-auth.com/docs/plugins/anonymous). */
+export type AnonymousOptions = {
+    /**
+     * Adds the plugin: "Continue as a guest" on the sign-in page, an account with no email or password. Guests keep
+     * their account by signing up or signing in another way, from the sign-in pages (which then let guests in) or
+     * their account page; Better Auth then moves them to that account and deletes the guest one. Adds an
+     * `isAnonymous` column to the user table: run Better Auth's migrations.
+     * @default false
+     */
+    enabled: boolean;
+    /** The domain of guests' generated email addresses. Better Auth's default: `anonymous.placeholder.invalid`. */
+    emailDomainName?: string;
+    /** Guests can't delete their own guest account, and it's kept when they link a real one. Better Auth's default: false. */
+    disableDeleteAnonymousUser?: boolean;
+    /**
+     * A file whose default export moves a guest's data to the account they sign up or in with: Better Auth's
+     * `onLinkAccount`, eg `async ({ anonymousUser, newUser }) => { … }`, `./server/auth/link-guest.ts`. Relative to
+     * the project root; Nuxt aliases work too.
+     */
+    onLinkAccount?: string;
+};
+
 /** Bot protection, through Better Auth's Captcha plugin (https://better-auth.com/docs/plugins/captcha). */
 export type CaptchaOptions = {
     provider: 'cloudflare-turnstile' | 'hcaptcha' | 'google-recaptcha';
@@ -252,6 +274,8 @@ export type ModuleOptions = {
     magicLink: MagicLinkOptions;
     /** Sign-in codes by email, off by default. */
     emailOtp: EmailOtpOptions;
+    /** Guest accounts, off by default. */
+    anonymous: AnonymousOptions;
     /** Captcha on signing up, off by default (false). */
     captcha: CaptchaOptions | false;
     /**
@@ -349,6 +373,7 @@ export default defineNuxtModule<ModuleOptions>({
         username: { enabled: false },
         magicLink: { enabled: false },
         emailOtp: { enabled: false },
+        anonymous: { enabled: false },
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
@@ -377,7 +402,8 @@ export default defineNuxtModule<ModuleOptions>({
                 `[better-auth-ui] Unknown email template ${unknownEmails.join(', ')}. Use ${EMAILS.join(', ')}.`
             );
         }
-        // Relative to the project root, like Nuxt's other paths; aliases work too (`~~/server/…`).
+        // Relative to the project root, like Nuxt's other paths; aliases work too (`~~/server/…`). For the app's
+        // other server files too.
         const emailFile = async (setting: string, file: string) => {
             const path = await resolvePath(file, { cwd: nuxt.options.rootDir });
             if (!existsSync(path)) {
@@ -451,11 +477,25 @@ export default defineNuxtModule<ModuleOptions>({
                 pages.push({ name: `better-auth-ui-${name}`, path, file: resolve(`./runtime/app/pages/auth/${file}`) });
             }
         });
+        // With guest accounts, guests may use the sign-in and sign-up pages, to keep their account (Better Auth links
+        // it when they sign in or up); the module's middleware sends other signed-in users on instead.
+        const guestPages: Array<keyof PagesOptions> = moduleOptions.anonymous.enabled ? ['signIn', 'signUp'] : [];
         for (const [name] of AUTH_PAGES) {
             const path = pagePaths[name];
             // The account page is for signed-in users; the others send signed-in users on
             // (@nuxtjs/better-auth's redirects.guest).
-            if (path) extendRouteRules(path, { auth: { only: name === 'account' ? 'user' : 'guest' } });
+            if (path) {
+                extendRouteRules(path, {
+                    auth: guestPages.includes(name) ? false : { only: name === 'account' ? 'user' : 'guest' }
+                });
+            }
+        }
+        if (guestPages.length) {
+            addRouteMiddleware({
+                name: 'better-auth-ui-guests',
+                path: resolve('./runtime/app/middleware/guests'),
+                global: true
+            });
         }
         addServerHandler({
             route: `${UI_API}/capabilities`,
@@ -627,7 +667,7 @@ export default defineNuxtModule<ModuleOptions>({
         };
         const emailsHelper = JSON.stringify(resolve('./runtime/server/emails/index'));
 
-        const { username, magicLink, emailOtp, captcha } = moduleOptions;
+        const { username, magicLink, emailOtp, anonymous, captcha } = moduleOptions;
         if (username.enabled) {
             const usernameOptions = {
                 ...(username.minLength !== undefined && { minUsernameLength: username.minLength }),
@@ -675,6 +715,36 @@ export default defineNuxtModule<ModuleOptions>({
                     `export default emailOTP({ ...${JSON.stringify(emailOtpOptions)}, sendVerificationOTP: betterAuthEmails.emailCode })`
                 ],
                 ["import { emailOTPClient } from 'better-auth/client/plugins'", 'export default emailOTPClient()']
+            );
+        }
+        if (anonymous.enabled) {
+            const anonymousOptions = {
+                ...(anonymous.emailDomainName !== undefined && { emailDomainName: anonymous.emailDomainName }),
+                ...(anonymous.disableDeleteAnonymousUser !== undefined && {
+                    disableDeleteAnonymousUser: anonymous.disableDeleteAnonymousUser
+                })
+            };
+            // The app's onLinkAccount, through a virtual module like the emails, imported only when a guest links:
+            // the auth config also loads at build time, where the app's server code can't run.
+            const linkFile =
+                anonymous.onLinkAccount && (await emailFile('anonymous.onLinkAccount', anonymous.onLinkAccount));
+            if (linkFile) {
+                nuxt.hook('nitro:config', (nitroConfig) => {
+                    (nitroConfig.virtual ??= {})['#better-auth-ui/anonymous-link'] = () =>
+                        `export { default } from ${JSON.stringify(linkFile)}`;
+                });
+            }
+            addAuthPlugin(
+                'anonymous',
+                [
+                    "import { anonymous } from 'better-auth/plugins'",
+                    `export default anonymous({ ...${JSON.stringify(anonymousOptions)}${
+                        linkFile
+                            ? ", onLinkAccount: async (data) => (await import('#better-auth-ui/anonymous-link')).default(data)"
+                            : ''
+                    } })`
+                ],
+                ["import { anonymousClient } from 'better-auth/client/plugins'", 'export default anonymousClient()']
             );
         }
         if (captcha) {

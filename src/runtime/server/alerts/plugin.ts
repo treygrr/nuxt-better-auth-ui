@@ -60,6 +60,9 @@ const CHALLENGED = [
 const PASSWORD_PATHS = ['/change-password', '/reset-password', '/set-password', '/admin/set-user-password'];
 const TWO_FACTOR_ON = ['/two-factor/enable', '/two-factor/verify-totp'];
 
+/** A guest account (Better Auth's Anonymous plugin), whose generated address reaches nobody. */
+const isGuest = (user: object) => (user as { isAnonymous?: boolean | null }).isAnonymous === true;
+
 /** "Chrome on Windows", with the connecting word in the emails' language. */
 const deviceName = (userAgent: string | null | undefined, locale: string) =>
     device(userAgent, (key, params) =>
@@ -127,7 +130,8 @@ export const securityAlerts = (options: Options) => {
                                     const user = await context.internalAdapter.findUserById(session.userId);
                                     // A brand-new account isn't news, and a sign-in that's about to be asked for a code
                                     // alerts when the code completes it (from /two-factor/verify-*), not twice.
-                                    if (!user || Date.now() - new Date(user.createdAt).getTime() < 120_000) return;
+                                    if (!user || isGuest(user)) return;
+                                    if (Date.now() - new Date(user.createdAt).getTime() < 120_000) return;
                                     if (user.twoFactorEnabled && CHALLENGED.includes(ctx.path)) return;
                                     if (
                                         (await knownDevices(context, session)).has(deviceName(session.userAgent, 'en'))
@@ -153,7 +157,7 @@ export const securityAlerts = (options: Options) => {
                         user: {
                             update: {
                                 async after(user: EmailUser & { twoFactorEnabled?: boolean | null }, ctx: HookContext) {
-                                    if (!options.twoFactor || !ctx?.path) return;
+                                    if (!options.twoFactor || !ctx?.path || isGuest(user)) return;
                                     const turnedOff = ctx.path === '/two-factor/disable' && !user.twoFactorEnabled;
                                     const turnedOn = TWO_FACTOR_ON.includes(ctx.path) && !!user.twoFactorEnabled;
                                     if (!turnedOff && !turnedOn) return;
@@ -178,7 +182,7 @@ export const securityAlerts = (options: Options) => {
                         const returned = ctx.context.returned;
                         if (isAPIError(returned)) return;
                         const session = await getSessionFromCtx(ctx);
-                        if (!session) return;
+                        if (!session || isGuest(session.user)) return;
                         sendAuthEmail('passkey-added', {
                             user: session.user as EmailUser,
                             name: (returned as { name?: string | null } | undefined)?.name ?? null,
@@ -195,7 +199,7 @@ export const securityAlerts = (options: Options) => {
         if (!options.passwordChanged || !ctx?.path || !PASSWORD_PATHS.includes(ctx.path)) return;
         if (account.providerId !== 'credential') return;
         const user = await ctx.context.internalAdapter.findUserById(account.userId);
-        if (!user) return;
+        if (!user || isGuest(user)) return;
         sendAuthEmail('password-changed', {
             user,
             time: await time(),
@@ -206,6 +210,7 @@ export const securityAlerts = (options: Options) => {
 
 /** Emails two-factor's owner that it was turned off by an admin (the module's reset, which has no request context). */
 export async function alertTwoFactorReset(user: EmailUser, baseURL: string, accountPath: string | false) {
+    if (isGuest(user)) return;
     const locale = await emailLocale();
     sendAuthEmail('two-factor-changed', {
         user,

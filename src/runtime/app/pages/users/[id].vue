@@ -336,7 +336,16 @@ const thisSession = computed(() => session.session.value?.id);
                                     variant="subtle"
                                     class="capitalize"
                                 />
+                                <!-- Guests' (Anonymous plugin) emails are generated: nothing to verify. -->
                                 <UBadge
+                                    v-if="user.isAnonymous"
+                                    :label="t('admin.users.guestAccount')"
+                                    icon="i-lucide-user-round"
+                                    color="neutral"
+                                    variant="outline"
+                                />
+                                <UBadge
+                                    v-else
                                     :label="
                                         user.emailVerified
                                             ? t('admin.user.emailVerified')

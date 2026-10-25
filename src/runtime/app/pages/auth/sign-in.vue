@@ -48,6 +48,7 @@ const magicLink = handle<{ email: string; callbackURL: string; newUserCallbackUR
     'magicLink'
 );
 const emailOtp = handle<{ email: string; otp: string }>('emailOtp');
+const guest = handle<Record<string, never>>('anonymous');
 type EmailOtpClient = {
     emailOtp: {
         sendVerificationOtp(
@@ -62,7 +63,7 @@ const lastMethod = useCookie<string | null>('better-auth.last_used_login_method'
 const lastUsed = computed(() => (capabilities.value?.lastLoginMethod ? lastMethod.value : null));
 const lastUsedLabel = computed(() => {
     const method = lastUsed.value;
-    if (!method) return null;
+    if (!method || method === 'anonymous') return null;
     if (method === 'email') return t('signIn.methods.password');
     if (method === 'passkey') return t('signIn.methods.passkey');
     if (method === 'magic-link') return t('signIn.methods.magicLink');
@@ -102,6 +103,10 @@ const fields = computed<AuthFormField[]>(() =>
 const linkFields = computed<AuthFormField[]>(() => [
     { name: 'email', type: 'email', label: t('common.email'), autocomplete: 'email', required: true }
 ]);
+
+// Guests (Anonymous plugin) may come here to keep their account: signing in links it to the one they sign in to.
+const { user: sessionUser, fetchSession } = useUserSession();
+const isGuest = computed(() => (sessionUser.value as { isAnonymous?: boolean | null } | null)?.isAnonymous === true);
 
 // The method used last time stands out.
 const highlight = (method: string): Partial<ButtonProps> =>
@@ -164,12 +169,30 @@ const providers = computed<ButtonProps[]>(() => [
                 newUserCallbackURL: pages.account || redirectTo,
                 errorCallbackURL: route.fullPath
             } as Parameters<typeof social.execute>[0])
-    }))
+    })),
+    // A guest account (Anonymous plugin), last: the other ways sign in for good. Not for someone already a guest.
+    ...(capabilities.value?.anonymous && !isGuest.value
+        ? [
+              {
+                  label: t('signIn.guest.button'),
+                  icon: 'i-lucide-user-round',
+                  loading: guest.status.value === 'pending',
+                  onClick: () =>
+                      guest.execute(
+                          {},
+                          {
+                              onSuccess: async () => {
+                                  await navigateTo(redirectTo);
+                              }
+                          }
+                      )
+              }
+          ]
+        : [])
 ]);
 
 // Saved passkeys offered from the email field (conditional UI), where the browser supports it. Called on the client
 // directly, not through `passkey`, so the button doesn't show as busy while the browser waits.
-const { fetchSession } = useUserSession();
 onMounted(async () => {
     if (!capabilities.value?.passkey || !(await window.PublicKeyCredential?.isConditionalMediationAvailable?.())) {
         return;
@@ -189,8 +212,9 @@ const captchaMissing = ref(false);
 const error = computed(() =>
     captchaMissing.value
         ? t('captcha.required')
-        : errorMessage(email.error.value ?? username.error.value ?? social.error.value ?? passkeyError.value) ||
-          oauthError.value
+        : errorMessage(
+              email.error.value ?? username.error.value ?? social.error.value ?? passkeyError.value ?? guest.error.value
+          ) || oauthError.value
 );
 
 type SignedIn = { data?: { twoFactorRedirect?: boolean; twoFactorMethods?: string[] } };
@@ -426,6 +450,15 @@ async function signInWithCode() {
                 @submit="onSubmit"
             >
                 <template #description>
+                    <UAlert
+                        v-if="isGuest"
+                        color="info"
+                        variant="subtle"
+                        icon="i-lucide-user-round"
+                        :title="t('signIn.guest.keepTitle')"
+                        :description="t('signIn.guest.keepDescription')"
+                        class="mb-3 text-start"
+                    />
                     <template v-if="pages.signUp && capabilities?.signUp">
                         {{ t('signIn.noAccount') }}
                         <ULink :to="{ path: pages.signUp, query: $route.query }" class="text-primary font-medium">{{

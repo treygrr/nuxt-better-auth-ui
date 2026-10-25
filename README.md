@@ -344,6 +344,8 @@ betterAuthUi: {
     magicLink: { enabled: true, expiresIn: 300, disableSignUp: false },
     // "Email me a code" on the sign-in page (needs emails.send; template: `email-code`). No migration.
     emailOtp: { enabled: true, otpLength: 6, expiresIn: 300, allowedAttempts: 3, disableSignUp: false },
+    // "Continue as a guest" on the sign-in page. Adds an `isAnonymous` user column: run Better Auth's migrations.
+    anonymous: { enabled: true, onLinkAccount: './server/auth/link-guest.ts' },
     // Bot protection on signing up (and asking for a sign-in link or code). The secret key is read from
     // BETTER_AUTH_CAPTCHA_SECRET_KEY at runtime, never from nuxt.config.
     captcha: { provider: 'cloudflare-turnstile', siteKey: '0x4AAA…' }, // or 'hcaptcha', 'google-recaptcha' (v2)
@@ -369,6 +371,15 @@ betterAuthUi: {
   that account's password and signs out its sessions: the code proved who owns the email, the password didn't. Better
   Auth's other code endpoints (verifying an email, resetting a password) work too, and their emails are worded to
   match, but the pages only use sign-in codes.
+- **Guest accounts** (Better Auth's Anonymous plugin): "Continue as a guest" on the sign-in page starts a real account
+  with no email or password, so people use the app straight away. Their account page says it's a guest account, with
+  "Create an account", "Sign in" and (unless `disableDeleteAnonymousUser`) "Delete guest account"; email, password
+  and security settings are hidden, and two-factor is never required of guests. The sign-in and sign-up pages let
+  guests in (other signed-in users are still sent on, to `redirects.guest`): signing up, or in with any method, moves
+  them to that account, and Better Auth deletes the guest one. Moving their data is the app's: `onLinkAccount` is a
+  file whose default export is Better Auth's `onLinkAccount`, eg
+  `export default async ({ anonymousUser, newUser }) => { /* move the cart */ }`. Admin: a "Guest account" badge, and
+  a "Guests" filter on the users list. Security alerts are never sent to guests' generated addresses.
 - **Captcha:** a Cloudflare Turnstile, hCaptcha or reCAPTCHA v2 widget, loaded in the browser only, on the forms
   whose Better Auth paths `captcha.endpoints` lists. By default that's signing up (`/sign-up/email`) and, with magic
   links or email codes, asking for one (`/sign-in/magic-link`, `/email-otp/send-verification-otp`), since those can
