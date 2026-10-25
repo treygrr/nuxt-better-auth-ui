@@ -72,6 +72,11 @@ export const AUDIT_ACTIONS: Record<string, { label: MessageKey; icon: string; co
         label: 'admin.audit.actions.authPasswordChanged',
         icon: 'i-lucide-key-round',
         color: 'info'
+    },
+    'auth.device-approved': {
+        label: 'admin.audit.actions.authDeviceApproved',
+        icon: 'i-lucide-tv',
+        color: 'info'
     }
 };
 

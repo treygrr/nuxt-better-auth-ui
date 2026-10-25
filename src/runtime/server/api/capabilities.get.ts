@@ -36,6 +36,8 @@ export type AuthCapabilities = {
     emailOtp: { otpLength: number } | null;
     /** Better Auth's Anonymous plugin: guest accounts, and whether guests can delete theirs. */
     anonymous: { deleteAccount: boolean } | null;
+    /** Better Auth's Device Authorization plugin: signing in devices (TVs, CLIs) with a code. */
+    deviceAuthorization: boolean;
     /** Better Auth's Have I Been Pwned plugin: breached passwords are refused. */
     haveIBeenPwned: boolean;
     /** Better Auth's Last Login Method plugin: the sign-in page marks the method used last. */
@@ -111,6 +113,7 @@ export default defineEventHandler((event): AuthCapabilities => {
         // Better Auth's default: 6 digits.
         emailOtp: emailOtp ? { otpLength: (emailOtp.options?.otpLength as number | undefined) || 6 } : null,
         anonymous: anonymous ? { deleteAccount: anonymous.options?.disableDeleteAnonymousUser !== true } : null,
+        deviceAuthorization: has('device-authorization'),
         haveIBeenPwned: has('have-i-been-pwned'),
         lastLoginMethod: has('last-login-method'),
         plugins: (options.plugins ?? []).map((plugin) => plugin.id)

@@ -140,7 +140,8 @@ export const adminEs = {
             authSignOut: 'Cerró sesión',
             authEmailVerified: 'Verificó su correo',
             authPasswordResetRequested: 'Pidió restablecer la contraseña',
-            authPasswordChanged: 'Cambió la contraseña'
+            authPasswordChanged: 'Cambió la contraseña',
+            authDeviceApproved: 'Aprobó un dispositivo'
         },
         details: {
             role: 'Rol: {role}',
@@ -438,6 +439,7 @@ export const adminEs = {
             emailCodes: 'Códigos por correo',
             digits: '{count} dígitos',
             guestAccounts: 'Cuentas de invitado',
+            deviceSignIn: 'Inicio de sesión en dispositivos',
             usernames: 'Nombres de usuario',
             usernameImmutable: 'No se pueden cambiar una vez elegidos',
             lastUsed: 'Último método usado',

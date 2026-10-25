@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { linkIn, waitForEmail } from '../helpers';
-import { hasBrowser, signUp, useBrowser } from './browser';
+import { base, linkIn, waitForEmail } from '../helpers';
+import { hasBrowser, signInWithForm, signUp, useBrowser } from './browser';
 
 // The sign-in pages in a real browser: the forms, hydration, and what they do next.
 describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
@@ -92,6 +92,25 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
         await session.page.getByText('@gwen_guest · gwen@browser.test').waitFor();
         await session.page.getByText("You're using a guest account").waitFor({ state: 'detached', timeout: 5_000 });
+        expect(session.problems).toEqual([]);
+    });
+
+    it('connects a device with the code it shows', async () => {
+        await signUp('Tobi', 'tobi@browser.test');
+        const { user_code } = await (
+            await fetch(`${base}/api/auth/device/code`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', origin: base },
+                body: JSON.stringify({ client_id: 'playground-tv' })
+            })
+        ).json();
+        const session = await browser.open();
+        await signInWithForm(session, 'tobi@browser.test', '/device');
+        await session.page.getByLabel('Code').fill(user_code);
+        await session.page.getByRole('button', { name: 'Continue' }).click();
+        await session.page.getByText('Playground TV is asking to sign in to your account.').waitFor();
+        await session.page.getByRole('button', { name: 'Approve' }).click();
+        await session.page.getByText('Device connected').waitFor();
         expect(session.problems).toEqual([]);
     });
 

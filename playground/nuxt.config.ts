@@ -26,6 +26,8 @@ export default defineNuxtConfig({
         emailOtp: { enabled: true },
         // "Continue as a guest" on sign-in; guests keep their account by signing up or in.
         anonymous: { enabled: true, onLinkAccount: './server/auth/link-guest.ts' },
+        // Signing in a TV app or CLI with a code, approved at /device.
+        deviceAuthorization: { enabled: true, clients: { 'playground-tv': 'Playground TV' } },
         lastLoginMethod: true,
         // Emails (to the outbox) about new-device sign-ins, password changes, two-factor and passkeys.
         securityAlerts: true,

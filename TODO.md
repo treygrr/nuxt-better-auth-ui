@@ -5,9 +5,6 @@
 Each follows the module's pattern: a `betterAuthUi` flag adds the plugin, the pages pick it up whether the module or
 the app added it, the admin and configuration page show it, Spanish included.
 
-2. **Device authorization** (`device-authorization`). The "go to example.com/device and enter ABCD-1234" flow (OAuth
-   device grant) for apps on devices with no browser or keyboard: TVs, consoles, CLIs, desktop apps. A `/device`
-   page to enter and approve the code; the device side is the app's.
 3. **API keys** (`@better-auth/api-key`, its own package). An "API keys" card on the account page (create with
    scopes and expiry, see the last few characters, revoke) for integrations, scripts and bots; admin view of a user's
    keys.

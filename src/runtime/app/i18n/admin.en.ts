@@ -141,7 +141,8 @@ export const adminEn = {
             authSignOut: 'Signed out',
             authEmailVerified: 'Verified email',
             authPasswordResetRequested: 'Asked to reset password',
-            authPasswordChanged: 'Changed password'
+            authPasswordChanged: 'Changed password',
+            authDeviceApproved: 'Approved a device'
         },
         details: {
             role: 'Role: {role}',
@@ -437,6 +438,7 @@ export const adminEn = {
             emailCodes: 'Codes by email',
             digits: '{count} digits',
             guestAccounts: 'Guest accounts',
+            deviceSignIn: 'Device sign-in (codes)',
             usernames: 'Usernames',
             usernameImmutable: "Can't be changed once set",
             lastUsed: 'Last-used hint',

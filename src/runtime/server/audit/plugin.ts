@@ -114,6 +114,7 @@ function signInMethod(path: string, body: Body) {
     if (path.startsWith('/callback/')) return path.slice('/callback/'.length);
     if (path === '/sign-in/social' && typeof body.provider === 'string') return body.provider;
     if (path === '/verify-email') return 'verification link';
+    if (path === '/device/token') return 'device';
     const [, kind, method] = path.split('/');
     return kind === 'sign-in' || kind === 'sign-up' ? method : path;
 }
@@ -255,6 +256,13 @@ export const adminAuditLog = ({
                                     'auth.password-changed',
                                     person(session.user as AuditPerson)!
                                 );
+                            return;
+                        }
+                        // Device Authorization: the user let a device (a TV, a CLI) sign in to their account.
+                        if (path === '/device/approve' && !failed) {
+                            const session = await getSessionFromCtx(ctx);
+                            if (session)
+                                await writeUserEvent(ctx, 'auth.device-approved', person(session.user as AuditPerson)!);
                             return;
                         }
                         // These look the account up by email: in the background, so the response time is the same

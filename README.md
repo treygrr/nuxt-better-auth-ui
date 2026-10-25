@@ -390,6 +390,36 @@ betterAuthUi: {
 - **Last used:** Better Auth's Last Login Method plugin remembers the method in a cookie for 30 days (a non-essential
   cookie, under GDPR); the sign-in page reads it on the server, so there's no flash.
 
+## Signing in devices
+
+For apps on devices without a browser or keyboard (a TV, a console, a CLI, a desktop app): the device shows "Go to
+example.com/device and enter ABCD-1234", and the person approves it from their phone or computer. That's Better
+Auth's Device Authorization plugin (the OAuth device grant, RFC 8628):
+
+```ts
+betterAuthUi: {
+    deviceAuthorization: {
+        enabled: true,
+        // The apps allowed to ask, by client_id, with the name the page shows. Others are refused.
+        clients: { 'tv-app': 'Our TV app', 'our-cli': 'Our CLI' },
+        page: '/device', // Better Auth's verification_uri
+        expiresIn: '30m',
+        interval: '5s',
+        userCodeLength: 8
+    }
+}
+```
+
+The module adds the plugin (and its `deviceCode` table: run Better Auth's migrations) and the `/device` page:
+signed-in only (others sign in first and come back with the code), it takes the code (or reads `?user_code=` from
+the device's `verification_uri_complete`), shows which app is asking and what access it wants, warns not to approve a
+code someone sent, and approves or denies it. Approvals are in the audit log. Without `clients`, any client id is
+accepted, as in Better Auth, and the module warns at build time.
+
+The device side is the app's, with Better Auth's client (`deviceAuthorizationClient`): `device.code({ client_id })`
+for the codes, then `device.token(…)` every `interval` until it's approved. That returns a Better Auth session token,
+used with the Bearer plugin. The session shows on the account page's Devices tab, where it can be signed out.
+
 ## Security alerts
 
 `securityAlerts: true` emails an account's owner when something sensitive happens to it, or pick some:

@@ -108,6 +108,34 @@ export const authEn = {
         newLink: 'Send a new link',
         failed: "Couldn't change your password"
     },
+    device: {
+        title: 'Connect a device',
+        description: 'Enter the code your device shows, to sign it in to your account.',
+        codeLabel: 'Code',
+        submit: 'Continue',
+        reviewTitle: 'Sign in on this device?',
+        reviewDescription: '{app} is asking to sign in to your account.',
+        app: 'App',
+        access: 'Access',
+        fullAccess: 'Your account',
+        code: 'Code',
+        warning:
+            'Only approve if you started this on a device you have with you, and its code matches. Never approve a code someone sent you.',
+        approve: 'Approve',
+        deny: 'Deny',
+        anotherCode: 'Enter another code',
+        approvedTitle: 'Device connected',
+        approvedDescription: 'Go back to your device: it signs in within a few seconds.',
+        deniedTitle: 'Request denied',
+        deniedDescription: "That device won't be signed in.",
+        errors: {
+            invalid: "That code isn't right. Check it on your device.",
+            expired: 'That code has expired. Get a new one on your device.',
+            used: 'That code was already used. Get a new one on your device.',
+            otherAccount: 'That code is being used by another account.',
+            failed: "That didn't work. Try again."
+        }
+    },
     twoFactorPage: {
         title: 'Two-factor authentication',
         totp: {

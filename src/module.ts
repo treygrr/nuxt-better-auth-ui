@@ -233,6 +233,34 @@ export type AnonymousOptions = {
     onLinkAccount?: string;
 };
 
+/**
+ * Signing in apps on devices without a browser or keyboard (TVs, consoles, CLIs) with a code, through Better Auth's
+ * Device Authorization plugin (https://better-auth.com/docs/plugins/device-authorization): the OAuth device grant.
+ */
+export type DeviceAuthorizationOptions = {
+    /**
+     * Adds the plugin and a page where signed-in people enter the code their device shows, see which app is asking,
+     * and approve or deny it. The device side (asking for a code, polling for the token) is the app's. Adds a
+     * `deviceCode` table: run Better Auth's migrations.
+     * @default false
+     */
+    enabled: boolean;
+    /** The page's path, which Better Auth gives devices as `verification_uri`. @default '/device' */
+    page?: string;
+    /**
+     * The apps allowed to ask, by `client_id`, with the name the page shows for each, eg `{ 'tv-app': 'Our TV app' }`.
+     * Better Auth refuses other client ids. Without it, any client id is accepted (Better Auth's default), and the
+     * page shows the id: set it in production.
+     */
+    clients?: Record<string, string>;
+    /** How long a code lasts. Better Auth's default: '30m'. */
+    expiresIn?: string;
+    /** The minimum polling interval. Better Auth's default: '5s'. */
+    interval?: string;
+    /** Characters in the code people type. Better Auth's default: 8. */
+    userCodeLength?: number;
+};
+
 /** Bot protection, through Better Auth's Captcha plugin (https://better-auth.com/docs/plugins/captcha). */
 export type CaptchaOptions = {
     provider: 'cloudflare-turnstile' | 'hcaptcha' | 'google-recaptcha';
@@ -276,6 +304,8 @@ export type ModuleOptions = {
     emailOtp: EmailOtpOptions;
     /** Guest accounts, off by default. */
     anonymous: AnonymousOptions;
+    /** Signing in devices with a code, off by default. */
+    deviceAuthorization: DeviceAuthorizationOptions;
     /** Captcha on signing up, off by default (false). */
     captcha: CaptchaOptions | false;
     /**
@@ -374,6 +404,7 @@ export default defineNuxtModule<ModuleOptions>({
         magicLink: { enabled: false },
         emailOtp: { enabled: false },
         anonymous: { enabled: false },
+        deviceAuthorization: { enabled: false },
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
@@ -497,6 +528,27 @@ export default defineNuxtModule<ModuleOptions>({
                 global: true
             });
         }
+        // Where people approve a device's code (Device Authorization), signed in.
+        const { deviceAuthorization } = moduleOptions;
+        const devicePage = deviceAuthorization.enabled
+            ? `/${(deviceAuthorization.page ?? '/device').replace(/^\/+|\/+$/g, '')}`
+            : false;
+        if (devicePage) {
+            extendPages((pages) => {
+                if (pages.some((page) => page.path === devicePage)) {
+                    useLogger('better-auth-ui').info(
+                        `Using the app's own ${devicePage} instead of the module's device page.`
+                    );
+                    return;
+                }
+                pages.push({
+                    name: 'better-auth-ui-device',
+                    path: devicePage,
+                    file: resolve('./runtime/app/pages/auth/device.vue')
+                });
+            });
+            extendRouteRules(devicePage, { auth: { only: 'user' } });
+        }
         addServerHandler({
             route: `${UI_API}/capabilities`,
             method: 'get',
@@ -517,6 +569,8 @@ export default defineNuxtModule<ModuleOptions>({
         const securityAlerts = resolveSecurityAlerts(moduleOptions.securityAlerts);
         (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = {
             pages: pagePaths,
+            // The device page's names for the apps that may ask (client_id → name).
+            deviceClients: deviceAuthorization.clients ?? {},
             signOutRedirect: moduleOptions.signOutRedirect,
             twoFactorRequired: twoFactor.required,
             locale: moduleOptions.locale,
@@ -745,6 +799,35 @@ export default defineNuxtModule<ModuleOptions>({
                     } })`
                 ],
                 ["import { anonymousClient } from 'better-auth/client/plugins'", 'export default anonymousClient()']
+            );
+        }
+        if (devicePage) {
+            const clientIds = deviceAuthorization.clients && Object.keys(deviceAuthorization.clients);
+            const deviceOptions = {
+                verificationUri: devicePage,
+                ...(deviceAuthorization.expiresIn !== undefined && { expiresIn: deviceAuthorization.expiresIn }),
+                ...(deviceAuthorization.interval !== undefined && { interval: deviceAuthorization.interval }),
+                ...(deviceAuthorization.userCodeLength !== undefined && {
+                    userCodeLength: deviceAuthorization.userCodeLength
+                })
+            };
+            if (!clientIds) {
+                useLogger('better-auth-ui').warn(
+                    'deviceAuthorization accepts any client id: list your apps in deviceAuthorization.clients.'
+                );
+            }
+            addAuthPlugin(
+                'device-authorization',
+                [
+                    "import { deviceAuthorization } from 'better-auth/plugins'",
+                    `export default deviceAuthorization({ ...${JSON.stringify(deviceOptions)}${
+                        clientIds ? `, validateClient: (id) => ${JSON.stringify(clientIds)}.includes(id)` : ''
+                    } })`
+                ],
+                [
+                    "import { deviceAuthorizationClient } from 'better-auth/client/plugins'",
+                    'export default deviceAuthorizationClient()'
+                ]
             );
         }
         if (captcha) {

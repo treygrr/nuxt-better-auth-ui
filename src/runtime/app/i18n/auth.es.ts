@@ -110,6 +110,34 @@ export const authEs = {
         newLink: 'Enviar un enlace nuevo',
         failed: 'No se pudo cambiar tu contraseña'
     },
+    device: {
+        title: 'Conectar un dispositivo',
+        description: 'Escribe el código que muestra tu dispositivo para iniciar sesión en él con tu cuenta.',
+        codeLabel: 'Código',
+        submit: 'Continuar',
+        reviewTitle: '¿Iniciar sesión en este dispositivo?',
+        reviewDescription: '{app} pide iniciar sesión con tu cuenta.',
+        app: 'Aplicación',
+        access: 'Acceso',
+        fullAccess: 'Tu cuenta',
+        code: 'Código',
+        warning:
+            'Aprueba solo si lo iniciaste tú en un dispositivo que tienes contigo y el código coincide. Nunca apruebes un código que te haya enviado alguien.',
+        approve: 'Aprobar',
+        deny: 'Rechazar',
+        anotherCode: 'Escribir otro código',
+        approvedTitle: 'Dispositivo conectado',
+        approvedDescription: 'Vuelve a tu dispositivo: iniciará sesión en unos segundos.',
+        deniedTitle: 'Solicitud rechazada',
+        deniedDescription: 'Ese dispositivo no iniciará sesión.',
+        errors: {
+            invalid: 'Ese código no es correcto. Revísalo en tu dispositivo.',
+            expired: 'Ese código caducó. Pide uno nuevo en tu dispositivo.',
+            used: 'Ese código ya se usó. Pide uno nuevo en tu dispositivo.',
+            otherAccount: 'Otra cuenta está usando ese código.',
+            failed: 'No funcionó. Inténtalo de nuevo.'
+        }
+    },
     twoFactorPage: {
         title: 'Verificación en dos pasos',
         totp: {
