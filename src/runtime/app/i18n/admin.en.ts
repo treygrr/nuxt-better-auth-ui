@@ -132,6 +132,8 @@ export const adminEn = {
             accountRemove: 'Removed sign-in method',
             userTwoFactorReset: 'Reset two-factor',
             userPasskeyRemove: 'Removed passkey',
+            userNoteAdd: 'Added a note',
+            userNoteDelete: 'Deleted a note',
             authSignUp: 'Signed up',
             authSignIn: 'Signed in',
             authSignInFailed: 'Failed sign-in',
@@ -384,6 +386,21 @@ export const adminEn = {
         thePasskey: 'the passkey',
         removeFailed: "Couldn't remove the passkey"
     },
+    notes: {
+        title: 'Notes',
+        description: 'Private to staff: {name} never sees these.',
+        placeholder: 'Add a note, eg "Warned for spam in chat"',
+        add: 'Add note',
+        added: 'Note added',
+        addFailed: "Couldn't add the note",
+        none: 'No notes yet.',
+        deleteTitle: 'Delete this note?',
+        deleteDescription: 'The audit log keeps that it was deleted, not what it said.',
+        deleteNote: 'Delete note',
+        deleted: 'Note deleted',
+        deleteFailed: "Couldn't delete the note",
+        by: 'by {name}'
+    },
     configuration: {
         title: 'Configuration',
         introBefore: 'How {app} is set up, from its Better Auth config and the',
@@ -464,6 +481,7 @@ export const adminEn = {
                 other: 'Every {count} minutes'
             },
             activityHint: '"Last active" and "online now"',
+            userNotes: 'Staff notes on users',
             adminPages: 'Admin pages'
         },
         // The emails in words; the template name shows under each.

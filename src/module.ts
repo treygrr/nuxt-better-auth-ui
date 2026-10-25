@@ -94,6 +94,13 @@ export type AdminOptions = {
      * @default true
      */
     auditUserEvents: boolean;
+    /**
+     * Private staff notes on each user's admin page ("Warned for spam in chat"), in an `adminUserNote` table
+     * created by Better Auth's migrations. Staff who can view a user read them; those who can update a user add
+     * them and delete their own; those who can delete users delete anyone's. Audit-logged.
+     * @default false
+     */
+    notes: boolean;
 };
 
 /** Where the sign-in and account pages go; false to leave one out (eg the app has its own). */
@@ -324,7 +331,8 @@ export default defineNuxtModule<ModuleOptions>({
             auditLog: true,
             auditLogRetentionDays: 30,
             auditUserEvents: true,
-            activityTracking: { enabled: false }
+            activityTracking: { enabled: false },
+            notes: false
         },
         pages: {
             signIn: '/login',
@@ -747,6 +755,7 @@ export default defineNuxtModule<ModuleOptions>({
             activityTracking: options.activityTracking.enabled,
             activityInterval: options.activityTracking.updateInterval ?? 300_000,
             auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)),
+            notes: options.notes,
             // For the configuration page: whether emails can be sent, and which have the app's own template.
             emails: { send: !!emails.send, templates: Object.keys(emails.templates ?? {}) }
         } satisfies BetterAuthAdminPublicConfig;
@@ -814,6 +823,15 @@ export default defineNuxtModule<ModuleOptions>({
                     `export default adminActivityTracking(${JSON.stringify({ updateInterval: options.activityTracking.updateInterval ?? 300_000 })})`
                 ].join('\n')
         });
+        const notes = addTemplate({
+            filename: 'better-auth-ui/notes.mjs',
+            write: true,
+            getContents: () =>
+                [
+                    `import { adminUserNotes } from ${JSON.stringify(resolve('./runtime/server/notes/plugin'))}`,
+                    'export default adminUserNotes()'
+                ].join('\n')
+        });
         const clientPlugin = addTemplate({
             filename: 'better-auth-ui/client-plugin.mjs',
             write: true,
@@ -830,6 +848,7 @@ export default defineNuxtModule<ModuleOptions>({
             if (!options.impersonation) sources.server.push(impersonationOff.dst);
             if (options.auditLog) sources.server.push(auditLog.dst);
             if (options.activityTracking.enabled) sources.server.push(activity.dst);
+            if (options.notes) sources.server.push(notes.dst);
             (sources.client ??= []).push(clientPlugin.dst);
         });
 
@@ -913,6 +932,23 @@ export default defineNuxtModule<ModuleOptions>({
             method: 'delete',
             handler: resolve('./runtime/server/api/users/passkeys.delete')
         });
+        if (options.notes) {
+            addServerHandler({
+                route: `${ADMIN_API}/users/:id/notes`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/users/notes.get')
+            });
+            addServerHandler({
+                route: `${ADMIN_API}/users/:id/notes`,
+                method: 'post',
+                handler: resolve('./runtime/server/api/users/notes.post')
+            });
+            addServerHandler({
+                route: `${ADMIN_API}/users/:id/notes/:noteId`,
+                method: 'delete',
+                handler: resolve('./runtime/server/api/users/notes.delete')
+            });
+        }
 
         addLayout({ src: resolve('./runtime/app/layouts/admin.vue') }, LAYOUT);
 

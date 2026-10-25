@@ -18,6 +18,8 @@ export type BetterAuthAdminPublicConfig = {
     activityInterval: number;
     /** Days the audit log keeps entries; 0 keeps them forever. */
     auditLogRetentionDays: number;
+    /** Staff notes on users. */
+    notes: boolean;
     /** Whether the app set an email sender, and the emails it has its own template for. */
     emails: { send: boolean; templates: string[] };
 };

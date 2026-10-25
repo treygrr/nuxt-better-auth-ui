@@ -7,6 +7,8 @@ export default defineNuxtConfig({
             impersonation: true,
             // Opt-in "last active" and "online now"; a short interval to see it work.
             activityTracking: { enabled: true, updateInterval: 60_000 },
+            // Private staff notes on each user's page.
+            notes: true,
             // A role with some of the admin's permissions: it sees only those actions in the admin pages.
             roles: {
                 moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] }

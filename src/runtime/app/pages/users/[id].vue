@@ -27,7 +27,7 @@ import { shownItems } from '../../utils/menu';
 import { providerInfo } from '../../utils/providers';
 
 const adminPath = useAdminPath();
-const { role: adminRole, auditLog } = useBetterAuthAdminConfig();
+const { role: adminRole, auditLog, notes } = useBetterAuthAdminConfig();
 const userId = useRoute().params.id as string;
 const session = useUserSession();
 const admin = useAdminUsers();
@@ -454,6 +454,8 @@ const thisSession = computed(() => session.session.value?.id);
                     :user="user"
                     @changed="refresh"
                 />
+
+                <AdminUsersNotesCard v-if="notes" :user="user" @changed="refresh" />
 
                 <UPageCard
                     v-if="can({ session: ['list'] })"

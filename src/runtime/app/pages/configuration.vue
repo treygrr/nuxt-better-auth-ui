@@ -273,6 +273,7 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                     ),
                     hint: config.activityTracking ? t('admin.configuration.rows.activityHint') : undefined
                 },
+                { label: t('admin.configuration.rows.userNotes'), ...on(config.notes) },
                 { label: t('admin.configuration.rows.adminPages'), value: config.route, color: 'neutral' }
             ]
         }

@@ -43,6 +43,12 @@ export const AUDIT_ACTIONS: Record<string, { label: MessageKey; icon: string; co
         icon: 'i-lucide-fingerprint',
         color: 'warning'
     },
+    'user.note-add': { label: 'admin.audit.actions.userNoteAdd', icon: 'i-lucide-sticky-note', color: 'neutral' },
+    'user.note-delete': {
+        label: 'admin.audit.actions.userNoteDelete',
+        icon: 'i-lucide-sticky-note',
+        color: 'neutral'
+    },
     // Users' own activity
     'auth.sign-up': { label: 'admin.audit.actions.authSignUp', icon: 'i-lucide-user-plus', color: 'success' },
     'auth.sign-in': { label: 'admin.audit.actions.authSignIn', icon: 'i-lucide-log-in', color: 'neutral' },

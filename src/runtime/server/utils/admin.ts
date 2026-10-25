@@ -49,6 +49,7 @@ type AdminAuth = {
         adapter: {
             findMany<T>(query: FindMany): Promise<T[]>;
             count(query: { model: string; where?: Where[] }): Promise<number | string>;
+            create<T>(query: { model: string; data: Record<string, unknown> }): Promise<T>;
             delete(query: { model: string; where: Where[] }): Promise<void>;
             deleteMany(query: { model: string; where: Where[] }): Promise<number>;
         };

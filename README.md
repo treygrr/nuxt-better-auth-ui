@@ -71,6 +71,12 @@ dark or system appearance, the way back to the site, and signing out. Everything
   are asked to set it up again), and **remove a passkey**. Better Auth has no admin endpoints for these, so the module
   does what its plugins' own disable and delete do, after the `user: update` permission check, and logs both in the
   audit log.
+- **Staff notes** (opt-in, `admin.notes: true`): a private Notes card on each user's page ("Warned for spam in
+  chat"), newest first, with who wrote each and when. Staff who can view a user (`user: get`) read them; those who
+  can update one (`user: update`) add notes and delete their own; those who can delete users delete anyone's. Users
+  never see them, and they're left out of a user's data download. Adding and deleting are audit-logged (without the
+  note's text). Stored in the module's own `adminUserNote` table, through Better Auth's migrations;
+  a user's notes go when the user is deleted.
 - **Usernames** (with the Username plugin) show as `@handle` on the users list and each user's page.
 - **Configuration page:** how the app is set up, read-only, from its Better Auth config and `betterAuthUi` options:
   sign-in methods and providers, email verification and password rules, two-factor (and who must use it), passkeys,
@@ -153,6 +159,8 @@ export default defineNuxtConfig({
             auditUserEvents: true,
             // Opt-in "last active" and "online now"; about one write per signed-in user per interval.
             activityTracking: { enabled: false, updateInterval: 5 * 60 * 1000 },
+            // Opt-in private staff notes on each user's page, in an adminUserNote table.
+            notes: false,
 
             // Better Auth Admin plugin options, passed through as documented
             // (https://better-auth.com/docs/plugins/admin#options). All optional.

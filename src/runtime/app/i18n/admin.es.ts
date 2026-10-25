@@ -131,6 +131,8 @@ export const adminEs = {
             accountRemove: 'Quitó un método de inicio de sesión',
             userTwoFactorReset: 'Restableció la verificación en dos pasos',
             userPasskeyRemove: 'Quitó una llave de acceso',
+            userNoteAdd: 'Añadió una nota',
+            userNoteDelete: 'Borró una nota',
             authSignUp: 'Se registró',
             authSignIn: 'Inició sesión',
             authSignInFailed: 'Inicio de sesión fallido',
@@ -384,6 +386,21 @@ export const adminEs = {
         thePasskey: 'la llave de acceso',
         removeFailed: 'No se pudo quitar la llave de acceso'
     },
+    notes: {
+        title: 'Notas',
+        description: 'Solo para el equipo: {name} nunca las ve.',
+        placeholder: 'Añade una nota, p. ej. "Advertido por spam en el chat"',
+        add: 'Añadir nota',
+        added: 'Nota añadida',
+        addFailed: 'No se pudo añadir la nota',
+        none: 'Aún no hay notas.',
+        deleteTitle: '¿Borrar esta nota?',
+        deleteDescription: 'El registro de auditoría guarda que se borró, no lo que decía.',
+        deleteNote: 'Borrar nota',
+        deleted: 'Nota borrada',
+        deleteFailed: 'No se pudo borrar la nota',
+        by: 'por {name}'
+    },
     configuration: {
         title: 'Configuración',
         introBefore: 'Cómo está configurada {app}, según su configuración de Better Auth y las opciones',
@@ -465,6 +482,7 @@ export const adminEs = {
                 other: 'Cada {count} minutos'
             },
             activityHint: '"Última actividad" y "en línea ahora"',
+            userNotes: 'Notas del equipo sobre usuarios',
             adminPages: 'Páginas de administración'
         },
         emails: {
