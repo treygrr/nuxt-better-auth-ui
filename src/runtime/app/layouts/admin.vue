@@ -39,7 +39,6 @@ const links = computed(
                     to: adminPath('/users'),
                     onSelect: close
                 },
-                { label: 'Roles', icon: 'i-lucide-shield-check', to: adminPath('/roles'), onSelect: close },
                 ...(auditLog
                     ? [{ label: 'Audit log', icon: 'i-lucide-history', to: adminPath('/audit'), onSelect: close }]
                     : []),

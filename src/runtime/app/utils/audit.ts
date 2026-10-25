@@ -16,10 +16,7 @@ export const AUDIT_ACTIONS: Record<string, { label: string; icon: string; color:
     'session.revoke-all': { label: 'Signed out everywhere', icon: 'i-lucide-log-out', color: 'warning' },
     'user.impersonate': { label: 'Signed in as user', icon: 'i-lucide-venetian-mask', color: 'warning' },
     'user.stop-impersonating': { label: 'Stopped impersonating', icon: 'i-lucide-venetian-mask', color: 'neutral' },
-    'account.remove': { label: 'Removed sign-in method', icon: 'i-lucide-unlink', color: 'warning' },
-    'role.create': { label: 'Created role', icon: 'i-lucide-shield-plus', color: 'success' },
-    'role.update': { label: 'Changed role', icon: 'i-lucide-shield', color: 'info' },
-    'role.delete': { label: 'Deleted role', icon: 'i-lucide-shield-off', color: 'error' }
+    'account.remove': { label: 'Removed sign-in method', icon: 'i-lucide-unlink', color: 'warning' }
 };
 
 export const auditAction = (action: string) =>
@@ -51,14 +48,6 @@ export function auditDetails(entry: AdminAuditEntry): string {
                     ? `for ${duration(details.expiresIn)}`
                     : 'permanently'
             ].join(' · ');
-        case 'role.create':
-        case 'role.update': {
-            const count = Object.values((details.permissions as Record<string, string[]> | undefined) ?? {}).flat()
-                .length;
-            return `${details.role} · ${count} permission${count === 1 ? '' : 's'}`;
-        }
-        case 'role.delete':
-            return String(details.role ?? '');
         case 'account.remove':
             return details.providerId ? providerInfo(String(details.providerId)).label : '';
         default:

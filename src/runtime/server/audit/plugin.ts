@@ -106,17 +106,7 @@ const ACTIONS: Record<string, { action: string; details?: (body: Body) => Record
     '/admin/revoke-user-session': { action: 'session.revoke' },
     '/admin/revoke-user-sessions': { action: 'session.revoke-all' },
     '/admin/impersonate-user': { action: 'user.impersonate' },
-    '/admin/stop-impersonating': { action: 'user.stop-impersonating' },
-    // The module's roles plugin
-    '/admin-roles/create': {
-        action: 'role.create',
-        details: (body) => ({ role: body.name, permissions: body.permissions })
-    },
-    '/admin-roles/update': {
-        action: 'role.update',
-        details: (body) => ({ role: body.name, permissions: body.permissions })
-    },
-    '/admin-roles/delete': { action: 'role.delete', details: (body) => ({ role: body.name }) }
+    '/admin/stop-impersonating': { action: 'user.stop-impersonating' }
 };
 
 /** What the before hook learns, while the session and the user still exist. */

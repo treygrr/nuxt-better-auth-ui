@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useAdminUsers, useAdminRoles, useBetterAuthAdminConfig, useToast, watch } from '#imports';
+import { computed, ref, useAdminUsers, useBetterAuthAdminConfig, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -7,10 +7,9 @@ const props = defineProps<{ user: AdminUser }>();
 const open = defineModel<boolean>('open', { default: false });
 const emit = defineEmits<{ updated: [] }>();
 
-const { role: adminRole } = useBetterAuthAdminConfig();
-const { names: allRoles } = useAdminRoles();
+const { role: adminRole, roles: allRoles } = useBetterAuthAdminConfig();
 // The configured roles, plus theirs if it's no longer configured.
-const roles = computed(() => [...new Set([...allRoles.value, props.user.role ?? 'user'])]);
+const roles = computed(() => [...new Set([...allRoles, props.user.role ?? 'user'])]);
 const role = ref('user');
 watch(open, (isOpen) => {
     if (isOpen) role.value = props.user.role ?? 'user';

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { computed, reactive, ref, useAdminUsers, useAdminRoles, useToast } from '#imports';
+import { computed, reactive, ref, useAdminUsers, useBetterAuthAdminConfig, useToast } from '#imports';
 
 const emit = defineEmits<{ created: [] }>();
 
-const { names: roles } = useAdminRoles();
+const { roles: allRoles } = useBetterAuthAdminConfig();
+const roles = computed(() => allRoles);
 
 const schema = z.object({
     name: z.string().min(1, 'Required'),

@@ -1,22 +1,18 @@
-import { useState } from '#imports';
+import { useUserSession } from '@nuxtjs/better-auth/composables';
+import { roles } from '#better-auth-admin/roles';
 
 export type AdminPermissions = { user?: string[]; session?: string[] };
-/** What the signed-in user may do, from Better Auth (`/api/auth/admin-roles/permissions`). */
-export type AdminPermissionsState = { permissions: Record<string, string[]>; manageRoles: boolean };
-
-/** The signed-in user's permissions, loaded by the admin pages' route middleware and sent with the page. */
-export const useAdminPermissions = () =>
-    useState<AdminPermissionsState | null>('better-auth-admin-permissions', () => null);
 
 /**
- * Whether the signed-in user's role allows these Better Auth Admin permissions, eg `can({ user: ['ban'] })`.
- * The permissions come from the server, which asks Better Auth, so the pages show exactly what it would allow,
- * the same in the server render and the browser.
+ * Whether the signed-in user's role allows these Better Auth Admin permissions, eg
+ * `can({ user: ['ban'] })`. It checks the same roles file Better Auth uses on the server, so the pages show
+ * exactly what the server would allow, and render the same on the server and in the browser.
  */
 export const useAdminCan = () => {
-    const state = useAdminPermissions();
-    return (permissions: AdminPermissions) =>
-        Object.entries(permissions).every(([resource, actions]) =>
-            (actions ?? []).every((action) => state.value?.permissions[resource]?.includes(action) === true)
-        );
+    const session = useUserSession();
+    return (permissions: AdminPermissions) => {
+        const role = (session.user.value as { role?: string | null } | null)?.role || 'user';
+        // Better Auth stores several roles comma-separated; any of them granting it is enough.
+        return role.split(',').some((name) => roles[name.trim()]?.authorize(permissions).success === true);
+    };
 };

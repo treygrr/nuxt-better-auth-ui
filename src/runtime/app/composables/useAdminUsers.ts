@@ -80,13 +80,6 @@ export const useAdminUsers = () => {
         /** Signs in as the user; the admin's own session is kept to return to. */
         impersonate: (userId: string) => unwrap(admin().impersonateUser({ userId })),
         stopImpersonating: () => unwrap(admin().stopImpersonating()),
-        /** Roles, through the module's roles plugin. Only the admin role may change them. */
-        createRole: (name: string, permissions: Record<string, string[]>) =>
-            $fetch('/api/auth/admin-roles/create', { method: 'POST', body: { name, permissions } }).catch(fetchError),
-        updateRole: (name: string, permissions: Record<string, string[]>) =>
-            $fetch('/api/auth/admin-roles/update', { method: 'POST', body: { name, permissions } }).catch(fetchError),
-        deleteRole: (name: string) =>
-            $fetch('/api/auth/admin-roles/delete', { method: 'POST', body: { name } }).catch(fetchError),
         /** Removes one sign-in method; the server refuses to remove a user's last one. */
         removeAccount: (userId: string, accountId: string) =>
             $fetch(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts/${encodeURIComponent(accountId)}`, {

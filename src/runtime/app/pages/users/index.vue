@@ -13,7 +13,6 @@ import {
     resolveComponent,
     useAdminCan,
     useAdminPath,
-    useAdminRoles,
     useAdminUsers,
     useBetterAuthAdminConfig,
     useFetch,
@@ -39,8 +38,7 @@ const NuxtTime = resolveComponent('NuxtTime');
 const UTooltip = resolveComponent('UTooltip');
 
 const adminPath = useAdminPath();
-const { role: adminRole } = useBetterAuthAdminConfig();
-const { staff: staffRoles } = useAdminRoles();
+const { role: adminRole, staffRoles } = useBetterAuthAdminConfig();
 const can = useAdminCan();
 const session = useUserSession();
 const admin = useAdminUsers();
@@ -57,7 +55,7 @@ const routeFilter = String(useRoute().query.filter ?? '');
 const filter = ref(
     routeFilter === 'admins'
         ? `role:${adminRole}`
-        : ['banned', 'unverified'].includes(routeFilter) || routeFilter.startsWith('role:')
+        : ['banned', 'unverified', ...staffRoles.map((role) => `role:${role}`)].includes(routeFilter)
           ? routeFilter
           : 'all'
 );
@@ -65,15 +63,13 @@ const sorting = ref([{ id: 'createdAt', desc: true }]);
 const rowSelection = ref<Record<string, boolean>>({});
 const columnVisibility = ref<Record<string, boolean>>({});
 
-// Better Auth's list-users takes one filter at a time: a role, banned or unverified.
-const filterFor = (value: string): { field: 'role' | 'banned' | 'emailVerified'; value: string } | undefined =>
-    value.startsWith('role:')
-        ? { field: 'role', value: value.slice('role:'.length) }
-        : value === 'banned'
-          ? { field: 'banned', value: 'true' }
-          : value === 'unverified'
-            ? { field: 'emailVerified', value: 'false' }
-            : undefined;
+// Better Auth's list-users takes one filter at a time.
+const filters: Record<string, { field: 'role' | 'banned' | 'emailVerified'; value: string } | undefined> = {
+    all: undefined,
+    ...Object.fromEntries(staffRoles.map((role) => [`role:${role}`, { field: 'role' as const, value: role }])),
+    banned: { field: 'banned', value: 'true' },
+    unverified: { field: 'emailVerified', value: 'false' }
+};
 
 watch([debouncedSearch, searchField, filter, sorting], () => {
     page.value = 1;
@@ -85,7 +81,7 @@ watch(page, () => {
 // Better Auth's list-users, fetched during server rendering and refetched as the query changes.
 const listQuery = computed(() => {
     const term = debouncedSearch.value.trim();
-    const where = filterFor(filter.value);
+    const where = filters[filter.value];
     return {
         limit: PAGE_SIZE,
         offset: (page.value - 1) * PAGE_SIZE,
@@ -280,7 +276,7 @@ const columns: TableColumn<AdminUser>[] = [
         cell: ({ row }) =>
             h(UBadge, {
                 label: row.original.role ?? 'user',
-                color: (row.original.role ?? 'user').split(',').some((role) => staffRoles.value.includes(role))
+                color: (row.original.role ?? 'user').split(',').some((role) => staffRoles.includes(role))
                     ? 'primary'
                     : 'neutral',
                 variant: 'subtle',
@@ -353,12 +349,12 @@ const columns: TableColumn<AdminUser>[] = [
 const columnLabels: Record<string, string> = { banned: 'Status', emailVerified: 'Email', signIn: 'Sign-in' };
 
 // One filter per staff role, eg "Admins", "Moderators".
-const filterItems = computed(() => [
+const filterItems = [
     { label: 'All users', value: 'all' },
-    ...staffRoles.value.map((role) => ({ label: `${upperFirst(role)}s`, value: `role:${role}` })),
+    ...staffRoles.map((role) => ({ label: `${upperFirst(role)}s`, value: `role:${role}` })),
     { label: 'Banned', value: 'banned' },
     { label: 'Unverified', value: 'unverified' }
-]);
+];
 
 const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));
 </script>

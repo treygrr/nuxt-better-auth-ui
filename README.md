@@ -101,7 +101,7 @@ export default defineNuxtConfig({
         route: '/admin',
         // The role that can do everything in the admin pages and Better Auth's admin endpoints.
         role: 'admin',
-        // Roles the dashboard starts with. See "Roles" below.
+        // More roles, with Better Auth Admin permissions. See "Roles" below.
         roles: {},
         // Let admins sign in as a user (Better Auth's impersonation). Off, its endpoint is refused too.
         impersonation: false,
@@ -115,43 +115,34 @@ export default defineNuxtConfig({
 
 ## Roles
 
-Besides `admin` (everything) and `user` (nothing), create roles on the **Roles** page with any of Better Auth's
-Admin permissions: tick what the role may do, save, and assign it with **Change role**. Changes apply straight away,
-without a restart or deploy.
-
-- **Who gets in:** roles that can see the users list open the admin pages, and count as staff (a filter of their own
-  on the users list).
-- **What they see:** only the actions their role allows, eg without `set-email` the email field is locked, and without
-  `set-password`, Password offers only the reset link.
-- **Who manages roles:** only the `admin` role, so nobody can grant themselves more. A role can't be deleted while
-  users have it. Creating, changing and deleting roles is in the audit log.
-- **Enforced by Better Auth** on every request, and the pages ask the server what the signed-in user may do, so they
-  show exactly what Better Auth allows.
-- **Starting roles** can come from config. They're copied into the `adminRole` table while it has no roles (on first
-  start, or after you delete them all), then managed on the Roles page; later changes to the config are ignored.
+Besides `admin` (everything) and `user` (nothing), define roles with any of Better Auth's Admin permissions:
 
 ```ts
 betterAuthAdmin: {
     roles: {
-        moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] }
+        // Handles reports: can view, edit and ban users, and sign their sessions out.
+        moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] },
+        // Can look, not touch.
+        support: { user: ['list', 'get'], session: ['list'] }
     }
 }
 ```
 
-Permissions: `user`: `create`, `list`, `get`, `update`, `set-role`, `ban`, `impersonate`, `impersonate-admins`,
-`delete`, `set-password`, `set-email`; `session`: `list`, `revoke`, `delete`. Unknown ones fail the build.
+- **Permissions:** `user`: `create`, `list`, `get`, `update`, `set-role`, `ban`, `impersonate`, `impersonate-admins`,
+  `delete`, `set-password`, `set-email`; `session`: `list`, `revoke`, `delete`. Unknown ones fail the build with the
+  list of valid ones.
+- **Who gets in:** roles that can `list` users open the admin pages, and are treated as staff: they get their own
+  filter on the users list, and impersonating them takes `impersonate-admins`.
+- **What they see:** only the actions their role allows, eg a moderator has no Delete, Change role or Add user, the
+  email field is locked without `set-email`, and Password offers only the reset link without `set-password`.
+- **Enforced by Better Auth:** the module builds the roles with Better Auth's own access control and passes them to the
+  Admin plugin, so every endpoint checks the same permissions, and so do the module's own routes. The pages read the
+  same roles file, so they show exactly what the server would allow, identically in the server render and the
+  browser.
+- Assign roles from **Change role**, which lists the configured roles. A user with several roles
+  (Better Auth's comma-separated `role`) gets everything any of them allows.
 
-> [!WARNING]
-> **Roles managed in the dashboard aren't something Better Auth technically supports.** Its Admin plugin
-> [documents roles as code](https://better-auth.com/docs/plugins/admin#access-control), passed once as
-> `admin({ ac, roles })`; only the organization plugin has runtime roles. We found real value in managing them from
-> the dashboard, so we built it: the module stores roles in its own `adminRole` table and keeps the `roles` object it
-> gave the Admin plugin in step with it (re-read every 10 seconds, and straight away after a change). That works
-> because Better Auth 1.7 looks a role up on every permission check, which isn't a documented guarantee. The module's
-> tests create a role, assign it and check Better Auth enforces it and follows edits, so a Better Auth release that
-> changes this fails them before it reaches you. Check the module's release notes when you upgrade Better Auth.
-
-## How it works## How it works
+## How it works
 
 - The module registers Better Auth's `admin()` and `adminClient()` plugins through `@nuxtjs/better-auth`'s
   `better-auth:plugins:extend` hook, so your auth config doesn't change.
@@ -167,11 +158,9 @@ Permissions: `user`: `create`, `list`, `get`, `update`, `set-role`, `ban`, `impe
   ID, scope and dates, never passwords or tokens) and `DELETE …/accounts/:accountId` (`user: ['update']`).
   `GET /api/_better-auth-admin/accounts?userIds=a,b,…` returns `{ [userId]: providerIds }` for up to 100 users, in one
   query, for the users list.
-- Route rules let only signed-in users in (others go to the login page); a route middleware then asks Better Auth
-  what the user may do (`/api/auth/admin-roles/permissions`, through `auth.api.userHasPermission`'s role checks) and
-  refuses roles that can't list users with a 403. Better Auth checks permissions again on every request.
-- Roles are managed through the module's Better Auth plugin endpoints: `GET /api/auth/admin-roles/list` and
-  `/permissions`, and `POST /api/auth/admin-roles/create`, `/update` and `/delete`.
+- Route rules let only signed-in staff in (the admin role, and custom roles that can list users); others are sent to
+  the login page or get a 403. Better Auth checks permissions again on every `/api/auth/admin/*` request. Users with
+  several roles are matched by their whole `role` value, so give them the pages through a single staff role.
 
 ## Development
 

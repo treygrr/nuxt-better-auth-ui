@@ -748,96 +748,9 @@ describe('custom roles', () => {
         await post('/admin/set-role', { userId: carolId, role: 'user' }, adminCookie);
     });
 
-    it("lets the admin impersonate a moderator: only admins need impersonate-admins (Better Auth's default)", async () => {
+    it('treats moderators as staff for impersonation', async () => {
         const daveId = (await (await get('/api/auth/get-session', moderatorCookie)).json()).user.id;
-        expect((await post('/admin/impersonate-user', { userId: daveId }, adminCookie)).status).toBe(200);
-    });
-});
-
-describe('roles managed in the dashboard', () => {
-    const post = (path: string, body: unknown, cookie = adminCookie) =>
-        fetch(`${base}/api/auth${path}`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', origin: base, cookie },
-            body: JSON.stringify(body)
-        });
-    const idOf = async (name: string) =>
-        (await (await get(`/api/auth/admin/list-users?searchValue=${name}@&searchField=email`, adminCookie)).json())
-            .users[0].id;
-    let erinCookie: string;
-
-    it("reports each user's permissions, as Better Auth sees them", async () => {
-        const admin = await (await get('/api/auth/admin-roles/permissions', adminCookie)).json();
-        expect(admin.manageRoles).toBe(true);
-        expect(admin.permissions.user).toContain('delete');
-        expect(admin.permissions.user).not.toContain('impersonate-admins');
-        const user = await (await get('/api/auth/admin-roles/permissions', userCookie)).json();
-        expect(user).toEqual({ permissions: {}, manageRoles: false });
-    });
-
-    it('lists the built-in roles and the config role it was seeded with', async () => {
-        const roles = await (await get('/api/auth/admin-roles/list', adminCookie)).json();
-        expect(roles.map((role: { name: string; builtIn: boolean }) => [role.name, role.builtIn])).toEqual([
-            ['admin', true],
-            ['user', true],
-            ['moderator', false]
-        ]);
-        expect((await get('/api/auth/admin-roles/list', userCookie)).status).toBe(403);
-    });
-
-    // The canary: these fail if Better Auth stops reading the roles object on every check.
-    it('Better Auth enforces a role created in the dashboard', async () => {
-        const created = await post('/admin-roles/create', { name: 'support', permissions: { user: ['list', 'get'] } });
-        expect(created.status).toBe(200);
-        await signIn('erin', 'sign-up');
-        const erin = await idOf('erin');
-        expect((await post('/admin/set-role', { userId: erin, role: 'support' })).status).toBe(200);
-        erinCookie = await signIn('erin', 'sign-in');
-        expect((await get('/api/auth/admin/list-users', erinCookie)).status).toBe(200);
-        expect((await post('/admin/ban-user', { userId: await idOf('bob') }, erinCookie)).status).toBe(403);
-        expect((await get('/admin/users', erinCookie)).status).toBe(200);
-    });
-
-    it('and follows changes to it without a restart', async () => {
-        await post('/admin-roles/update', { name: 'support', permissions: { user: ['list', 'get', 'ban'] } });
-        const carol = await post(
-            '/admin/create-user',
-            { name: 'Carol', email: 'carol@dynamic.test', password: 'password123' },
-            adminCookie
-        );
-        const carolId = (await carol.json()).user.id;
-        expect((await post('/admin/ban-user', { userId: carolId }, erinCookie)).status).toBe(200);
-        await post('/admin/remove-user', { userId: carolId });
-    });
-
-    it("won't delete a role someone has, and forgets a deleted role", async () => {
-        const deleteSupport = () => post('/admin-roles/delete', { name: 'support' });
-        const refused = await deleteSupport();
-        expect(refused.status).toBe(400);
-        expect((await refused.json()).message).toMatch(/1 user has this role/);
-        const erin = await idOf('erin');
-        await post('/admin/set-role', { userId: erin, role: 'user' });
-        expect((await deleteSupport()).status).toBe(200);
-        expect((await post('/admin/set-role', { userId: erin, role: 'support' })).status).toBe(400);
-    });
-
-    it('only lets the admin role manage roles, and only with real permissions', async () => {
-        const moderator = await signIn('dave', 'sign-in');
-        expect((await post('/admin-roles/create', { name: 'x', permissions: {} }, moderator)).status).toBe(403);
-        expect((await post('/admin-roles/create', { name: 'x', permissions: { user: ['fly'] } })).status).toBe(400);
-        expect((await post('/admin-roles/create', { name: 'admin', permissions: {} })).status).toBe(400);
-        expect((await post('/admin-roles/create', { name: 'a,b', permissions: {} })).status).toBe(400);
-        expect((await post('/admin-roles/update', { name: 'admin', permissions: {} })).status).toBe(400);
-    });
-
-    it('records role changes in the audit log', async () => {
-        const { entries } = await (
-            await get('/api/_better-auth-admin/audit?limit=10&action=role.create', adminCookie)
-        ).json();
-        expect(entries[0]).toMatchObject({ action: 'role.create', details: { role: 'support' } });
-        const deleted = await (
-            await get('/api/_better-auth-admin/audit?limit=1&action=role.delete', adminCookie)
-        ).json();
-        expect(deleted.entries[0]).toMatchObject({ details: { role: 'support' } });
+        // The admin role doesn't have impersonate-admins, so staff can't be impersonated.
+        expect((await post('/admin/impersonate-user', { userId: daveId }, adminCookie)).status).toBe(403);
     });
 });
