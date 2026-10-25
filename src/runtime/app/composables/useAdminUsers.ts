@@ -66,8 +66,11 @@ export const useAdminUsers = () => {
     return {
         create: (input: { name: string; email: string; password?: string; role: string }) =>
             unwrap(admin().createUser(input)).then(({ user }) => user),
-        update: (userId: string, data: Partial<Pick<AdminUser, 'name' | 'email' | 'image' | 'emailVerified'>>) =>
-            unwrap(admin().updateUser({ userId, data })),
+        /** Better Auth's fields, and the app's own (`user.additionalFields`). */
+        update: (
+            userId: string,
+            data: Partial<Pick<AdminUser, 'name' | 'email' | 'image' | 'emailVerified'>> & Record<string, unknown>
+        ) => unwrap(admin().updateUser({ userId, data })),
         setRole: (userId: string, role: string) => unwrap(admin().setRole({ userId, role })),
         ban: (userId: string, banReason?: string, banExpiresIn?: number) =>
             unwrap(admin().banUser({ userId, banReason, banExpiresIn })),

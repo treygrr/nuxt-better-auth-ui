@@ -1253,6 +1253,12 @@ export default defineNuxtModule<ModuleOptions>({
             method: 'delete',
             handler: resolve('./runtime/server/api/users/passkeys.delete')
         });
+        // The app's own user fields (user.additionalFields), for the user page.
+        addServerHandler({
+            route: `${ADMIN_API}/user-fields`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/user-fields.get')
+        });
         // A user's API keys (API Key plugin), which Better Auth only lists for their owner.
         addServerHandler({
             route: `${ADMIN_API}/users/:id/api-keys`,

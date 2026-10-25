@@ -77,6 +77,11 @@ dark or system appearance, the way back to the site, and signing out. Everything
   never see them, and they're left out of a user's data download. Adding and deleting are audit-logged (without the
   note's text). Stored in the module's own `adminUserNote` table, through Better Auth's migrations;
   a user's notes go when the user is deleted.
+- **Your app's own user fields** (Better Auth's `user.additionalFields`, eg a company, a plan, a region): a "More
+  details" card on each user's page shows them (yes/no, dates, lists), and staff who can update users edit them through
+  Better Auth's admin update-user, with a field per type (text, number, date, switch, a select for an enum, commas for
+  lists). Server-owned fields (`input: false`) are shown, not edited; fields with `returned: false` aren't shown, as
+  Better Auth never returns them. Labels come from the field names ("favoriteColor" shows as "Favorite color").
 - **Usernames** (with the Username plugin) show as `@handle` on the users list and each user's page.
 - **Configuration page:** how the app is set up, read-only, from its Better Auth config and `betterAuthUi` options:
   sign-in methods and providers, email verification and password rules, two-factor (and who must use it), passkeys,

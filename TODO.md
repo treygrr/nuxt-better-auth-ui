@@ -5,9 +5,6 @@
 Each follows the module's pattern: a `betterAuthUi` flag adds the plugin, the pages pick it up whether the module or
 the app added it, the admin and configuration page show it, Spanish included.
 
-6. **Additional fields / custom session** (`additional-fields`, `custom-session`). Show (and let admins edit) the
-   app's own user fields (eg a company, a plan, a region, a gamertag) on the admin user page, read from Better
-   Auth's schema.
 7. **More sign-in providers**, including game platforms. See below.
 8. **Organizations** (`organization`). Better Auth's organizations as they are, for whatever an app uses them for
    (teams, workspaces, companies, groups): members with roles (owner, admin, member, or the app's own, through Better

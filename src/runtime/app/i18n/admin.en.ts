@@ -396,6 +396,17 @@ export const adminEn = {
         thePasskey: 'the passkey',
         removeFailed: "Couldn't remove the passkey"
     },
+    fields: {
+        title: 'More details',
+        description: "Your app's own fields.",
+        edit: 'Edit details',
+        editTitle: "Edit {name}'s details",
+        yes: 'Yes',
+        no: 'No',
+        commaSeparated: 'Separate values with commas.',
+        saved: 'Details saved',
+        failed: "Couldn't save the details"
+    },
     apiKeys: {
         title: 'API keys',
         description: "{name}'s keys for scripts and integrations. Revoke one that leaked.",

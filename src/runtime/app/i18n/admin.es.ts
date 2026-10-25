@@ -396,6 +396,17 @@ export const adminEs = {
         thePasskey: 'la llave de acceso',
         removeFailed: 'No se pudo quitar la llave de acceso'
     },
+    fields: {
+        title: 'Más datos',
+        description: 'Los campos propios de tu aplicación.',
+        edit: 'Editar datos',
+        editTitle: 'Editar los datos de {name}',
+        yes: 'Sí',
+        no: 'No',
+        commaSeparated: 'Separa los valores con comas.',
+        saved: 'Datos guardados',
+        failed: 'No se pudieron guardar los datos'
+    },
     apiKeys: {
         title: 'Claves de API',
         description: 'Las claves de {name} para scripts e integraciones. Revoca una que se haya filtrado.',

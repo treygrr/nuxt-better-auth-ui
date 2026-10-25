@@ -52,6 +52,13 @@ export default defineServerAuth({
     // (confirmed by email).
     user: {
         changeEmail: { enabled: true, sendChangeEmailConfirmation: betterAuthEmails.changeEmailConfirmation },
-        deleteUser: { enabled: true, sendDeleteAccountVerification: betterAuthEmails.deleteAccount }
+        deleteUser: { enabled: true, sendDeleteAccountVerification: betterAuthEmails.deleteAccount },
+        // The app's own fields, which each user's admin page shows under "More details" (`plan` is server-owned).
+        additionalFields: {
+            company: { type: 'string', required: false },
+            plan: { type: ['free', 'pro'], required: false, defaultValue: 'free', input: false },
+            newsletter: { type: 'boolean', required: false, defaultValue: false },
+            birthday: { type: 'date', required: false }
+        }
     }
 });

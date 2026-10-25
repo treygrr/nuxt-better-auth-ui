@@ -36,6 +36,14 @@ describe.skipIf(!hasBrowser)('admin dashboard (browser)', () => {
         await session.page.getByRole('option', { name: /Searchable Sam/ }).click({ timeout: 10_000 });
         await session.page.waitForURL((url) => url.pathname.startsWith('/admin/users/'));
         await session.page.getByText('sam.finds@browser.test').first().waitFor();
+
+        // The app's own fields, edited from the user's page.
+        await session.page.getByRole('button', { name: 'Edit details' }).click();
+        await session.page.getByRole('dialog').getByLabel('Company').fill('Initech');
+        await session.page.getByRole('dialog').getByRole('button', { name: 'Save' }).click();
+        await session.page.getByText('Details saved').waitFor();
+        await session.page.getByText('Initech').waitFor();
+        expect(session.problems).toEqual([]);
     });
 
     it('has the real menu items, and g then c opens the configuration', async () => {
