@@ -189,6 +189,7 @@ export const adminEs = {
             userNoteAdd: 'Añadió una nota',
             organizationMemberAdd: 'Añadió a una organización',
             userNoteDelete: 'Borró una nota',
+            usersExport: 'Exportó los usuarios',
             authSignUp: 'Se registró',
             authSignIn: 'Inició sesión',
             authSignInFailed: 'Inicio de sesión fallido',
@@ -212,6 +213,7 @@ export const adminEs = {
             },
             reason: 'Motivo: {reason}',
             noReason: 'Sin motivo',
+            users: '{count} usuarios',
             for: 'por {duration}',
             permanently: 'de forma permanente',
             with: 'Con {method}',
@@ -252,6 +254,36 @@ export const adminEs = {
             monthly: 'mensual'
         },
         newUsers: 'Usuarios nuevos'
+    },
+    export: {
+        button: 'Exportar'
+    },
+    import: {
+        button: 'Importar',
+        title: 'Importar usuarios',
+        description:
+            'Crea usuarios desde un archivo CSV: una fila de encabezado con las columnas y un usuario por fila.',
+        columns: 'Columnas que lee (el correo es obligatorio):',
+        drop: 'Suelta aquí un archivo CSV, o elige uno',
+        dropHint: 'Hasta {count} usuarios. También sirve una exportación de aquí.',
+        empty: 'Ese archivo está vacío.',
+        noEmail: 'El archivo necesita una columna de correo (email).',
+        tooMany: 'Importa como máximo {count} usuarios a la vez.',
+        ready: {
+            one: 'Listo para importar 1 usuario. Si el correo ya existe, se omite, no se cambia.',
+            other: 'Listo para importar {count} usuarios. Los correos que ya existen se omiten, no se cambian.'
+        },
+        ignored: 'Columnas ignoradas: {columns}.',
+        sendLinks: 'Enviar a las {count} personas sin contraseña un enlace para elegir una',
+        submit: { one: 'Importar 1 usuario', other: 'Importar {count} usuarios' },
+        importFailed: 'No se pudieron importar los usuarios',
+        created: { one: 'Se creó 1 usuario', other: 'Se crearon {count} usuarios' },
+        linksSent: 'A {count} se les envió un enlace para elegir contraseña.',
+        skipped: 'Se omitieron {count}',
+        failed: 'No se pudieron crear {count}',
+        row: 'Fila {row}',
+        another: 'Importar otro archivo',
+        done: 'Listo'
     },
     users: {
         title: 'Usuarios',

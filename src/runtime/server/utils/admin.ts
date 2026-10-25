@@ -42,6 +42,8 @@ type AdminAuth = {
     $context: Promise<{
         baseURL: string;
         options: {
+            user?: { additionalFields?: Record<string, unknown> };
+            emailAndPassword?: { minPasswordLength?: number; maxPasswordLength?: number };
             account?: { accountLinking?: { allowUnlinkingAll?: boolean } };
             secondaryStorage?: unknown;
             session?: { storeSessionInDatabase?: boolean };
@@ -112,7 +114,8 @@ export async function findAll<T>(context: AdminContext, query: Omit<FindMany, 'l
 export async function recordAdminAction(
     event: H3Event,
     context: AdminContext,
-    entry: { action: string; actor: AuditPerson; target: AuditPerson; details?: Record<string, unknown> }
+    // No target for actions on many users at once (exporting them).
+    entry: { action: string; actor: AuditPerson; target: AuditPerson | null; details?: Record<string, unknown> }
 ) {
     const config = (
         useRuntimeConfig().public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }

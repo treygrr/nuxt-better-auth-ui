@@ -489,6 +489,17 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                 </template>
 
                 <template #right>
+                    <!-- Every user as CSV, downloaded by the browser (the route sets the file's name). -->
+                    <UButton
+                        :label="t('admin.export.button')"
+                        icon="i-lucide-download"
+                        color="neutral"
+                        variant="outline"
+                        :to="`${ADMIN_API}/users/export`"
+                        external
+                        download
+                    />
+                    <AdminUsersImportModal v-if="can({ user: ['create'] })" @imported="refresh" />
                     <AdminUsersCreateModal v-if="can({ user: ['create'] })" @created="refresh" />
                 </template>
             </UDashboardNavbar>

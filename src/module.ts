@@ -1706,6 +1706,17 @@ export default defineNuxtModule<ModuleOptions>({
             method: 'get',
             handler: resolve('./runtime/server/api/accounts.get')
         });
+        // Every user as CSV, and creating users from one (through Better Auth's createUser).
+        addServerHandler({
+            route: `${ADMIN_API}/users/export`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/users/export.get')
+        });
+        addServerHandler({
+            route: `${ADMIN_API}/users/import`,
+            method: 'post',
+            handler: resolve('./runtime/server/api/users/import.post')
+        });
         addServerHandler({
             route: `${ADMIN_API}/users/:id/send-verification`,
             method: 'post',

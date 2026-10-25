@@ -190,6 +190,7 @@ export const adminEn = {
             userNoteAdd: 'Added a note',
             organizationMemberAdd: 'Added to an organization',
             userNoteDelete: 'Deleted a note',
+            usersExport: 'Exported users',
             authSignUp: 'Signed up',
             authSignIn: 'Signed in',
             authSignInFailed: 'Failed sign-in',
@@ -213,6 +214,7 @@ export const adminEn = {
             },
             reason: 'Reason: {reason}',
             noReason: 'No reason given',
+            users: '{count} users',
             for: 'for {duration}',
             permanently: 'permanently',
             with: 'With {method}',
@@ -254,6 +256,35 @@ export const adminEn = {
             monthly: 'monthly'
         },
         newUsers: 'New users'
+    },
+    export: {
+        button: 'Export'
+    },
+    import: {
+        button: 'Import',
+        title: 'Import users',
+        description: 'Create users from a CSV file: a header row naming the columns, then a user per row.',
+        columns: 'Columns it reads (email is required):',
+        drop: 'Drop a CSV file here, or choose one',
+        dropHint: 'Up to {count} users. An export from here works too.',
+        empty: 'That file is empty.',
+        noEmail: 'The file needs an email column.',
+        tooMany: 'Import at most {count} users at a time.',
+        ready: {
+            one: 'Ready to import 1 user. An existing email is skipped, not changed.',
+            other: 'Ready to import {count} users. Existing emails are skipped, not changed.'
+        },
+        ignored: 'Ignored columns: {columns}.',
+        sendLinks: 'Email the {count} people without a password a link to set one',
+        submit: { one: 'Import 1 user', other: 'Import {count} users' },
+        importFailed: "Couldn't import the users",
+        created: { one: 'Created 1 user', other: 'Created {count} users' },
+        linksSent: 'Emailed {count} of them a link to set a password.',
+        skipped: 'Skipped {count}',
+        failed: "Couldn't create {count}",
+        row: 'Row {row}',
+        another: 'Import another file',
+        done: 'Done'
     },
     users: {
         title: 'Users',

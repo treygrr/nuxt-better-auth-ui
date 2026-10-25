@@ -49,6 +49,7 @@ export const AUDIT_ACTIONS: Record<string, { label: MessageKey; icon: string; co
         color: 'info'
     },
     'user.note-add': { label: 'admin.audit.actions.userNoteAdd', icon: 'i-lucide-sticky-note', color: 'neutral' },
+    'users.export': { label: 'admin.audit.actions.usersExport', icon: 'i-lucide-download', color: 'warning' },
     'user.note-delete': {
         label: 'admin.audit.actions.userNoteDelete',
         icon: 'i-lucide-sticky-note',
@@ -156,6 +157,8 @@ export function auditDetails(entry: AdminAuditEntry, t: Translate): string {
             return details.reason ? String(details.reason).replaceAll('_', ' ').toLowerCase() : '';
         case 'account.remove':
             return details.providerId ? providerInfo(String(details.providerId)).label : '';
+        case 'users.export':
+            return typeof details.count === 'number' ? t('admin.audit.details.users', { count: details.count }) : '';
         case 'user.passkey-remove':
         case 'user.api-key-revoke':
         case 'auth.api-key-created':
