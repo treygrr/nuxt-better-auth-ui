@@ -453,6 +453,26 @@ keys are in the audit log, and a user's data download lists their keys (never th
 `apikey` table: run its migrations. Keys kept only in secondary storage (`storage: 'secondary-storage'`, when the app
 adds the plugin itself) don't show in the admin.
 
+## Tokens for apps and services
+
+Two of Better Auth's plugins, for clients that can't use the session cookie:
+
+```ts
+betterAuthUi: {
+    // Session tokens in an `Authorization: Bearer` header: native apps, other servers, the device sign-in above.
+    bearer: true, // or { requireSignature: true }
+    // JWTs for other services, verified with your public keys. Adds a `jwks` table: run Better Auth's migrations.
+    jwt: true // or { issuer, audience, expirationTime: '15m', jwksPath: '/jwks' }
+}
+```
+
+- **Bearer:** every sign-in returns the session token in a `set-auth-token` response header; send it back as
+  `Authorization: Bearer <token>` and Better Auth treats it as the session (`auth.api.getSession({ headers })` on your
+  server). Better Auth warns to use it only for clients that can't use cookies.
+- **JWT:** `GET /api/auth/token` (or the `set-auth-jwt` header on get-session) gives a short-lived JWT (15 minutes by
+  default) with the user in its payload; services verify it with the public keys at `/api/auth/jwks`, without asking
+  your app. The configuration page shows that address. It's not a replacement for the session, as Better Auth says.
+
 ## Security alerts
 
 `securityAlerts: true` emails an account's owner when something sensitive happens to it, or pick some:

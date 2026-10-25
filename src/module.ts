@@ -282,6 +282,18 @@ export type ApiKeyOptions = {
     enableSessions?: boolean;
 };
 
+/** JWTs for services that verify them with the app's JWKS, through Better Auth's JWT plugin. */
+export type JwtOptions = {
+    /** Who issues the tokens. Better Auth's default: the app's base URL. */
+    issuer?: string;
+    /** Who the tokens are for. Better Auth's default: the app's base URL. */
+    audience?: string;
+    /** How long a token lasts, eg '15m' or '1h'. Better Auth's default: '15m'. */
+    expirationTime?: string;
+    /** Where the public keys are, under Better Auth's base path. Better Auth's default: '/jwks'. */
+    jwksPath?: string;
+};
+
 /** Bot protection, through Better Auth's Captcha plugin (https://better-auth.com/docs/plugins/captcha). */
 export type CaptchaOptions = {
     provider: 'cloudflare-turnstile' | 'hcaptcha' | 'google-recaptcha';
@@ -329,6 +341,20 @@ export type ModuleOptions = {
     deviceAuthorization: DeviceAuthorizationOptions;
     /** API keys, off by default. */
     apiKey: ApiKeyOptions;
+    /**
+     * Session tokens in an `Authorization: Bearer` header instead of cookies, for native apps and other servers,
+     * through Better Auth's Bearer plugin: sign-ins return the token in a `set-auth-token` header. `{ requireSignature:
+     * true }` accepts only signed tokens. No migration.
+     * @default false
+     */
+    bearer: boolean | { requireSignature?: boolean };
+    /**
+     * JWTs for services that can't use the session, through Better Auth's JWT plugin: `/token` (and a `set-auth-jwt`
+     * header on get-session) gives one, verified with the public keys at `/jwks`, which the configuration page shows.
+     * Adds a `jwks` table: run Better Auth's migrations.
+     * @default false
+     */
+    jwt: boolean | JwtOptions;
     /** Captcha on signing up, off by default (false). */
     captcha: CaptchaOptions | false;
     /**
@@ -429,6 +455,8 @@ export default defineNuxtModule<ModuleOptions>({
         anonymous: { enabled: false },
         deviceAuthorization: { enabled: false },
         apiKey: { enabled: false },
+        bearer: false,
+        jwt: false,
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
@@ -879,6 +907,29 @@ export default defineNuxtModule<ModuleOptions>({
                 method: 'post',
                 handler: resolve('./runtime/server/api/api-keys.post')
             });
+        }
+        if (moduleOptions.bearer) {
+            const bearerOptions = moduleOptions.bearer === true ? {} : moduleOptions.bearer;
+            addAuthPlugin('bearer', [
+                "import { bearer } from 'better-auth/plugins'",
+                `export default bearer(${JSON.stringify(bearerOptions)})`
+            ]);
+        }
+        if (moduleOptions.jwt) {
+            const { jwksPath, ...jwtClaims } = moduleOptions.jwt === true ? ({} as JwtOptions) : moduleOptions.jwt;
+            const jwtOptions = {
+                ...(jwksPath !== undefined && { jwks: { jwksPath } }),
+                ...(Object.keys(jwtClaims).length && { jwt: jwtClaims })
+            };
+            addAuthPlugin(
+                'jwt',
+                ["import { jwt } from 'better-auth/plugins'", `export default jwt(${JSON.stringify(jwtOptions)})`],
+                [
+                    "import { jwtClient } from 'better-auth/client/plugins'",
+                    // The client must use the same path as the server.
+                    `export default jwtClient(${JSON.stringify(jwksPath !== undefined ? { jwks: { jwksPath } } : {})})`
+                ]
+            );
         }
         if (captcha) {
             const endpoints = captchaEndpoints(moduleOptions);

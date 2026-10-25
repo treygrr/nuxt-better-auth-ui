@@ -40,6 +40,10 @@ export type AuthCapabilities = {
     deviceAuthorization: boolean;
     /** Better Auth's API Key plugin: API keys on the account page. */
     apiKey: boolean;
+    /** Better Auth's Bearer plugin: session tokens in an Authorization header. */
+    bearer: boolean;
+    /** Better Auth's JWT plugin: where services find the public keys that verify its tokens. */
+    jwt: { jwksUrl: string } | null;
     /** Better Auth's Have I Been Pwned plugin: breached passwords are refused. */
     haveIBeenPwned: boolean;
     /** Better Auth's Last Login Method plugin: the sign-in page marks the method used last. */
@@ -71,8 +75,9 @@ type TwoFactorPluginOptions = { otpOptions?: { sendOTP?: unknown }; allowPasswor
 type UsernamePluginOptions = { minUsernameLength?: number; maxUsernameLength?: number; immutableUsername?: boolean };
 
 /** Public: it says which features are on, nothing about users. Defaults are Better Auth's documented ones. */
-export default defineEventHandler((event): AuthCapabilities => {
-    const options = (serverAuth(event) as unknown as { options: Options }).options;
+export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
+    const auth = serverAuth(event) as unknown as { options: Options; $context: Promise<{ baseURL: string }> };
+    const options = auth.options;
     const password = options.emailAndPassword ?? {};
     // The plugin keeps its options on itself, whether the module or the app added it.
     const twoFactor = options.plugins?.find((plugin) => plugin.id === 'two-factor');
@@ -81,6 +86,9 @@ export default defineEventHandler((event): AuthCapabilities => {
     const usernameOptions = (username?.options ?? {}) as UsernamePluginOptions;
     const emailOtp = options.plugins?.find((plugin) => plugin.id === 'email-otp');
     const anonymous = options.plugins?.find((plugin) => plugin.id === 'anonymous');
+    const jwt = options.plugins?.find((plugin) => plugin.id === 'jwt');
+    // Better Auth's base URL includes its base path (eg /api/auth); its default JWKS path is /jwks.
+    const jwksPath = (jwt?.options?.jwks as { jwksPath?: string } | undefined)?.jwksPath ?? '/jwks';
     const has = (id: string) => !!options.plugins?.some((plugin) => plugin.id === id);
     return {
         appName: options.appName || 'Better Auth',
@@ -117,6 +125,8 @@ export default defineEventHandler((event): AuthCapabilities => {
         anonymous: anonymous ? { deleteAccount: anonymous.options?.disableDeleteAnonymousUser !== true } : null,
         deviceAuthorization: has('device-authorization'),
         apiKey: has('api-key'),
+        bearer: has('bearer'),
+        jwt: jwt ? { jwksUrl: `${(await auth.$context).baseURL}${jwksPath}` } : null,
         haveIBeenPwned: has('have-i-been-pwned'),
         lastLoginMethod: has('last-login-method'),
         plugins: (options.plugins ?? []).map((plugin) => plugin.id)

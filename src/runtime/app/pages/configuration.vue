@@ -104,6 +104,13 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                 { label: t('admin.configuration.rows.guestAccounts'), ...on(!!c.anonymous) },
                 { label: t('admin.configuration.rows.deviceSignIn'), ...on(c.deviceAuthorization) },
                 { label: t('admin.configuration.rows.apiKeys'), ...on(c.apiKey) },
+                { label: t('admin.configuration.rows.bearerTokens'), ...on(c.bearer) },
+                {
+                    label: t('admin.configuration.rows.jwt'),
+                    ...on(!!c.jwt),
+                    // Where services fetch the public keys that verify the tokens.
+                    hint: c.jwt ? t('admin.configuration.rows.jwksAt', { url: c.jwt.jwksUrl }) : undefined
+                },
                 {
                     label: t('admin.configuration.rows.usernames'),
                     ...(c.username

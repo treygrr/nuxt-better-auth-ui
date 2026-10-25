@@ -30,6 +30,9 @@ export default defineNuxtConfig({
         deviceAuthorization: { enabled: true, clients: { 'playground-tv': 'Playground TV' } },
         // An "API keys" tab on the account page, with two permissions to pick from.
         apiKey: { enabled: true, prefix: 'pg_', scopes: { projects: ['read', 'write'] } },
+        // Session tokens in an Authorization header, and JWTs verified with /api/auth/jwks.
+        bearer: true,
+        jwt: true,
         lastLoginMethod: true,
         // Emails (to the outbox) about new-device sign-ins, password changes, two-factor and passkeys.
         securityAlerts: true,

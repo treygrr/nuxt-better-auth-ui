@@ -5,8 +5,6 @@
 Each follows the module's pattern: a `betterAuthUi` flag adds the plugin, the pages pick it up whether the module or
 the app added it, the admin and configuration page show it, Spanish included.
 
-4. **Bearer and JWT** (`bearer`, `jwt`). Tokens instead of cookies, for native clients and server-to-server calls.
-   Little UI: document the set-up, show the JWKS URL on the configuration page.
 5. **Phone number** (`phone-number`). Sign in with an SMS code, verify a phone. Needs an SMS sender, like emails
    (`defineBetterAuthSmsSender`, SMS templates, Spanish). Costs money per message.
 6. **Additional fields / custom session** (`additional-fields`, `custom-session`). Show (and let admins edit) the
