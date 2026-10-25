@@ -1,6 +1,6 @@
 import { execSync, spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +32,11 @@ export default async function setup(project: TestProject) {
         stdio: 'pipe',
         env: { ...process.env, PLAYGROUND_CAPTCHA_SITE_KEY: '', PLAYGROUND_HIBP: '', PLAYGROUND_LOCALE: '' }
     });
+    // A throwaway signing key and certificate for the mock SAML identity provider, made for this run only.
+    execSync(
+        `openssl req -x509 -newkey rsa:2048 -nodes -subj /CN=playground-idp -days 1 -keyout ${join(dataDir, 'idp.key')} -out ${join(dataDir, 'idp.crt')}`,
+        { stdio: 'ignore' }
+    );
     const server: ChildProcess = spawn(process.execPath, ['.output/server/index.mjs'], {
         cwd: playgroundDir,
         env: {
@@ -40,7 +45,9 @@ export default async function setup(project: TestProject) {
             AUTH_DATABASE_PATH: databasePath,
             NUXT_APP_SECRET: 'playground-secret-at-least-32-characters-long',
             NUXT_PUBLIC_SITE_URL: base,
-            PLAYGROUND_MOCK_OAUTH: '1'
+            PLAYGROUND_MOCK_OAUTH: '1',
+            PLAYGROUND_SAML_IDP_KEY: readFileSync(join(dataDir, 'idp.key'), 'utf8'),
+            PLAYGROUND_SAML_IDP_CERT: readFileSync(join(dataDir, 'idp.crt'), 'utf8')
         },
         stdio: ['ignore', 'pipe', 'pipe']
     });

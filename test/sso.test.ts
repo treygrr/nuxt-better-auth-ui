@@ -204,4 +204,81 @@ describe('single sign-on', () => {
         expect((await auth('/sso/delete-provider', { providerId: 'globex-oidc' }, owner.cookie)).status).toBe(200);
         expect((await (await get('/api/auth/sso/providers', owner.cookie)).json()).providers).toEqual([]);
     });
+
+    it('signs people in with SAML, through a real signed response, into the organization', async () => {
+        // The playground's SAML identity provider, signing with a key made for this test run.
+        const idp = `${base}/api/_playground/saml/globex-saml-idp`;
+        const metadata = await (await fetch(`${idp}/metadata`)).text();
+        expect(metadata).toContain('X509Certificate');
+        const registered = await auth(
+            '/sso/register',
+            {
+                providerId: 'globex-saml-idp',
+                issuer: `${base}/saml/globex`,
+                domain: 'saml.globex.test',
+                organizationId,
+                samlConfig: { entryPoint: `${idp}/sso`, idpMetadata: { metadata }, wantAssertionsSigned: true }
+            },
+            owner.cookie
+        );
+        expect(registered.status).toBe(200);
+        db().prepare("update ssoProvider set domainVerified = 1 where providerId = 'globex-saml-idp'").run();
+
+        // Better Auth sends the browser to the identity provider with a SAML request...
+        const started = await auth('/sign-in/sso', { email: 'lead.sam@saml.globex.test', callbackURL: '/account' });
+        expect(started.status).toBe(200);
+        const { url } = (await started.json()) as { url: string };
+        expect(url).toContain(`${idp}/sso?SAMLRequest=`);
+        // ...which answers with a page that posts a signed response to Better Auth's ACS URL.
+        const page = await (await fetch(`${url}&email=lead.sam@saml.globex.test`)).text();
+        const action = page.match(/action="([^"]+)"/)![1]!;
+        expect(action).toBe(`${base}/api/auth/sso/saml2/sp/acs/globex-saml-idp`);
+        const field = (name: string) => page.match(new RegExp(`name="${name}" value="([^"]*)"`))?.[1] ?? '';
+        const acs = await fetch(action, {
+            method: 'POST',
+            redirect: 'manual',
+            headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: cookiesOf(started) },
+            body: new URLSearchParams({
+                SAMLResponse: field('SAMLResponse'),
+                RelayState: field('RelayState').replaceAll('&quot;', '"')
+            })
+        });
+        expect(acs.status).toBe(302);
+        expect(acs.headers.get('location')).toContain('/account');
+
+        const session = await (await get('/api/auth/get-session', cookiesOf(acs))).json();
+        expect(session.user.email).toBe('lead.sam@saml.globex.test');
+        // Joined the provider's organization, with getRole's role.
+        const member = db()
+            .prepare('select member.role from member join user on user.id = member.userId where user.email = ?')
+            .get('lead.sam@saml.globex.test') as { role: string };
+        expect(member.role).toBe('admin');
+    });
+
+    it("refuses a SAML response that isn't the identity provider's", async () => {
+        const started = await auth('/sign-in/sso', { providerId: 'globex-saml-idp', callbackURL: '/account' });
+        const { url } = (await started.json()) as { url: string };
+        const page = await (await fetch(`${url}&email=mallory@saml.globex.test`)).text();
+        const field = (name: string) => page.match(new RegExp(`name="${name}" value="([^"]*)"`))?.[1] ?? '';
+        // Change who it's for, after the identity provider signed it.
+        const signed = Buffer.from(field('SAMLResponse'), 'base64').toString('utf8');
+        expect(signed).toContain('<ds:Signature');
+        expect(signed).toContain('mallory@saml.globex.test');
+        const forged = Buffer.from(
+            signed.replaceAll('mallory@saml.globex.test', 'lead.sam@saml.globex.test'),
+            'utf8'
+        ).toString('base64');
+        const acs = await fetch(`${base}/api/auth/sso/saml2/sp/acs/globex-saml-idp`, {
+            method: 'POST',
+            redirect: 'manual',
+            headers: { 'content-type': 'application/x-www-form-urlencoded', cookie: cookiesOf(started) },
+            body: new URLSearchParams({
+                SAMLResponse: forged,
+                RelayState: field('RelayState').replaceAll('&quot;', '"')
+            })
+        });
+        expect(cookiesOf(acs)).not.toContain('session_token');
+        expect([302, 400, 401]).toContain(acs.status);
+        if (acs.status === 302) expect(acs.headers.get('location')).toContain('error=');
+    });
 });

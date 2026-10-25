@@ -17,10 +17,11 @@ the app added it, the admin and configuration page show it, Spanish included.
 10. **OAuth popup, what's left.** Done: `oauthPopup` on the sign-in pages, falling back to the redirect. Left: a
     component apps can embed (provider buttons that sign in through the popup); two-factor users get the code page
     inside the popup instead of the opener; Better Auth's docs for the plugin, when they appear.
-11. **Single sign-on, what's left.** Done (tested with a mock OIDC provider, and SAML registration): the plugin, SSO
-    on the sign-in page, the organization's SSO tab, the admin list. Left: providers of a user's own, outside an
-    organization (Better Auth allows them; the page only manages organizations'); trying a real SAML sign-in (Okta,
-    DummyIDP); signing in by provider ID from a link (`/login?sso=<provider>`); private_key_jwt and SP keys in the form.
+11. **Single sign-on, what's left.** Done (tested with a mock OIDC provider, and a SAML sign-in end to end against a
+    signing SAML identity provider, samlify, including a forged response being refused): the plugin, SSO on the
+    sign-in page, the organization's SSO tab, the admin list. Left: providers of a user's own, outside an organization
+    (Better Auth allows them; the page only manages organizations'); signing in by provider ID from a link
+    (`/login?sso=<provider>`); private_key_jwt and SP keys in the form.
 
 ### More sign-in providers
 
