@@ -26,9 +26,10 @@ useSeoMeta({ title: () => t('admin.configuration.title') });
 
 const { capabilities } = useAuthCapabilities();
 const config = useBetterAuthAdminConfig();
-const { twoFactorRequired, captcha } = useRuntimeConfig().public.betterAuthUi as {
+const { twoFactorRequired, captcha, securityAlerts } = useRuntimeConfig().public.betterAuthUi as {
     twoFactorRequired: TwoFactorRequired;
     captcha: { provider: keyof typeof CAPTCHA_NAMES; siteKey: string } | false;
+    securityAlerts: Record<'newSignIn' | 'passwordChanged' | 'twoFactor' | 'passkeyAdded', boolean> | false;
 };
 const CAPTCHA_NAMES = {
     'cloudflare-turnstile': 'Cloudflare Turnstile',
@@ -161,6 +162,19 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                     )
                 },
                 {
+                    label: t('admin.configuration.rows.securityAlerts'),
+                    ...(securityAlerts
+                        ? on(
+                              true,
+                              (['newSignIn', 'passwordChanged', 'twoFactor', 'passkeyAdded'] as const)
+                                  .filter((alert) => securityAlerts[alert])
+                                  .map((alert) => t(`admin.configuration.rows.alerts.${alert}`))
+                                  .join(', ')
+                          )
+                        : on(false)),
+                    hint: securityAlerts ? t('admin.configuration.rows.securityAlertsHint') : undefined
+                },
+                {
                     label: t('admin.configuration.rows.captcha'),
                     ...(captcha ? on(true, CAPTCHA_NAMES[captcha.provider]) : on(false)),
                     hint: captcha ? t('admin.configuration.rows.onSignUp') : undefined
@@ -267,7 +281,11 @@ const EMAIL_LABELS: Record<(typeof EMAIL_NAMES)[number], MessageKey> = {
     'change-email-confirmation': 'admin.configuration.emails.changeEmailConfirmation',
     'delete-account': 'admin.configuration.emails.deleteAccount',
     'two-factor-code': 'admin.configuration.emails.twoFactorCode',
-    'magic-link': 'admin.configuration.emails.magicLink'
+    'magic-link': 'admin.configuration.emails.magicLink',
+    'new-sign-in': 'admin.configuration.emails.newSignIn',
+    'password-changed': 'admin.configuration.emails.passwordChanged',
+    'two-factor-changed': 'admin.configuration.emails.twoFactorChanged',
+    'passkey-added': 'admin.configuration.emails.passkeyAdded'
 };
 
 // Who can do what: Better Auth's Admin permissions, checked against each role exactly as the server checks them.

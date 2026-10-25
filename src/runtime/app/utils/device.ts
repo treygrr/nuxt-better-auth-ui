@@ -1,10 +1,14 @@
-import type { MessageKey, MessageParams } from '../i18n';
+/** The words `device` asks a translator for; useAuthI18n's `t` is one. Typed here so the server can use it too. */
+type DeviceWords = (
+    key: 'admin.device.unknown' | 'admin.device.browser' | 'admin.device.on',
+    params?: { browser: string; os: string }
+) => string;
 
 /**
  * A readable device from a user agent, eg "Chrome on Linux". With useAuthI18n's `t`, the connecting words are in
  * the visitor's language; English otherwise. Browser and OS names stay as they are.
  */
-export function device(userAgent?: string | null, t?: (key: MessageKey, params?: MessageParams) => string) {
+export function device(userAgent?: string | null, t?: DeviceWords) {
     if (!userAgent) return t?.('admin.device.unknown') ?? 'Unknown device';
     const browser = /Edg\//.test(userAgent)
         ? 'Edge'

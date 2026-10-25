@@ -2,18 +2,12 @@
 
 ## Pinned
 
-1. **Security alert emails.** "New sign-in from Chrome on Windows", "Your password was changed", "Two-factor was
-   turned off", "A passkey was added". Through the existing email system (templates, Spanish), each alert switchable.
-   Cheap protection against account takeover.
-2. **Sign in with an emailed code** (Better Auth's Email OTP plugin). A 6-digit code instead of a link: works when
+1. **Sign in with an emailed code** (Better Auth's Email OTP plugin). A 6-digit code instead of a link: works when
    someone signs in on another device than their email (a TV, a console, a shared computer). Email template, Spanish.
-3. **"Download my data", and gentler deletion.** A JSON export of the profile, sign-in methods, sessions and audit
+2. **"Download my data", and gentler deletion.** A JSON export of the profile, sign-in methods, sessions and audit
    history from the account page (GDPR's right of access); optionally a grace period to cancel a deletion.
-4. **Moderator notes on users.** A private notes thread on each user's admin page, in the module's own table (never
+3. **Moderator notes on users.** A private notes thread on each user's admin page, in the module's own table (never
    Better Auth's): "Warned for spam in chat". Moderation history beyond the ban reason. Audit-logged.
-5. **Browser tests in the repo.** Turn the Playwright walkthroughs into an e2e suite: passkeys (virtual
-   authenticator), two-factor, magic links, captcha (test keys), the account tabs, Spanish, hydration. Guards the
-   parts that lean on Better Auth internals across upgrades. Before publishing.
 
 ## Better Auth plugins: planned
 

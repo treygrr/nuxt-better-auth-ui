@@ -172,6 +172,8 @@ export default defineNuxtConfig({
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
+        // Emails about new-device sign-ins, password changes, two-factor and passkeys. See "Security alerts" below.
+        securityAlerts: false,
         // The pages' and default emails' language: 'en' or 'es'. See "Languages" below.
         locale: 'en',
         // Auth emails: delivery and templates. See "Emails" below.
@@ -351,6 +353,27 @@ betterAuthUi: {
 - **Last used:** Better Auth's Last Login Method plugin remembers the method in a cookie for 30 days (a non-essential
   cookie, under GDPR); the sign-in page reads it on the server, so there's no flash.
 
+## Security alerts
+
+`securityAlerts: true` emails an account's owner when something sensitive happens to it, or pick some:
+`securityAlerts: { newSignIn: true, passwordChanged: true }`. They go through the module's emails (needs
+`emails.send`), with a link to the account page's tab where they can act.
+
+| Alert             | Template             | When                                                                        |
+| ----------------- | -------------------- | --------------------------------------------------------------------------- |
+| `newSignIn`       | `new-sign-in`        | A sign-in from a browser and OS the account hasn't used before              |
+| `passwordChanged` | `password-changed`   | The password is changed, reset, set for the first time, or set by an admin |
+| `twoFactor`       | `two-factor-changed` | Two-factor is turned on or off, including an admin's reset                  |
+| `passkeyAdded`    | `passkey-added`      | A passkey is added                                                          |
+
+- "A device the account hasn't used before" compares the browser and OS ("Chrome on Windows") with the account's other
+  sessions and, with the audit log on, its last 100 sign-ins. It's a hint, not a fingerprint: a second Windows PC with
+  Chrome counts as known.
+- No alert in an account's first two minutes (signing up signs in), or when an admin impersonates someone. With
+  two-factor on, the alert comes after the code, when the sign-in really completes.
+- Better Auth's database hooks see each change, whichever endpoint made it, so the module doesn't wrap Better Auth's
+  endpoints. Times are written in UTC, in the emails' language.
+
 ## Languages
 
 The sign-in pages, the account page, the admin dashboard and the default emails come in English and Spanish:
@@ -438,6 +461,10 @@ own templates, delivered by your own function (Resend, SMTP, …).
 | `delete-account`        | `user.deleteUser.sendDeleteAccountVerification` | `{ user, url, token }` |
 | `two-factor-code`       | Two-Factor `otpOptions.sendOTP` (added by the module with `twoFactor.otp`) | `{ user, otp }` |
 | `magic-link`            | Magic Link `sendMagicLink` (added by the module with `magicLink`) | `{ email, url, token }` (no `user`: there may be no account yet) |
+| `new-sign-in`           | The module's `securityAlerts.newSignIn`     | `{ user, device, ipAddress, time, accountUrl }` |
+| `password-changed`      | The module's `securityAlerts.passwordChanged` | `{ user, time, accountUrl }` |
+| `two-factor-changed`    | The module's `securityAlerts.twoFactor`     | `{ user, enabled, time, accountUrl }` |
+| `passkey-added`         | The module's `securityAlerts.passkeyAdded`  | `{ user, name, time, accountUrl }` |
 
 Emails are sent in the background, not awaited, as
 [Better Auth advises](https://better-auth.com/docs/concepts/email) (waiting would reveal through timing which emails

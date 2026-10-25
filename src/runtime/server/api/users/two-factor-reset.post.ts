@@ -1,6 +1,8 @@
-import { createError, defineEventHandler, getRouterParam } from '#imports';
+import { createError, defineEventHandler, getRouterParam, useRuntimeConfig } from '#imports';
 
+import { alertTwoFactorReset } from '../../alerts/plugin';
 import type { AuditPerson } from '../../audit/plugin';
+import type { EmailUser } from '../../emails/types';
 import { recordAdminAction, requireAdminPermission, requireUser } from '../../utils/admin';
 
 /**
@@ -34,5 +36,13 @@ export default defineEventHandler(async (event) => {
         actor: admin as AuditPerson,
         target: user as AuditPerson
     });
+    // With security alerts, they hear about it: it happened without them.
+    const config = useRuntimeConfig().public.betterAuthUi as {
+        securityAlerts: { twoFactor: boolean } | false;
+        pages: { account: string | false };
+    };
+    if (config.securityAlerts && config.securityAlerts.twoFactor) {
+        await alertTwoFactorReset(user as EmailUser, context.baseURL, config.pages.account);
+    }
     return { reset: true };
 });

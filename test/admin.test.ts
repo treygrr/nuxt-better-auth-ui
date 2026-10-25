@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { base, cookiesOf, Database, databasePath, totp } from './helpers';
+import { base, cookiesOf, Database, databasePath, totp, waitForEmail } from './helpers';
 
 /** Signs up (or in) and returns the session cookie */
 const signIn = async (name: string, path: 'sign-up' | 'sign-in') => {
@@ -1216,6 +1216,9 @@ describe('helping someone who lost a device', () => {
 
         const user = await (await get(`/api/auth/admin/get-user?id=${tess}`, adminCookie)).json();
         expect(user.twoFactorEnabled).toBe(false);
+        // With security alerts on, she hears about it.
+        const alert = await waitForEmail('tess@example.com', 'two-factor-changed');
+        expect(alert.subject).toBe('Two-factor authentication was turned off');
         const signIn = await fetch(`${base}/api/auth/sign-in/email`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', origin: base },

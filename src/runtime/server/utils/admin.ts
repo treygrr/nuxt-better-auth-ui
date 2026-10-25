@@ -40,6 +40,7 @@ type AdminAuth = {
         }): Promise<{ success: boolean }>;
     };
     $context: Promise<{
+        baseURL: string;
         options: {
             account?: { accountLinking?: { allowUnlinkingAll?: boolean } };
             secondaryStorage?: unknown;

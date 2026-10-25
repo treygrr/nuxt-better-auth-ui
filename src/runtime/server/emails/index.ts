@@ -108,3 +108,12 @@ export const betterAuthEmails = {
     magicLink: async ({ email, url, token }: BetterAuthEmails['magic-link']) =>
         sendInBackground('magic-link', { email, url, token })
 };
+
+/** Sends any of the module's emails in the background: for the module's own plugins, such as the security alerts. */
+export const sendAuthEmail = sendInBackground;
+
+/** The language the default emails are in (betterAuthUi.locale), eg for dates written into an email. */
+export async function emailLocale() {
+    const { emailConfig } = (await import('#better-auth-ui/email-config')) as { emailConfig: EmailConfig };
+    return emailConfig.locale ?? 'en';
+}

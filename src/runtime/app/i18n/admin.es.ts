@@ -432,6 +432,14 @@ export const adminEs = {
             breachedPasswords: 'Contraseñas filtradas',
             refused: 'Rechazadas (Have I Been Pwned)',
             allowed: 'Permitidas',
+            securityAlerts: 'Alertas de seguridad',
+            securityAlertsHint: 'Se envían por correo al titular de la cuenta',
+            alerts: {
+                newSignIn: 'dispositivos nuevos',
+                passwordChanged: 'cambios de contraseña',
+                twoFactor: 'dos pasos',
+                passkeyAdded: 'llaves de acceso nuevas'
+            },
             captcha: 'Captcha',
             onSignUp: 'Al registrarse',
             impersonation: 'Suplantación',
@@ -464,7 +472,11 @@ export const adminEs = {
             changeEmailConfirmation: 'Aprobar un cambio de correo',
             deleteAccount: 'Confirmar la eliminación de una cuenta',
             twoFactorCode: 'Código de verificación en dos pasos',
-            magicLink: 'Enlace de inicio de sesión'
+            magicLink: 'Enlace de inicio de sesión',
+            newSignIn: 'Alerta: nuevo inicio de sesión',
+            passwordChanged: 'Alerta: contraseña cambiada',
+            twoFactorChanged: 'Alerta: dos pasos activada o desactivada',
+            passkeyAdded: 'Alerta: llave de acceso agregada'
         },
         roles: {
             title: 'Roles y permisos',

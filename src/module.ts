@@ -4,6 +4,7 @@ import type { NuxtPage } from '@nuxt/schema';
 
 import { resolveRoles, rolesFile, rolesTypes, type AdminRolePermissions } from './roles';
 import { EMAIL_NAMES, type BetterAuthEmailName } from './runtime/server/emails/types';
+import type { SecurityAlerts } from './runtime/server/alerts/plugin';
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
 import { ADMIN_API, UI_API } from './runtime/constants';
 import { safeLocalPath } from './runtime/app/utils/redirect';
@@ -239,6 +240,13 @@ export type ModuleOptions = {
      */
     lastLoginMethod: boolean;
     /**
+     * Emails the account's owner about a sign-in from a new device, a password change, two-factor turned on or off,
+     * and a passkey added (templates `new-sign-in`, `password-changed`, `two-factor-changed`, `passkey-added`). `true`
+     * for all, or pick: `{ newSignIn: true, passwordChanged: true }`. Needs `emails.send`.
+     * @default false
+     */
+    securityAlerts: boolean | Partial<SecurityAlerts>;
+    /**
      * Auth emails, sent through `betterAuthEmails` in the app's auth config. Paths are relative to the project
      * root, eg `./server/emails/send.ts`; Nuxt aliases work too (`~~/server/…`).
      */
@@ -256,6 +264,19 @@ export type ModuleOptions = {
 /** The Better Auth paths the captcha guards: signing up and asking for a magic link (which can sign up), by default. */
 const captchaEndpoints = ({ captcha, magicLink }: ModuleOptions) =>
     (captcha && captcha.endpoints) || ['/sign-up/email', ...(magicLink.enabled ? ['/sign-in/magic-link'] : [])];
+
+/** `securityAlerts: true` turns every alert on; an object turns on the ones it names. False when none are. */
+const resolveSecurityAlerts = (option: ModuleOptions['securityAlerts']): SecurityAlerts | false => {
+    const all = option === true;
+    const picked = typeof option === 'object' ? option : {};
+    const alerts: SecurityAlerts = {
+        newSignIn: all || !!picked.newSignIn,
+        passwordChanged: all || !!picked.passwordChanged,
+        twoFactor: all || !!picked.twoFactor,
+        passkeyAdded: all || !!picked.passkeyAdded
+    };
+    return Object.values(alerts).some(Boolean) ? alerts : false;
+};
 
 /** The layout the admin pages use: a Nuxt UI dashboard, separate from the app's own layouts. */
 const LAYOUT = 'better-auth-ui';
@@ -295,6 +316,7 @@ export default defineNuxtModule<ModuleOptions>({
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
+        securityAlerts: false,
         emails: {}
     },
     // Installed before this module, in order, and checked against these versions.
@@ -416,11 +438,14 @@ export default defineNuxtModule<ModuleOptions>({
                 `[better-auth-ui] signOutRedirect must be a path on your site, eg '/', not "${moduleOptions.signOutRedirect}".`
             );
         }
+        const securityAlerts = resolveSecurityAlerts(moduleOptions.securityAlerts);
         (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = {
             pages: pagePaths,
             signOutRedirect: moduleOptions.signOutRedirect,
             twoFactorRequired: twoFactor.required,
             locale: moduleOptions.locale,
+            // Which alerts are on: the configuration page lists them, and the admin's two-factor reset sends one.
+            securityAlerts,
             // The widget's public half; the secret key stays on the server (BETTER_AUTH_CAPTCHA_SECRET_KEY).
             captcha: moduleOptions.captcha
                 ? {
@@ -619,6 +644,13 @@ export default defineNuxtModule<ModuleOptions>({
                     'export default lastLoginMethodClient()'
                 ]
             );
+        }
+        if (securityAlerts) {
+            if (!emails.send) throw new Error('[better-auth-ui] securityAlerts are emails: set emails.send too.');
+            addAuthPlugin('security-alerts', [
+                `import { securityAlerts } from ${JSON.stringify(resolve('./runtime/server/alerts/plugin'))}`,
+                `export default securityAlerts(${JSON.stringify({ ...securityAlerts, accountPath: pagePaths.account })})`
+            ]);
         }
         if (!options.enabled) return;
 

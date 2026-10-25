@@ -21,6 +21,8 @@ export default defineNuxtConfig({
         username: { enabled: true },
         magicLink: { enabled: true },
         lastLoginMethod: true,
+        // Emails (to the outbox) about new-device sign-ins, password changes, two-factor and passkeys.
+        securityAlerts: true,
         // Refuses breached passwords: off unless PLAYGROUND_HIBP=1, since the seeded and test accounts use one.
         haveIBeenPwned: process.env.PLAYGROUND_HIBP === '1',
         // Captcha on signing up, when .env has keys (Cloudflare's test keys always pass; see .env.example).

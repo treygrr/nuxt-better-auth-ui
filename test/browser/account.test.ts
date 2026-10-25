@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { totp } from '../helpers';
+import { totp, waitForEmail } from '../helpers';
 import { hasBrowser, signInWithForm, signUp, useBrowser } from './browser';
 
 // The account page in a real browser: its tabs, two-factor and passkeys end to end, and hydration on every tab.
@@ -79,6 +79,7 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await session.page.getByPlaceholder(/Name it/).fill('Test key');
         await session.page.getByRole('button', { name: 'Add a passkey' }).click();
         await session.page.getByText('Test key', { exact: true }).waitFor({ timeout: 10_000 });
+        expect((await waitForEmail('pip@browser.test', 'passkey-added')).text).toContain('"Test key"');
 
         await session.context.clearCookies();
         await session.go('/login?redirect=/account');

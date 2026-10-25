@@ -26,6 +26,16 @@ export type BetterAuthEmails = {
     'two-factor-code': { user: EmailUser; otp: string };
     /** Magic Link plugin `sendMagicLink`, when `betterAuthUi.magicLink` is on. There may be no account yet. */
     'magic-link': { email: string; url: string; token: string };
+    // Security alerts (betterAuthUi.securityAlerts). `time` is formatted in the emails' language, in UTC; `accountUrl`
+    // is the account page, where they can sign devices out and change their password.
+    /** Someone signed in from a device the account hasn't used before. */
+    'new-sign-in': { user: EmailUser; device: string; ipAddress: string | null; time: string; accountUrl: string };
+    /** The password was changed, reset, or set by an admin. */
+    'password-changed': { user: EmailUser; time: string; accountUrl: string };
+    /** Two-factor was turned on or off (by them, or by an admin). */
+    'two-factor-changed': { user: EmailUser; enabled: boolean; time: string; accountUrl: string };
+    /** A passkey was added to the account. */
+    'passkey-added': { user: EmailUser; name: string | null; time: string; accountUrl: string };
 };
 
 export type BetterAuthEmailName = keyof BetterAuthEmails;
@@ -38,7 +48,11 @@ export const EMAIL_NAMES: BetterAuthEmailName[] = [
     'change-email-confirmation',
     'delete-account',
     'two-factor-code',
-    'magic-link'
+    'magic-link',
+    'new-sign-in',
+    'password-changed',
+    'two-factor-changed',
+    'passkey-added'
 ];
 
 /** What a template returns: an HTML body (with the default subject), or the parts it wants to set. */

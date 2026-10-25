@@ -431,6 +431,14 @@ export const adminEn = {
             breachedPasswords: 'Breached passwords',
             refused: 'Refused (Have I Been Pwned)',
             allowed: 'Allowed',
+            securityAlerts: 'Security alerts',
+            securityAlertsHint: 'Emailed to the account’s owner',
+            alerts: {
+                newSignIn: 'new devices',
+                passwordChanged: 'password changes',
+                twoFactor: 'two-factor',
+                passkeyAdded: 'new passkeys'
+            },
             captcha: 'Captcha',
             onSignUp: 'On signing up',
             impersonation: 'Impersonation',
@@ -464,7 +472,11 @@ export const adminEn = {
             changeEmailConfirmation: 'Approve an email change',
             deleteAccount: 'Confirm deleting an account',
             twoFactorCode: 'Two-factor code',
-            magicLink: 'Sign-in link'
+            magicLink: 'Sign-in link',
+            newSignIn: 'Alert: new sign-in',
+            passwordChanged: 'Alert: password changed',
+            twoFactorChanged: 'Alert: two-factor on or off',
+            passkeyAdded: 'Alert: passkey added'
         },
         roles: {
             title: 'Roles and permissions',
