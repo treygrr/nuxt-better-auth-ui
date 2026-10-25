@@ -1,22 +1,6 @@
-import { execSync, spawn, type ChildProcess } from 'node:child_process';
-import { createHmac } from 'node:crypto';
-import { once } from 'node:events';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { beforeAll, describe, expect, it } from 'vitest';
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-const playgroundDir = fileURLToPath(new URL('../playground', import.meta.url));
-const Database = createRequire(join(playgroundDir, 'package.json'))('better-sqlite3');
-
-const port = 3941;
-const base = `http://localhost:${port}`;
-const dataDir = mkdtempSync(join(tmpdir(), 'better-auth-ui-'));
-const databasePath = join(dataDir, 'auth.sqlite');
-let server: ChildProcess;
+import { base, cookiesOf, Database, databasePath, totp } from './helpers';
 
 /** Signs up (or in) and returns the session cookie */
 const signIn = async (name: string, path: 'sign-up' | 'sign-in') => {
@@ -35,27 +19,6 @@ const signIn = async (name: string, path: 'sign-up' | 'sign-in') => {
 const get = (path: string, cookie?: string) =>
     fetch(`${base}${path}`, { redirect: 'manual', headers: cookie ? { cookie } : {} });
 
-/** A response's cookies, to send with the next request. */
-const cookiesOf = (response: Response) =>
-    response.headers
-        .getSetCookie()
-        .map((cookie) => cookie.split(';')[0])
-        .join('; ');
-
-/** The current code for an otpauth:// URI, as an authenticator app works it out (RFC 6238). */
-const totp = (uri: string) => {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    const bits = [...new URL(uri).searchParams.get('secret')!.replace(/=+$/, '')]
-        .map((char) => alphabet.indexOf(char).toString(2).padStart(5, '0'))
-        .join('');
-    const key = Buffer.from(bits.match(/.{8}/g)!.map((byte) => parseInt(byte, 2)));
-    const counter = Buffer.alloc(8);
-    counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
-    const hmac = createHmac('sha1', key).update(counter).digest();
-    const offset = hmac[hmac.length - 1]! & 0xf;
-    return String((hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0');
-};
-
 /** Turns on two-factor with an authenticator app, as the account page does; returns the new session's cookie. */
 const setUpTwoFactor = async (cookie: string, password?: string) => {
     const post = (path: string, body: object, cookie: string) =>
@@ -73,50 +36,13 @@ const setUpTwoFactor = async (cookie: string, password?: string) => {
 let userCookie: string;
 let adminCookie: string;
 
+// The playground server is global-setup.ts's, shared with the browser tests (which run after these).
 beforeAll(async () => {
-    // Without the .env's optional extras (set, so Nuxt's .env loading doesn't fill them in): no captcha, which API
-    // sign-ups can't solve, no breached-password check (the tests use password123), and English.
-    execSync('pnpm exec nuxt build', {
-        cwd: playgroundDir,
-        stdio: 'pipe',
-        env: { ...process.env, PLAYGROUND_CAPTCHA_SITE_KEY: '', PLAYGROUND_HIBP: '', PLAYGROUND_LOCALE: '' }
-    });
-    server = spawn(process.execPath, ['.output/server/index.mjs'], {
-        cwd: playgroundDir,
-        env: {
-            ...process.env,
-            PORT: String(port),
-            AUTH_DATABASE_PATH: databasePath,
-            NUXT_APP_SECRET: 'playground-secret-at-least-32-characters-long',
-            NUXT_PUBLIC_SITE_URL: base,
-            PLAYGROUND_MOCK_OAUTH: '1'
-        },
-        stdio: ['ignore', 'pipe', 'pipe']
-    });
-    let output = '';
-    await new Promise<void>((resolve, reject) => {
-        const onData = (data: Buffer) => {
-            output += data;
-            if (output.includes('Listening on')) resolve();
-        };
-        server.stdout!.on('data', onData);
-        server.stderr!.on('data', onData);
-        server.once('exit', (code) => reject(new Error(`Server exited with ${code}:\n${output}`)));
-    });
-
     userCookie = await signIn('alice', 'sign-up');
     await signIn('bob', 'sign-up');
     // There's no admin yet to grant the role, so set it in the database, as an app would once.
     new Database(databasePath).prepare("update user set role = 'admin' where email = 'bob@example.com'").run();
     adminCookie = await signIn('bob', 'sign-in');
-});
-
-afterAll(async () => {
-    if (server?.exitCode === null) {
-        server.kill('SIGTERM');
-        await once(server, 'exit');
-    }
-    rmSync(dataDir, { recursive: true, force: true });
 });
 
 describe('the admin pages', () => {

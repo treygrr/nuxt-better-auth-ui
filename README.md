@@ -504,10 +504,15 @@ pnpm install
 cp playground/.env.example playground/.env
 pnpm dev:prepare
 pnpm dev         # the playground
-pnpm test        # builds the module and the playground, then checks access control against the built server
+pnpm test        # builds the module and the playground, starts it once, then runs the API tests and the browser tests
 pnpm typecheck
 pnpm fmt
 ```
+
+The browser tests (`test/browser/`) drive Chromium through the pages: signing up and in, magic links, password
+resets, the account tabs, two-factor end to end, passkeys with Chromium's virtual authenticator, and the admin. Any
+console error or warning fails them, so a hydration mismatch does. They use `CHROMIUM_PATH`, a system Chromium or
+Chrome, or Playwright's own (`npx playwright install chromium`); without one they're skipped.
 
 On startup the playground seeds an admin (`admin@example.com` / `password123` by default) and 40 mock users from
 `playground/.env`: join dates over six months, verified and unverified emails, two more admins, three bans
