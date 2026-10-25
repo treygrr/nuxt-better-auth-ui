@@ -52,10 +52,27 @@ export const adminEn = {
         home: 'Home',
         users: 'Users',
         organizations: 'Organizations',
+        sso: 'Single sign-on',
         sessions: 'Sessions',
         auditLog: 'Audit log',
         configuration: 'Configuration',
         backToSite: 'Back to site'
+    },
+    sso: {
+        title: 'Single sign-on',
+        intro: "Every identity provider (OIDC or SAML). Organizations' owners and admins manage theirs from the organization's page.",
+        search: 'Search by provider, domain or organization…',
+        loadFailed: "Couldn't load the identity providers",
+        empty: 'No identity providers yet.',
+        verified: 'Verified',
+        unverified: 'Not verified',
+        noOrganization: 'None',
+        columns: {
+            provider: 'Provider',
+            domain: 'Domains',
+            organization: 'Organization',
+            registeredBy: 'Added by'
+        }
     },
     organizations: {
         title: 'Organizations',
@@ -522,6 +539,9 @@ export const adminEn = {
             apiKeys: 'API keys',
             organizations: 'Organizations',
             organizationsNoCreate: "Users can't create them",
+            sso: 'Single sign-on',
+            ssoDomainsVerified: 'Providers work once their domains are verified',
+            ssoDomainsUnverified: "Domains aren't verified: turn on sso.domainVerification in production",
             stripe: 'Subscriptions (Stripe)',
             bearerTokens: 'Bearer tokens',
             oauthPopup: 'Provider sign-in in a popup',

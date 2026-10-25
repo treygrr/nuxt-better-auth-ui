@@ -47,6 +47,15 @@ export default defineNuxtConfig({
             // Hooks and other function options.
             serverOptions: './server/auth/organization.ts'
         },
+        // Single sign-on: "Sign in with SSO", an SSO tab on organizations' pages for their OIDC and SAML providers, and
+        // the admin's list. Providers work once their domains are verified (a DNS TXT record); the tests' mock identity
+        // provider is at /api/_playground/oidc. Who joins as what is in serverOptions.
+        sso: {
+            enabled: true,
+            domainVerification: true,
+            organizationProvisioning: { defaultRole: 'member' },
+            serverOptions: './server/auth/sso.ts'
+        },
         // A "Billing" tab and each user's subscription in the admin. The prices are made up: with STRIPE_SECRET_KEY and
         // your own test prices, Checkout and the billing portal work; without, the pages show and Stripe calls fail.
         stripe: {

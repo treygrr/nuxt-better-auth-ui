@@ -213,6 +213,15 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                             ? t('admin.configuration.rows.organizationsNoCreate')
                             : undefined
                 },
+                {
+                    label: t('admin.configuration.rows.sso'),
+                    ...on(!!c.sso, 'OIDC, SAML 2.0'),
+                    hint: c.sso
+                        ? c.sso.domainVerification.enabled
+                            ? t('admin.configuration.rows.ssoDomainsVerified')
+                            : t('admin.configuration.rows.ssoDomainsUnverified')
+                        : undefined
+                },
                 { label: t('admin.configuration.rows.stripe'), ...on(c.stripe) },
                 { label: t('admin.configuration.rows.apiKeys'), ...on(c.apiKey) },
                 { label: t('admin.configuration.rows.deviceSignIn'), ...on(c.deviceAuthorization) },

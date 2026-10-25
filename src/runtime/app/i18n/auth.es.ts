@@ -79,6 +79,18 @@ export const authEs = {
             resend: 'Enviar un código nuevo',
             resent: 'Código nuevo enviado'
         },
+        sso: {
+            button: 'Iniciar sesión con SSO',
+            title: 'Inicio de sesión único',
+            description: 'Inicia sesión con el proveedor de identidad de tu empresa.',
+            label: 'Correo del trabajo u organización',
+            placeholder: 'tu@empresa.com',
+            submit: 'Continuar',
+            failed: 'No se pudo iniciar el inicio de sesión único',
+            notFound: 'No hay inicio de sesión único configurado para ese correo u organización.',
+            notReady:
+                'El inicio de sesión único de esta organización aún no está listo: su dominio no se ha verificado.'
+        },
         guest: {
             button: 'Continuar como invitado',
             failed: 'No se pudo crear una cuenta de invitado',
@@ -147,7 +159,8 @@ export const authEs = {
             members: 'Miembros',
             invitations: 'Invitaciones',
             teams: 'Equipos',
-            roles: 'Roles'
+            roles: 'Roles',
+            sso: 'SSO'
         },
         general: {
             title: 'Datos',
@@ -229,6 +242,80 @@ export const authEs = {
             created: 'Se creó {name}',
             updated: 'Rol guardado',
             deleted: 'Se eliminó {name}'
+        },
+        sso: {
+            title: 'Inicio de sesión único',
+            description:
+                'Proveedores de identidad (OIDC o SAML) con los que inician sesión tus miembros, por el dominio de su correo del trabajo o el identificador de esta organización. Al hacerlo, se unen a ella.',
+            none: 'Aún no hay proveedores de identidad.',
+            register: 'Añadir proveedor',
+            registerTitle: 'Añadir un proveedor de identidad',
+            registerHint: 'Los datos de tu proveedor de identidad. La mayoría de los OIDC completan el resto solos.',
+            editTitle: 'Editar proveedor de identidad',
+            editHint: 'Los campos vacíos conservan lo guardado: secretos, certificados y correspondencias.',
+            registered: 'Se añadió {name}',
+            updated: 'Proveedor guardado',
+            edit: 'Editar',
+            delete: 'Eliminar',
+            deleteConfirm: '¿Eliminar {name}?',
+            deleteDescription: 'Sus miembros ya no podrán iniciar sesión con él.',
+            deleted: 'Se eliminó {name}',
+            issuer: 'Emisor',
+            redirectUri: 'URI de redirección',
+            acsUrl: 'URL de ACS',
+            spMetadata: 'Metadatos del SP',
+            spMetadataLink: 'Abrir el XML de metadatos',
+            copy: 'Copiar',
+            copied: 'Copiado',
+            domainVerified: 'Dominio verificado',
+            domainUnverified: 'Dominio sin verificar',
+            verifyTitle: 'Verifica tu dominio',
+            verifyDescription:
+                'Añade este registro TXT a tu DNS, en cada dominio, y luego verifica. Hasta entonces, nadie puede iniciar sesión con este proveedor.',
+            recordName: 'Nombre',
+            recordValue: 'Valor',
+            showToken: 'Mostrar el valor',
+            verify: 'Verificar dominio',
+            verified: 'Se verificó {domain}',
+            form: {
+                type: 'Protocolo',
+                providerId: 'ID del proveedor',
+                providerIdHelp: 'Letras, números, _ y -. Forma parte de sus direcciones, así que no puede cambiar.',
+                domain: 'Dominios de correo',
+                domainHelp: 'De quiénes inician sesión con él. Separa varios con comas.',
+                issuer: 'Emisor',
+                issuerOidcHelp: 'La URL del emisor del proveedor: de ahí se leen sus datos.',
+                issuerSamlHelp: 'El ID de entidad de esta aplicación para el proveedor, p. ej. https://tuapp.com/saml.',
+                clientId: 'ID de cliente',
+                clientSecret: 'Secreto de cliente',
+                entryPoint: 'URL de inicio de sesión',
+                entryPointHelp: 'La dirección de inicio de sesión único del proveedor de identidad.',
+                metadata: 'XML de metadatos del proveedor de identidad',
+                metadataHelp: 'Pégalo, o indica en su lugar el ID de entidad y el certificado.',
+                entityID: 'ID de entidad del proveedor de identidad',
+                cert: 'Certificado de firma',
+                certHelp: 'PEM. No hace falta si el XML de metadatos lo incluye.',
+                advanced: 'Más ajustes',
+                scopes: 'Ámbitos',
+                scopesHelp: 'Separados por espacios. Por defecto: openid email profile offline_access.',
+                discoveryEndpoint: 'URL de descubrimiento',
+                discoveryEndpointHelp: 'Por defecto: /.well-known/openid-configuration del emisor.',
+                tokenAuth: 'Autenticación del endpoint de tokens',
+                discovered: 'La que indique el proveedor',
+                pkce: 'Usar PKCE',
+                audience: 'Audiencia',
+                audienceHelp: 'Si el proveedor espera una distinta del emisor de arriba.',
+                identifierFormat: 'Formato de NameID',
+                signatureAlgorithm: 'Algoritmo de firma',
+                digestAlgorithm: 'Algoritmo de resumen',
+                idpInitiatedCallbackUrl: 'Tras inicios de sesión desde el proveedor, ir a',
+                idpInitiatedCallbackUrlHelp:
+                    'Para inicios de sesión empezados desde el panel del proveedor de identidad.',
+                wantAssertionsSigned: 'Exigir aserciones firmadas',
+                authnRequestsSigned: 'Firmar las solicitudes',
+                mapping: 'Correspondencia del perfil',
+                mappingHelp: 'El atributo o claim del proveedor para cada uno, si no es el habitual.'
+            }
         }
     },
     finishAccount: {
@@ -603,6 +690,7 @@ export const authEs = {
         EXPIRED_TOKEN: 'Ese enlace para iniciar sesión caducó. Pide uno nuevo.',
         new_user_signup_disabled: 'Ese correo no tiene cuenta, y los enlaces no pueden crear cuentas nuevas.',
         failed_to_create_user: 'No se pudo crear tu cuenta. Vuelve a intentarlo.',
+        invalid_provider: 'El inicio de sesión único de tu organización no funciona. Pregunta a su administrador.',
         unknown: 'No se pudo iniciar tu sesión ({code}). Vuelve a intentarlo.'
     },
     errors: {
@@ -616,6 +704,8 @@ export const authEs = {
         PASSWORD_TOO_SHORT: 'Esa contraseña es demasiado corta.',
         PASSWORD_TOO_LONG: 'Esa contraseña es demasiado larga.',
         PASSWORD_COMPROMISED: 'Esa contraseña apareció en una filtración de datos, así que no es segura. Elige otra.',
+        DOMAIN_VERIFICATION_FAILED:
+            'No se encontró el registro TXT. Comprueba que está en cada dominio, espera a que se actualice el DNS y vuelve a intentarlo.',
         EMAIL_NOT_VERIFIED: 'Primero verifica tu correo.',
         SESSION_EXPIRED: 'Por tu seguridad, vuelve a iniciar sesión e inténtalo otra vez.',
         INVALID_TOKEN: 'Ese enlace caducó o ya se usó.',

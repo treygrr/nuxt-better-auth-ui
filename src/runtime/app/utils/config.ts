@@ -22,6 +22,8 @@ export type BetterAuthAdminPublicConfig = {
     notes: boolean;
     /** The module added the Organization plugin: the admin's organization pages. */
     organizations: boolean;
+    /** The module added the SSO plugin: the admin's SSO providers page. */
+    sso: boolean;
     /** Whether the app set an email sender, and the emails it has its own template for. */
     emails: { send: boolean; templates: string[] };
 };

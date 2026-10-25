@@ -51,10 +51,27 @@ export const adminEs = {
         home: 'Inicio',
         users: 'Usuarios',
         organizations: 'Organizaciones',
+        sso: 'Inicio de sesión único',
         sessions: 'Sesiones',
         auditLog: 'Registro de auditoría',
         configuration: 'Configuración',
         backToSite: 'Volver al sitio'
+    },
+    sso: {
+        title: 'Inicio de sesión único',
+        intro: 'Todos los proveedores de identidad (OIDC o SAML). Los propietarios y administradores de cada organización gestionan los suyos desde la página de la organización.',
+        search: 'Buscar por proveedor, dominio u organización…',
+        loadFailed: 'No se pudieron cargar los proveedores de identidad',
+        empty: 'Aún no hay proveedores de identidad.',
+        verified: 'Verificado',
+        unverified: 'Sin verificar',
+        noOrganization: 'Ninguna',
+        columns: {
+            provider: 'Proveedor',
+            domain: 'Dominios',
+            organization: 'Organización',
+            registeredBy: 'Añadido por'
+        }
     },
     organizations: {
         title: 'Organizaciones',
@@ -524,6 +541,9 @@ export const adminEs = {
             apiKeys: 'Claves de API',
             organizations: 'Organizaciones',
             organizationsNoCreate: 'Los usuarios no pueden crearlas',
+            sso: 'Inicio de sesión único',
+            ssoDomainsVerified: 'Los proveedores funcionan cuando se verifican sus dominios',
+            ssoDomainsUnverified: 'Los dominios no se verifican: activa sso.domainVerification en producción',
             stripe: 'Suscripciones (Stripe)',
             bearerTokens: 'Tokens Bearer',
             oauthPopup: 'Inicio de sesión con proveedores en una ventana emergente',

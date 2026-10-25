@@ -547,7 +547,9 @@ betterAuthUi: {
 
 The module builds the roles with Better Auth's access control and passes them (`ac` and `roles`) to the server and
 client plugins, and checks them at build time: a permission on a resource or action that doesn't exist fails the
-build. Your API checks them with Better Auth's `auth.api.hasPermission({ headers, body: { permissions } })`.
+build. Your API checks them with Better Auth's `auth.api.hasPermission({ headers, body: { permissions } })`, and the
+member's role in the active organization with `auth.api.getActiveMemberRole({ headers })` (or the client's
+`organization.getActiveMemberRole()`).
 
 - **Account page:** an "Organizations" tab: their organizations (with their teams in each), the active one marked,
   switching to another, and creating one (a name, a slug made from it and checked as they type, and your fields).
@@ -578,6 +580,62 @@ build. Your API checks them with Better Auth's `auth.api.hasPermission({ headers
 - Uses Better Auth's words (organization, owner, admin, member; rename them with `messages`). Adds Better Auth's
   `organization`, `member` and `invitation` tables and the session's `activeOrganizationId` (and `team`, `teamMember`
   and `organizationRole` with teams and dynamic roles): run its migrations.
+
+## Single sign-on
+
+Better Auth's SSO plugin (`pnpm add @better-auth/sso`): organizations sign their members in through their own
+identity provider, with OIDC or SAML 2.0.
+
+```ts
+betterAuthUi: {
+    sso: {
+        enabled: true,
+        // New providers work once a DNS TXT record proves the organization owns their domains. Recommended.
+        domainVerification: true, // or { tokenPrefix: 'better-auth-token' }
+        // People who sign in through an organization's provider join it, with this role (or getRole's).
+        organizationProvisioning: { defaultRole: 'member' }, // { disabled: true } to turn it off
+        providersLimit: 10, // per user; 0 turns registering off
+        disableImplicitSignUp: false,
+        defaultOverrideUserInfo: false, // update profiles from the provider on every sign-in
+        provisionUserOnEveryLogin: false,
+        redirectURI: '/sso/callback', // one OIDC redirect URI for every provider (default: one each)
+        // SAML security (Better Auth's `saml` options).
+        saml: { enableInResponseToValidation: true, allowIdpInitiated: false, clockSkew: 300_000 },
+        schema: { ssoProvider: { additionalFields: { displayName: { type: 'string', required: false } } } },
+        // A file whose default export is more plugin options, for functions: provisionUser,
+        // organizationProvisioning.getRole, resolveUser, guardProviderMutation, resolvePrivateKey, defaultSSO.
+        serverOptions: './server/auth/sso.ts'
+    }
+}
+```
+
+```ts
+// server/auth/sso.ts: who joins as what, from the provider's attributes.
+export default {
+    organizationProvisioning: {
+        getRole: async ({ userInfo }) => (userInfo.attributes?.department === 'IT' ? 'admin' : 'member')
+    }
+};
+```
+
+- **Sign-in page:** "Sign in with SSO": a work email finds the provider by its domain, anything else is an
+  organization's slug. New users land on the account page; a provider's failures come back with a message.
+- **Organization page:** an "SSO" tab for the organization's owners and admins (Better Auth allows only those roles):
+  add an OIDC provider (issuer, client ID and secret; the rest comes from its discovery document) or a SAML one (sign-on
+  URL, metadata XML or entity ID and certificate), with scopes, PKCE, token authentication, audience, NameID format,
+  algorithms, signed assertions and requests, profile mapping and your provider fields under "More settings". Each
+  provider shows what to give the identity provider (the OIDC redirect URI, or the SAML ACS URL and SP metadata), and,
+  until its domains are verified, the TXT record to add (`_better-auth-token-<provider>.<domain>`, its value) and a
+  Verify button. Edit (secrets left empty stay as they are) and delete.
+- **Admin:** a "Single sign-on" page listing every provider (search, protocol, domains and whether they're verified,
+  its organization and who added it), never their secrets; the configuration page shows whether SSO and domain
+  verification are on.
+- OIDC discovery fetches from the issuer: add identity providers' origins to Better Auth's `trustedOrigins`. Adds
+  Better Auth's `ssoProvider` table: run its migrations.
+
+[Better Auth Infrastructure](https://better-auth.com/docs/infrastructure/getting-started) (`@better-auth/infra`'s
+`dash()` and `sentinel()`) is a hosted, paid service: it isn't added by the module. If you use it, add its plugins to
+your auth config yourself, with its API key in `BETTER_AUTH_API_KEY`.
 
 ## Subscriptions with Stripe
 

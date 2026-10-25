@@ -77,6 +77,17 @@ export const authEn = {
             resend: 'Send a new code',
             resent: 'New code sent'
         },
+        sso: {
+            button: 'Sign in with SSO',
+            title: 'Single sign-on',
+            description: "Sign in through your company's identity provider.",
+            label: 'Work email or organization',
+            placeholder: 'you@company.com',
+            submit: 'Continue',
+            failed: "Couldn't start single sign-on",
+            notFound: 'No single sign-on is set up for that email or organization.',
+            notReady: "This organization's single sign-on isn't ready yet: its domain hasn't been verified."
+        },
         guest: {
             button: 'Continue as a guest',
             failed: "Couldn't start a guest account",
@@ -145,7 +156,8 @@ export const authEn = {
             members: 'Members',
             invitations: 'Invitations',
             teams: 'Teams',
-            roles: 'Roles'
+            roles: 'Roles',
+            sso: 'SSO'
         },
         general: {
             title: 'Details',
@@ -227,6 +239,79 @@ export const authEn = {
             created: 'Created {name}',
             updated: 'Role saved',
             deleted: 'Deleted {name}'
+        },
+        sso: {
+            title: 'Single sign-on',
+            description:
+                "Identity providers (OIDC or SAML) your members sign in with, by their work email's domain or this organization's slug. They join it when they do.",
+            none: 'No identity providers yet.',
+            register: 'Add provider',
+            registerTitle: 'Add an identity provider',
+            registerHint: "Your identity provider's settings. Most OIDC providers fill in the rest themselves.",
+            editTitle: 'Edit identity provider',
+            editHint: "Fields left empty keep what's saved: secrets, certificates and mappings.",
+            registered: 'Added {name}',
+            updated: 'Provider saved',
+            edit: 'Edit',
+            delete: 'Delete',
+            deleteConfirm: 'Delete {name}?',
+            deleteDescription: "Its members can't sign in through it any more.",
+            deleted: 'Deleted {name}',
+            issuer: 'Issuer',
+            redirectUri: 'Redirect URI',
+            acsUrl: 'ACS URL',
+            spMetadata: 'SP metadata',
+            spMetadataLink: 'Open the metadata XML',
+            copy: 'Copy',
+            copied: 'Copied',
+            domainVerified: 'Domain verified',
+            domainUnverified: 'Domain not verified',
+            verifyTitle: 'Verify your domain',
+            verifyDescription:
+                'Add this TXT record to your DNS, on every domain, then verify. Until then, no one can sign in through this provider.',
+            recordName: 'Name',
+            recordValue: 'Value',
+            showToken: 'Show the value',
+            verify: 'Verify domain',
+            verified: 'Verified {domain}',
+            form: {
+                type: 'Protocol',
+                providerId: 'Provider ID',
+                providerIdHelp: "Letters, numbers, _ and -. Part of its addresses, so it can't change.",
+                domain: 'Email domains',
+                domainHelp: 'Whose users sign in with it. Separate several with commas.',
+                issuer: 'Issuer',
+                issuerOidcHelp: "The provider's issuer URL: its settings are read from there.",
+                issuerSamlHelp: "This app's entity ID for the provider, eg https://yourapp.com/saml.",
+                clientId: 'Client ID',
+                clientSecret: 'Client secret',
+                entryPoint: 'Sign-on URL',
+                entryPointHelp: "The identity provider's single sign-on address.",
+                metadata: 'Identity provider metadata XML',
+                metadataHelp: 'Paste it, or give the entity ID and certificate instead.',
+                entityID: "Identity provider's entity ID",
+                cert: 'Signing certificate',
+                certHelp: 'PEM. Not needed when the metadata XML has it.',
+                advanced: 'More settings',
+                scopes: 'Scopes',
+                scopesHelp: 'Separated by spaces. Default: openid email profile offline_access.',
+                discoveryEndpoint: 'Discovery URL',
+                discoveryEndpointHelp: 'Default: the issuer’s /.well-known/openid-configuration.',
+                tokenAuth: 'Token endpoint authentication',
+                discovered: 'As the provider says',
+                pkce: 'Use PKCE',
+                audience: 'Audience',
+                audienceHelp: 'If the provider expects one other than the issuer above.',
+                identifierFormat: 'NameID format',
+                signatureAlgorithm: 'Signature algorithm',
+                digestAlgorithm: 'Digest algorithm',
+                idpInitiatedCallbackUrl: 'After provider-started sign-ins, go to',
+                idpInitiatedCallbackUrlHelp: 'For sign-ins started from the identity provider’s dashboard.',
+                wantAssertionsSigned: 'Require signed assertions',
+                authnRequestsSigned: 'Sign requests',
+                mapping: 'Profile mapping',
+                mappingHelp: "The provider's attribute or claim for each, if not the usual one."
+            }
         }
     },
     finishAccount: {
@@ -599,6 +684,7 @@ export const authEn = {
         EXPIRED_TOKEN: 'That sign-in link has expired. Ask for a new one.',
         new_user_signup_disabled: "That email doesn't have an account, and links can't create new ones.",
         failed_to_create_user: "Couldn't create your account. Try again.",
+        invalid_provider: "Your organization's single sign-on isn't working. Ask its administrator.",
         unknown: "Couldn't sign you in ({code}). Try again."
     },
     // Better Auth's error codes, in the visitor's words; codes not listed show Better Auth's own message.
@@ -614,6 +700,8 @@ export const authEn = {
         PASSWORD_TOO_LONG: 'That password is too long.',
         PASSWORD_COMPROMISED:
             'That password has appeared in a data breach, so it isn’t safe to use. Choose a different one.',
+        DOMAIN_VERIFICATION_FAILED:
+            "The TXT record wasn't found. Check it's on every domain, wait for DNS to update, then try again.",
         EMAIL_NOT_VERIFIED: 'Verify your email first.',
         SESSION_EXPIRED: 'For your security, sign in again, then try once more.',
         INVALID_TOKEN: 'That link has expired or was already used.',

@@ -72,6 +72,7 @@
     "peerDependencies": {
         "@better-auth/api-key": "^1.7.0",
         "@better-auth/passkey": "^1.7.0",
+        "@better-auth/sso": "^1.7.0",
         "@better-auth/stripe": "^1.7.0",
         "@nuxt/ui": "^4.12.0",
         "@nuxtjs/better-auth": "^0.3.12",
@@ -86,6 +87,9 @@
         "@better-auth/passkey": {
             "optional": true
         },
+        "@better-auth/sso": {
+            "optional": true
+        },
         "@better-auth/stripe": {
             "optional": true
         },
@@ -96,6 +100,7 @@
     "devDependencies": {
         "@better-auth/api-key": "1.7.12",
         "@better-auth/passkey": "1.7.12",
+        "@better-auth/sso": "1.7.12",
         "@better-auth/stripe": "1.7.12",
         "@nuxt/module-builder": "1.0.3",
         "@nuxt/schema": "4.6.2",

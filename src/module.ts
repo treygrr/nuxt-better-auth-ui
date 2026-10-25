@@ -389,6 +389,62 @@ export type OrganizationOptions = {
     serverOptions?: string;
 };
 
+/** Single sign-on with OIDC and SAML 2.0, through Better Auth's SSO plugin (`@better-auth/sso`). */
+export type SsoOptions = {
+    /**
+     * Adds the plugin (install `@better-auth/sso`): "Sign in with SSO" on the sign-in page (by work email or
+     * organization slug), an SSO tab on each organization's page where its owners and admins register, edit and
+     * delete OIDC and SAML providers and verify their domains, and an SSO providers page in the admin. Adds an
+     * `ssoProvider` table: run Better Auth's migrations.
+     * @default false
+     */
+    enabled: boolean;
+    /** SSO providers a user can register; 0 turns registering off. Better Auth's default: 10. */
+    providersLimit?: number;
+    /** New users can't be created by SSO sign-ins unless sign-up is requested. Better Auth's default: false. */
+    disableImplicitSignUp?: boolean;
+    /** Each sign-in updates the user's profile from the provider. Better Auth's default: false. */
+    defaultOverrideUserInfo?: boolean;
+    /** Run `provisionUser` (from `serverOptions`) on every sign-in, not just the first. Better Auth's default: false. */
+    provisionUserOnEveryLogin?: boolean;
+    /**
+     * Users signing in through a provider linked to an organization join it, with this role (or `getRole`'s, from
+     * `serverOptions`). Better Auth's default: on, as `member`.
+     */
+    organizationProvisioning?: { disabled?: boolean; defaultRole?: string };
+    /**
+     * New providers are trusted only once their domains are verified with a DNS TXT record
+     * (`_<tokenPrefix>-<providerId>`), which the organization's SSO tab shows. Recommended in production.
+     * @default false
+     */
+    domainVerification?: boolean | { tokenPrefix?: string };
+    /** One redirect URI for every OIDC provider, eg `/sso/callback`. Better Auth's default: one per provider. */
+    redirectURI?: string;
+    /** SAML security (Better Auth's `saml` options). */
+    saml?: {
+        clockSkew?: number;
+        requireTimestamps?: boolean;
+        enableInResponseToValidation?: boolean;
+        allowIdpInitiated?: boolean;
+        requestTTL?: number;
+        idpInitiatedCallbackUrl?: string;
+    };
+    /** Better Auth's schema options for the `ssoProvider` table: its name, field names and your own fields. */
+    schema?: {
+        ssoProvider?: {
+            modelName?: string;
+            fields?: Record<string, string>;
+            additionalFields?: Record<string, unknown>;
+        };
+    };
+    /**
+     * A file whose default export is more of the plugin's options, for those that are functions: `provisionUser`,
+     * `organizationProvisioning.getRole`, `resolveUser`, `guardProviderMutation`, `resolvePrivateKey`, `defaultSSO`,
+     * `providersLimit` as a function. Added last, like `organization.serverOptions`.
+     */
+    serverOptions?: string;
+};
+
 /** A Stripe subscription plan, as Better Auth's Stripe plugin takes it (https://better-auth.com/docs/plugins/stripe). */
 export type StripePlan = {
     /** The plan's name, eg 'pro' (Better Auth stores it lowercased). */
@@ -497,6 +553,8 @@ export type ModuleOptions = {
     organization: OrganizationOptions;
     /** Stripe subscriptions, off by default. */
     stripe: StripeOptions;
+    /** Single sign-on (OIDC and SAML), off by default. */
+    sso: SsoOptions;
     /**
      * Session tokens in an `Authorization: Bearer` header instead of cookies, for native apps and other servers,
      * through Better Auth's Bearer plugin: sign-ins return the token in a `set-auth-token` header. `{ requireSignature:
@@ -628,6 +686,7 @@ export default defineNuxtModule<ModuleOptions>({
         phoneNumber: { enabled: false },
         organization: { enabled: false },
         stripe: { enabled: false },
+        sso: { enabled: false },
         bearer: false,
         oauthPopup: false,
         jwt: false,
@@ -1261,6 +1320,57 @@ export default defineNuxtModule<ModuleOptions>({
                 ]
             );
         }
+        const ssoOptions = moduleOptions.sso;
+        if (ssoOptions.enabled) {
+            if (!(await tryResolveModule('@better-auth/sso', nuxt.options.modulesDir))) {
+                throw new Error('[better-auth-ui] sso.enabled needs the @better-auth/sso package: install it.');
+            }
+            const domainVerification = ssoOptions.domainVerification
+                ? { enabled: true, ...(ssoOptions.domainVerification === true ? {} : ssoOptions.domainVerification) }
+                : undefined;
+            const pluginOptions = {
+                ...Object.fromEntries(
+                    (
+                        [
+                            'providersLimit',
+                            'disableImplicitSignUp',
+                            'defaultOverrideUserInfo',
+                            'provisionUserOnEveryLogin',
+                            'organizationProvisioning',
+                            'redirectURI',
+                            'saml',
+                            'schema'
+                        ] as const
+                    )
+                        .filter((key) => ssoOptions[key] !== undefined)
+                        .map((key) => [key, ssoOptions[key]])
+                ),
+                ...(domainVerification && { domainVerification })
+            };
+            const ssoServerOptions =
+                ssoOptions.serverOptions && (await emailFile('sso.serverOptions', ssoOptions.serverOptions));
+            addAuthPlugin(
+                'sso',
+                [
+                    "import { sso } from '@better-auth/sso'",
+                    ssoServerOptions
+                        ? `import appOptions from ${JSON.stringify(ssoServerOptions)}`
+                        : 'const appOptions = {}',
+                    `const options = ${JSON.stringify(pluginOptions)}`,
+                    // The app's options last; its organization provisioning and SAML options add to the module's.
+                    'export default sso({',
+                    '    ...options,',
+                    '    ...appOptions,',
+                    '    organizationProvisioning: { ...options.organizationProvisioning, ...appOptions.organizationProvisioning },',
+                    '    saml: { ...options.saml, ...appOptions.saml }',
+                    '})'
+                ],
+                [
+                    "import { ssoClient } from '@better-auth/sso/client'",
+                    `export default ssoClient(${JSON.stringify(domainVerification ? { domainVerification: { enabled: true } } : {})})`
+                ]
+            );
+        }
         const stripeOptions = moduleOptions.stripe;
         if (stripeOptions.enabled) {
             for (const name of ['@better-auth/stripe', 'stripe']) {
@@ -1410,6 +1520,7 @@ export default defineNuxtModule<ModuleOptions>({
             auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)),
             notes: options.notes,
             organizations: moduleOptions.organization.enabled,
+            sso: moduleOptions.sso.enabled,
             // For the configuration page: whether emails can be sent, and which have the app's own template.
             emails: { send: !!emails.send, templates: Object.keys(emails.templates ?? {}) }
         } satisfies BetterAuthAdminPublicConfig;
@@ -1592,6 +1703,14 @@ export default defineNuxtModule<ModuleOptions>({
             method: 'get',
             handler: resolve('./runtime/server/api/user-fields.get')
         });
+        // Every SSO provider (SSO plugin), without secrets: Better Auth lists only those the user runs.
+        if (moduleOptions.sso.enabled) {
+            addServerHandler({
+                route: `${ADMIN_API}/sso-providers`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/sso-providers.get')
+            });
+        }
         // Organizations (Organization plugin), which Better Auth only shows to their members.
         if (moduleOptions.organization.enabled) {
             addServerHandler({
@@ -1674,6 +1793,7 @@ export default defineNuxtModule<ModuleOptions>({
                           page('organization', '/organizations/:id', 'organizations/[id].vue')
                       ]
                     : []),
+                ...(moduleOptions.sso.enabled ? [page('sso', '/sso', 'sso.vue')] : []),
                 ...(options.auditLog ? [page('audit', '/audit', 'audit.vue')] : []),
                 // What the app's set-up allows, and who can do what (read-only).
                 page('configuration', '/configuration', 'configuration.vue')

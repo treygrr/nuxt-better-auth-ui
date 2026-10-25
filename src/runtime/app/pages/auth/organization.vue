@@ -19,9 +19,11 @@ import GeneralTab from '../../components/organization/GeneralTab.vue';
 import InvitationsTab from '../../components/organization/InvitationsTab.vue';
 import MembersTab from '../../components/organization/MembersTab.vue';
 import RolesTab from '../../components/organization/RolesTab.vue';
+import SsoTab from '../../components/organization/SsoTab.vue';
 import TeamsTab from '../../components/organization/TeamsTab.vue';
 import { splitRoles, useOrganizationActions } from '../../utils/organization';
 import { serverError } from '../../utils/server-error';
+import type { SsoProvider } from '../../utils/sso';
 
 /**
  * An organization's own page (Better Auth's Organization plugin), for its members: its details, members, invitations,
@@ -89,6 +91,20 @@ const { data: dynamicRoles, refresh: refreshRoles } = await useFetch<
 useSeoMeta({ title: () => organization.value?.name ?? t('organization.title') });
 
 const me = computed(() => organization.value?.members.find((member) => member.userId === user.value?.id));
+// Single sign-on (SSO plugin): Better Auth lets an organization's owners and admins (those roles by name) manage its
+// providers, and lists the providers of every organization they run.
+const ssoManager = computed(() => splitRoles(me.value?.role).some((role) => role === 'owner' || role === 'admin'));
+const { data: ssoProviders, refresh: refreshSso } = await useFetch<{ providers: SsoProvider[] }>(
+    '/api/auth/sso/providers',
+    {
+        key: `better-auth-ui-organization-sso-${id}`,
+        default: () => ({ providers: [] }),
+        immediate: !!supported?.sso
+    }
+);
+const organizationSso = computed(() =>
+    (ssoProviders.value?.providers ?? []).filter((provider) => provider.organizationId === id)
+);
 const roleNames = computed(() => [
     ...new Set([
         ...(capabilities.value?.organization?.roles ?? []),
@@ -111,7 +127,10 @@ const tabs = computed<TabsItem[]>(() => [
     ...(capabilities.value?.organization?.teams
         ? [{ label: t('organization.tabs.teams'), icon: 'i-lucide-users-round', value: 'teams', slot: 'teams' }]
         : []),
-    { label: t('organization.tabs.roles'), icon: 'i-lucide-shield', value: 'roles', slot: 'roles' }
+    { label: t('organization.tabs.roles'), icon: 'i-lucide-shield', value: 'roles', slot: 'roles' },
+    ...(capabilities.value?.sso && ssoManager.value
+        ? [{ label: t('organization.tabs.sso'), icon: 'i-lucide-key-square', value: 'sso', slot: 'sso' }]
+        : [])
 ]);
 // The open tab lives in the URL (?tab=members), so it's server-rendered, survives reloads and can be linked to.
 const tab = computed({
@@ -126,7 +145,14 @@ const tab = computed({
     }
 });
 
-const changed = () => Promise.all([refreshOrganization(), refreshCan(), refreshTeams(), refreshRoles()]);
+const changed = () =>
+    Promise.all([
+        refreshOrganization(),
+        refreshCan(),
+        refreshTeams(),
+        refreshRoles(),
+        ...(supported?.sso ? [refreshSso()] : [])
+    ]);
 async function makeActive() {
     if (await run((client) => client.setActive({ organizationId: id }), t('organization.switched'))) {
         await fetchSession({ force: true });
@@ -222,6 +248,9 @@ const backTo = computed(() => (pages.account ? `${pages.account}?tab=organizatio
                             :dynamic-roles="dynamicRoles ?? []"
                             @changed="changed"
                         />
+                    </template>
+                    <template #sso>
+                        <SsoTab :organization-id="id" :providers="organizationSso" @changed="changed" />
                     </template>
                 </UTabs>
             </template>

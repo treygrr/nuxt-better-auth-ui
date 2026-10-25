@@ -80,8 +80,9 @@ const lastUsedLabel = computed(() => {
     return providerInfo(method).label;
 });
 
-// Signing in with a password, or (with magic links, email codes or phone numbers) asking for a link or a code instead.
-const mode = ref<'password' | 'link' | 'linkSent' | 'code' | 'codeSent' | 'phone' | 'phoneSent'>('password');
+// Signing in with a password, or (with magic links, email codes or phone numbers) asking for a link or a code instead,
+// or single sign-on.
+const mode = ref<'password' | 'link' | 'linkSent' | 'code' | 'codeSent' | 'phone' | 'phoneSent' | 'sso'>('password');
 const linkSentTo = ref('');
 const captcha = useCaptcha('/sign-in/email');
 const linkCaptcha = useCaptcha('/sign-in/magic-link');
@@ -173,6 +174,17 @@ const providers = computed<ButtonProps[]>(() => [
                   ...highlight('phone-number'),
                   onClick: () => {
                       mode.value = 'phone';
+                  }
+              }
+          ]
+        : []),
+    ...(capabilities.value?.sso
+        ? [
+              {
+                  label: t('signIn.sso.button'),
+                  icon: 'i-lucide-building',
+                  onClick: () => {
+                      mode.value = 'sso';
                   }
               }
           ]
@@ -390,6 +402,54 @@ async function signInWithPhone() {
     await fetchSession({ force: true });
     await afterPassword({ data: data as SignedIn['data'] });
 }
+// Single sign-on (SSO plugin): a work email finds the provider by its domain; anything else is an organization's slug.
+// Better Auth answers with the identity provider's address, and its client goes there.
+const ssoFields = computed<AuthFormField[]>(() => [
+    {
+        name: 'identifier',
+        type: 'text',
+        label: t('signIn.sso.label'),
+        placeholder: t('signIn.sso.placeholder'),
+        autocomplete: 'email',
+        required: true
+    }
+]);
+type SsoClient = {
+    signIn: {
+        sso(input: {
+            email?: string;
+            organizationSlug?: string;
+            callbackURL: string;
+            newUserCallbackURL?: string;
+            errorCallbackURL?: string;
+        }): Result;
+    };
+};
+const ssoPending = ref(false);
+const ssoError = ref<{ message?: string; code?: string; status?: number } | null>(null);
+// Better Auth's SSO errors have no codes: no provider for that email or slug (404), or its domain isn't verified (401).
+const ssoErrorMessage = computed(() =>
+    ssoError.value?.status === 404
+        ? t('signIn.sso.notFound')
+        : ssoError.value?.status === 401
+          ? t('signIn.sso.notReady')
+          : errorMessage(ssoError.value)
+);
+async function signInWithSso(event: FormSubmitEvent<{ identifier: string }>) {
+    const identifier = event.data.identifier.trim();
+    ssoPending.value = true;
+    const client = useAuthClient() as unknown as SsoClient;
+    const { error } = await client.signIn.sso({
+        ...(identifier.includes('@') ? { email: identifier } : { organizationSlug: identifier.toLowerCase() }),
+        callbackURL: redirectTo,
+        newUserCallbackURL: pages.account || redirectTo,
+        errorCallbackURL: route.fullPath
+    });
+    ssoError.value = error;
+    // On success the browser is on its way to the identity provider: the button stays busy.
+    if (error) ssoPending.value = false;
+}
+
 // Without sign-ups, Better Auth can't find an account for an unknown number and says it couldn't update one.
 const phoneErrorMessage = computed(() =>
     phoneError.value?.code === 'FAILED_TO_UPDATE_USER' ? t('signIn.phone.noAccount') : errorMessage(phoneError.value)
@@ -554,6 +614,36 @@ const phoneErrorMessage = computed(() =>
                         icon="i-lucide-circle-alert"
                         :title="t('signIn.phone.failed')"
                         :description="captchaMissing ? t('captcha.required') : errorMessage(phoneSendError)"
+                    />
+                </template>
+                <template #footer>
+                    <UButton
+                        :label="t('signIn.magicLink.usePassword')"
+                        variant="link"
+                        color="neutral"
+                        @click="mode = 'password'"
+                    />
+                </template>
+            </UAuthForm>
+
+            <!-- Single sign-on, by work email or organization. -->
+            <UAuthForm
+                v-else-if="mode === 'sso'"
+                :fields="ssoFields"
+                :title="t('signIn.sso.title')"
+                :description="t('signIn.sso.description')"
+                icon="i-lucide-building"
+                :loading="ssoPending"
+                :submit="{ label: t('signIn.sso.submit') }"
+                @submit="signInWithSso"
+            >
+                <template #validation>
+                    <UAlert
+                        v-if="ssoError"
+                        color="error"
+                        icon="i-lucide-circle-alert"
+                        :title="t('signIn.sso.failed')"
+                        :description="ssoErrorMessage"
                     />
                 </template>
                 <template #footer>

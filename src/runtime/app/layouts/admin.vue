@@ -20,7 +20,7 @@ type FoundUser = { id: string; name: string; email: string; image?: string | nul
 
 const adminPath = useAdminPath();
 const pages = useAuthPages();
-const { auditLog, organizations } = useBetterAuthAdminConfig();
+const { auditLog, organizations, sso } = useBetterAuthAdminConfig();
 const can = useAdminCan();
 const { t } = useAuthI18n();
 useAdminDashboard();
@@ -53,6 +53,16 @@ const links = computed(
                               label: t('admin.nav.organizations'),
                               icon: 'i-lucide-building-2',
                               to: adminPath('/organizations'),
+                              onSelect: close
+                          }
+                      ]
+                    : []),
+                ...(sso
+                    ? [
+                          {
+                              label: t('admin.nav.sso'),
+                              icon: 'i-lucide-key-square',
+                              to: adminPath('/sso'),
                               onSelect: close
                           }
                       ]

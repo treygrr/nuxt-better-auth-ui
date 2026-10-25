@@ -14,6 +14,10 @@ the app added it, the admin and configuration page show it, Spanish included.
    subscription card. Left: trying Checkout and the billing portal against Stripe's test mode; a plan filter on the
    users list (Better Auth's list-users can't filter by another table); a role while a plan is active (writing the
    Admin plugin's role from subscription hooks, without demoting staff); organization subscriptions.
+11. **Single sign-on, what's left.** Done (tested with a mock OIDC provider, and SAML registration): the plugin, SSO
+    on the sign-in page, the organization's SSO tab, the admin list. Left: providers of a user's own, outside an
+    organization (Better Auth allows them; the page only manages organizations'); trying a real SAML sign-in (Okta,
+    DummyIDP); signing in by provider ID from a link (`/login?sso=<provider>`); private_key_jwt and SP keys in the form.
 10. **OAuth popup, what's left.** Done: `oauthPopup` on the sign-in pages, falling back to the redirect. Left: a
     component apps can embed (provider buttons that sign in through the popup); two-factor users get the code page
     inside the popup instead of the opener; Better Auth's docs for the plugin, when they appear.
@@ -43,7 +47,8 @@ finish-account page for providers without an email. Left:
 - **One-time token** (`one-time-token`): "Open in the app" hands a web session to a native or desktop client.
 - **One Tap** (`one-tap`): Google's one-tap prompt on the sign-in page.
 
-Not planned: SIWE (Ethereum), SSO / OIDC provider (enterprise), OAuth proxy (a deployment concern with no UI), Open
+Not planned: SIWE (Ethereum), OIDC provider (being an identity provider for other apps), Better Auth
+Infrastructure (`@better-auth/infra`: a hosted, paid service; apps add it themselves), OAuth proxy (a deployment concern with no UI), Open
 API (developer docs; at most a link on the configuration page).
 
 ## Smaller follow-ups

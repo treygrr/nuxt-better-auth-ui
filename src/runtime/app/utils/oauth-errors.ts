@@ -15,7 +15,9 @@ const KNOWN = new Set([
     'INVALID_TOKEN',
     'EXPIRED_TOKEN',
     'new_user_signup_disabled',
-    'failed_to_create_user'
+    'failed_to_create_user',
+    // Single sign-on (SSO plugin)
+    'invalid_provider'
 ]);
 
 /** A readable message for an error code, or a generic one naming it. */

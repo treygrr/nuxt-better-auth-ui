@@ -47,6 +47,16 @@ export type AuthCapabilities = {
     phoneNumber: { otpLength: number; signUp: boolean } | null;
     /** Better Auth's Organization plugin: whether users can create organizations (false only when the app said so). */
     organization: OrganizationCapabilities | null;
+    /**
+     * Better Auth's SSO plugin: whether domains are verified (and the TXT record's prefix), the base URL its callback
+     * and SAML addresses hang off, and the app's own provider fields.
+     */
+    sso: {
+        domainVerification: { enabled: boolean; tokenPrefix: string };
+        baseURL: string;
+        redirectURI: string | null;
+        fields: OrganizationField[];
+    } | null;
     /** Better Auth's Stripe plugin, with subscriptions: the billing tab. */
     stripe: boolean;
     /** Better Auth's Bearer plugin: session tokens in an Authorization header. */
@@ -189,6 +199,12 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
     const emailOtp = options.plugins?.find((plugin) => plugin.id === 'email-otp');
     const anonymous = options.plugins?.find((plugin) => plugin.id === 'anonymous');
     const phone = options.plugins?.find((plugin) => plugin.id === 'phone-number');
+    const sso = options.plugins?.find((plugin) => plugin.id === 'sso');
+    const ssoOptions = (sso?.options ?? {}) as {
+        domainVerification?: { enabled?: boolean; tokenPrefix?: string };
+        redirectURI?: string;
+        schema?: OrganizationOptions['schema'];
+    };
     const genericOAuth = options.plugins?.find((plugin) => plugin.id === 'generic-oauth');
     const organization = options.plugins?.find((plugin) => plugin.id === 'organization');
     const jwt = options.plugins?.find((plugin) => plugin.id === 'jwt');
@@ -247,6 +263,24 @@ export default defineEventHandler(async (event): Promise<AuthCapabilities> => {
         // A function decides per user, so the page offers creating and lets Better Auth refuse.
         organization: organization
             ? organizationCapabilities((organization.options ?? {}) as OrganizationOptions)
+            : null,
+        sso: sso
+            ? {
+                  domainVerification: {
+                      enabled: ssoOptions.domainVerification?.enabled === true,
+                      tokenPrefix: ssoOptions.domainVerification?.tokenPrefix ?? 'better-auth-token'
+                  },
+                  baseURL: (await auth.$context).baseURL,
+                  redirectURI: ssoOptions.redirectURI ?? null,
+                  fields: Object.entries(ssoOptions.schema?.ssoProvider?.additionalFields ?? {})
+                      .filter(([, field]) => field.returned !== false)
+                      .map(([name, field]) => ({
+                          name,
+                          type: field.type,
+                          required: field.required === true,
+                          editable: field.input !== false
+                      }))
+              }
             : null,
         stripe: has('stripe'),
         bearer: has('bearer'),
