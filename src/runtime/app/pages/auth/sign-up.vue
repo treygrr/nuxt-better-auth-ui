@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import type { AuthFormField, ButtonProps, FormSubmitEvent } from '@nuxt/ui';
 import { useSignIn, useSignUp } from '@nuxtjs/better-auth/composables';
-import { computed, navigateTo, ref, useAuthCapabilities, useAuthPages, useRedirectTarget, useSeoMeta } from '#imports';
+import {
+    computed,
+    navigateTo,
+    ref,
+    useAuthCapabilities,
+    useAuthPages,
+    useRedirectTarget,
+    useRoute,
+    useSeoMeta
+} from '#imports';
 
+import { oauthErrorMessage } from '../../utils/oauth-errors';
 import { providerInfo } from '../../utils/providers';
 
 useSeoMeta({ title: 'Create an account' });
@@ -10,6 +20,11 @@ useSeoMeta({ title: 'Create an account' });
 const pages = useAuthPages();
 const { capabilities } = useAuthCapabilities();
 const redirectTo = useRedirectTarget();
+const route = useRoute();
+// A failed provider sign-in comes back with Better Auth's ?error= code.
+const oauthError = computed(() =>
+    typeof route.query.error === 'string' ? oauthErrorMessage(route.query.error) : null
+);
 
 const signUp = useSignUp('email');
 const social = useSignIn('social');
@@ -39,7 +54,14 @@ const providers = computed<ButtonProps[]>(() =>
         icon: providerInfo(provider).icon,
         loadingAuto: true,
         // Typed from the app's configured providers, which the module can't know: these come from the app's config.
-        onClick: () => social.execute({ provider, callbackURL: redirectTo } as Parameters<typeof social.execute>[0])
+        onClick: () =>
+            social.execute({
+                provider,
+                callbackURL: redirectTo,
+                // Brand-new accounts start on the account page; failures come back here with ?error=.
+                newUserCallbackURL: pages.account || redirectTo,
+                errorCallbackURL: route.fullPath
+            } as Parameters<typeof social.execute>[0])
     }))
 );
 const error = computed(() => signUp.error.value ?? social.error.value);
@@ -103,11 +125,11 @@ async function onSubmit(event: FormSubmitEvent<{ name: string; email: string; pa
                 </template>
                 <template #validation>
                     <UAlert
-                        v-if="error"
+                        v-if="error || oauthError"
                         color="error"
                         icon="i-lucide-circle-alert"
                         title="Couldn't create your account"
-                        :description="error.message"
+                        :description="error?.message ?? oauthError ?? undefined"
                     />
                 </template>
             </UAuthForm>

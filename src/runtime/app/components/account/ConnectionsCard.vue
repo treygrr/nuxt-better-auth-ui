@@ -3,6 +3,7 @@ import { useAuthClientAction } from '@nuxtjs/better-auth/composables';
 import { computed, useAuthCapabilities, useAuthPages, useToast } from '#imports';
 
 import { providerInfo, sortProviders } from '../../utils/providers';
+import CardTitle from './CardTitle.vue';
 
 /** Connected sign-in methods: link another provider, or unlink one (never the last). */
 type Account = { id: string; providerId: string; createdAt: string };
@@ -51,6 +52,7 @@ async function disconnect(account: Account) {
 
 <template>
     <UPageCard title="Sign-in methods" description="The ways you can sign in to your account." variant="subtle">
+        <template #title><CardTitle icon="i-lucide-log-in" title="Sign-in methods" /></template>
         <ul class="divide-y divide-default">
             <li v-for="account in connected" :key="account.id" class="flex items-center gap-3 py-3 first:pt-0">
                 <UIcon :name="providerInfo(account.providerId).icon" class="size-5 shrink-0 text-muted" />

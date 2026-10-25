@@ -2,6 +2,8 @@
 import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composables';
 import { ref, useAuthCapabilities, useAuthPages, useToast } from '#imports';
 
+import CardTitle from './CardTitle.vue';
+
 /** The email address: verification status, resending the link, and changing it when the app allows. */
 const { user } = useUserSession();
 const { capabilities } = useAuthCapabilities();
@@ -39,15 +41,14 @@ async function changeEmail() {
 <template>
     <UPageCard v-if="user" title="Email" :description="user.email" variant="subtle">
         <template #title>
-            <span class="flex items-center gap-2">
-                Email
+            <CardTitle icon="i-lucide-mail" title="Email">
                 <UBadge
                     :label="user.emailVerified ? 'Verified' : 'Not verified'"
                     :color="user.emailVerified ? 'success' : 'warning'"
                     variant="subtle"
                     size="sm"
                 />
-            </span>
+            </CardTitle>
         </template>
 
         <div v-if="!user.emailVerified && capabilities?.emailVerification" class="flex flex-wrap items-center gap-3">

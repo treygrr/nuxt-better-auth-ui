@@ -3,6 +3,7 @@ import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composa
 import { useToast } from '#imports';
 
 import { device } from '../../utils/device';
+import CardTitle from './CardTitle.vue';
 
 /** Where they're signed in, with signing out of other devices. */
 type Session = {
@@ -44,6 +45,7 @@ async function signOutOthers() {
 
 <template>
     <UPageCard title="Devices" description="Where you're signed in." variant="subtle">
+        <template #title><CardTitle icon="i-lucide-monitor-smartphone" title="Devices" /></template>
         <template v-if="sessions.length > 1" #footer>
             <UButton
                 label="Sign out of all other devices"

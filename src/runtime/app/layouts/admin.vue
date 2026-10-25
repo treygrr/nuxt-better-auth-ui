@@ -1,23 +1,27 @@
 <script setup lang="ts">
 // Adapted from the Nuxt UI dashboard template (https://github.com/nuxt-ui-templates/dashboard, MIT).
-import type { NavigationMenuItem } from '@nuxt/ui';
+import type { CommandPaletteGroup, CommandPaletteItem, NavigationMenuItem } from '@nuxt/ui';
+import { refDebounced } from '@vueuse/core';
 import {
+    $fetch,
     computed,
-    onMounted,
     ref,
     useAdminCan,
+    useAdminDashboard,
     useAdminPath,
+    useAuthPages,
     useBetterAuthAdminConfig,
-    useCookie,
-    useRoute,
-    useToast
+    useLazyAsyncData
 } from '#imports';
 
-const route = useRoute();
-const toast = useToast();
+// Layouts are copied into .nuxt when built, so this one can't import the module's files by relative path.
+type FoundUser = { id: string; name: string; email: string; image?: string | null };
+
 const adminPath = useAdminPath();
+const pages = useAuthPages();
 const { auditLog } = useBetterAuthAdminConfig();
 const can = useAdminCan();
+useAdminDashboard();
 
 const open = ref(false);
 const close = () => {
@@ -55,114 +59,77 @@ const links = computed(
                     ? [{ label: 'Audit log', icon: 'i-lucide-history', to: adminPath('/audit'), onSelect: close }]
                     : []),
                 {
-                    label: 'Inbox',
-                    icon: 'i-lucide-inbox',
-                    to: adminPath('/inbox'),
-                    badge: '4',
+                    label: 'Configuration',
+                    icon: 'i-lucide-sliders-horizontal',
+                    to: adminPath('/configuration'),
                     onSelect: close
-                },
-                {
-                    label: 'Customers',
-                    icon: 'i-lucide-users',
-                    to: adminPath('/customers'),
-                    onSelect: close
-                },
-                {
-                    label: 'Settings',
-                    to: adminPath('/settings'),
-                    icon: 'i-lucide-settings',
-                    defaultOpen: true,
-                    type: 'trigger',
-                    children: [
-                        {
-                            label: 'General',
-                            to: adminPath('/settings'),
-                            exact: true,
-                            onSelect: close
-                        },
-                        {
-                            label: 'Members',
-                            to: adminPath('/settings/members'),
-                            onSelect: close
-                        },
-                        {
-                            label: 'Notifications',
-                            to: adminPath('/settings/notifications'),
-                            onSelect: close
-                        },
-                        {
-                            label: 'Security',
-                            to: adminPath('/settings/security'),
-                            onSelect: close
-                        }
-                    ]
                 }
             ],
             [
                 {
-                    label: 'Feedback',
-                    icon: 'i-lucide-message-circle',
-                    to: 'https://github.com/nuxt-ui-templates/dashboard',
-                    target: '_blank'
-                },
-                {
-                    label: 'Help & Support',
-                    icon: 'i-lucide-info',
-                    to: 'https://github.com/nuxt-ui-templates/dashboard',
-                    target: '_blank'
+                    label: 'Back to site',
+                    icon: 'i-lucide-arrow-left',
+                    to: '/'
                 }
             ]
         ] satisfies NavigationMenuItem[][]
 );
 
-const groups = computed(() => [
+// Search (⌘K): the pages, a few actions, and users by name or email, through Better Auth's list-users.
+const searchTerm = ref('');
+const term = refDebounced(
+    computed(() => searchTerm.value.trim()),
+    250
+);
+// list-users searches one field at a time, so names and emails are asked for together and merged.
+const { data: found, status: searchStatus } = useLazyAsyncData(
+    'better-auth-ui-search',
+    async () => {
+        if (term.value.length < 2) return { users: [] };
+        const search = (searchField: 'name' | 'email') =>
+            $fetch<{ users: FoundUser[] }>('/api/auth/admin/list-users', {
+                query: { limit: 8, searchValue: term.value, searchField, searchOperator: 'contains' }
+            });
+        const [byName, byEmail] = await Promise.all([search('name'), search('email')]);
+        const users = [...byName.users, ...byEmail.users];
+        return { users: users.filter((user, index) => users.findIndex((other) => other.id === user.id) === index) };
+    },
+    { server: false, immediate: false, watch: [term], default: () => ({ users: [] }) }
+);
+
+const groups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
     {
         id: 'links',
         label: 'Go to',
         items: links.value.flat()
     },
     {
-        id: 'code',
-        label: 'Code',
+        id: 'actions',
+        label: 'Actions',
         items: [
-            {
-                id: 'source',
-                label: 'View page source',
-                icon: 'i-simple-icons-github',
-                to: `https://github.com/nuxt-ui-templates/dashboard/blob/main/app/pages${route.path === '/' ? '/index' : route.path}.vue`,
-                target: '_blank'
-            }
+            ...(can({ user: ['create'] })
+                ? [{ label: 'Create a user', icon: 'i-lucide-user-plus', to: adminPath('/users?create=1') }]
+                : []),
+            ...(pages.account ? [{ label: 'Your account', icon: 'i-lucide-user-round', to: pages.account }] : [])
         ]
-    }
+    },
+    ...(term.value.length >= 2
+        ? [
+              {
+                  id: 'users',
+                  label: 'Users',
+                  // Already matched by Better Auth.
+                  ignoreFilter: true,
+                  items: (found.value?.users ?? []).map((user) => ({
+                      label: user.name,
+                      suffix: user.email,
+                      avatar: { src: user.image ?? undefined, alt: user.name },
+                      to: adminPath(`/users/${user.id}`)
+                  }))
+              }
+          ]
+        : [])
 ]);
-
-onMounted(async () => {
-    const cookie = useCookie('cookie-consent');
-    if (cookie.value === 'accepted') {
-        return;
-    }
-
-    toast.add({
-        title: 'We use first-party cookies to enhance your experience on our website.',
-        duration: 0,
-        close: false,
-        actions: [
-            {
-                label: 'Accept',
-                color: 'neutral',
-                variant: 'outline',
-                onClick: () => {
-                    cookie.value = 'accepted';
-                }
-            },
-            {
-                label: 'Opt out',
-                color: 'neutral',
-                variant: 'ghost'
-            }
-        ]
-    });
-});
 </script>
 
 <template>
@@ -176,7 +143,7 @@ onMounted(async () => {
             :ui="{ footer: 'lg:border-t lg:border-default' }"
         >
             <template #header="{ collapsed }">
-                <AdminTeamsMenu :collapsed="collapsed" />
+                <AdminBrand :collapsed="collapsed" />
             </template>
 
             <template #default="{ collapsed }">
@@ -198,10 +165,13 @@ onMounted(async () => {
             </template>
         </UDashboardSidebar>
 
-        <UDashboardSearch :groups="groups" />
+        <UDashboardSearch
+            v-model:search-term="searchTerm"
+            :groups="groups"
+            :loading="searchStatus === 'pending'"
+            placeholder="Search pages and users…"
+        />
 
         <slot />
-
-        <AdminNotificationsSlideover />
     </UDashboardGroup>
 </template>

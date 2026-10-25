@@ -1,4 +1,5 @@
 import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { createHmac } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -34,6 +35,41 @@ const signIn = async (name: string, path: 'sign-up' | 'sign-in') => {
 const get = (path: string, cookie?: string) =>
     fetch(`${base}${path}`, { redirect: 'manual', headers: cookie ? { cookie } : {} });
 
+/** A response's cookies, to send with the next request. */
+const cookiesOf = (response: Response) =>
+    response.headers
+        .getSetCookie()
+        .map((cookie) => cookie.split(';')[0])
+        .join('; ');
+
+/** The current code for an otpauth:// URI, as an authenticator app works it out (RFC 6238). */
+const totp = (uri: string) => {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    const bits = [...new URL(uri).searchParams.get('secret')!.replace(/=+$/, '')]
+        .map((char) => alphabet.indexOf(char).toString(2).padStart(5, '0'))
+        .join('');
+    const key = Buffer.from(bits.match(/.{8}/g)!.map((byte) => parseInt(byte, 2)));
+    const counter = Buffer.alloc(8);
+    counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)));
+    const hmac = createHmac('sha1', key).update(counter).digest();
+    const offset = hmac[hmac.length - 1]! & 0xf;
+    return String((hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0');
+};
+
+/** Turns on two-factor with an authenticator app, as the account page does; returns the new session's cookie. */
+const setUpTwoFactor = async (cookie: string, password?: string) => {
+    const post = (path: string, body: object, cookie: string) =>
+        fetch(`${base}/api/auth${path}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie },
+            body: JSON.stringify(body)
+        });
+    const { totpURI, backupCodes } = await (await post('/two-factor/enable', { password }, cookie)).json();
+    const verified = await post('/two-factor/verify-totp', { code: totp(totpURI) }, cookie);
+    expect(verified.status).toBe(200);
+    return { cookie: cookiesOf(verified), uri: totpURI as string, backupCodes: backupCodes as string[] };
+};
+
 let userCookie: string;
 let adminCookie: string;
 
@@ -46,7 +82,8 @@ beforeAll(async () => {
             PORT: String(port),
             AUTH_DATABASE_PATH: databasePath,
             NUXT_APP_SECRET: 'playground-secret-at-least-32-characters-long',
-            NUXT_PUBLIC_SITE_URL: base
+            NUXT_PUBLIC_SITE_URL: base,
+            PLAYGROUND_MOCK_OAUTH: '1'
         },
         stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -101,27 +138,51 @@ describe('the admin pages', () => {
         const response = await get('/admin', adminCookie);
         expect(response.status).toBe(200);
         const html = await response.text();
-        // The sidebar: the dashboard template's navigation, plus Better Auth's users.
-        for (const label of ['Home', 'Users', 'Inbox', 'Customers', 'Settings']) expect(html).toContain(label);
+        // The sidebar: the app's name, then the admin's own pages.
+        for (const label of [
+            'Better Auth',
+            'Home',
+            'Users',
+            'Sessions',
+            'Audit log',
+            'Configuration',
+            'Back to site'
+        ]) {
+            expect(html, label).toContain(label);
+        }
+        // Nothing left from the dashboard template's sample pages.
+        for (const label of ['Inbox', 'Customers', 'NuxtHub', 'cookies']) expect(html, label).not.toContain(label);
     });
 
-    it.each([
-        '/admin',
-        '/admin/users',
-        '/admin/inbox',
-        '/admin/customers',
-        '/admin/settings',
-        '/admin/settings/members',
-        '/admin/settings/notifications',
-        '/admin/settings/security'
-    ])('render %s for admins', async (path) => {
-        expect((await get(path, adminCookie)).status).toBe(200);
+    it.each(['/admin', '/admin/users', '/admin/sessions', '/admin/audit', '/admin/configuration'])(
+        'render %s for admins',
+        async (path) => {
+            expect((await get(path, adminCookie)).status).toBe(200);
+        }
+    );
+
+    it("removes the dashboard template's sample pages and data", async () => {
+        for (const path of ['/admin/inbox', '/admin/customers', '/admin/settings', '/api/_better-auth-ui/demo/mails']) {
+            expect((await get(path, adminCookie)).status, path).toBe(404);
+        }
     });
 
-    it.each(['customers', 'mails', 'members', 'notifications'])('serve the demo %s data', async (name) => {
-        const response = await get(`/api/_better-auth-ui/demo/${name}`, adminCookie);
-        expect(response.status).toBe(200);
-        expect((await response.json()).length).toBeGreaterThan(0);
+    it('shows the configuration, and what each role can do', async () => {
+        const html = await (await get('/admin/configuration', adminCookie)).text();
+        for (const text of [
+            'Signing in',
+            'Security',
+            'Self-service',
+            'Emails',
+            'Admin records',
+            'Roles and permissions'
+        ]) {
+            expect(html, text).toContain(text);
+        }
+        // The playground's moderators: required to use two-factor, and can ban but not delete.
+        expect(html).toContain('Moderator');
+        expect(html).toContain('Ban and unban');
+        expect(html).toContain('Delete users');
     });
 
     it("give admins Better Auth's admin API", async () => {
@@ -695,7 +756,8 @@ describe('custom roles', () => {
             await (await get('/api/auth/admin/list-users?searchValue=dave@&searchField=email', adminCookie)).json()
         ).users[0].id;
         expect((await post('/admin/set-role', { userId: daveId, role: 'moderator' }, adminCookie)).status).toBe(200);
-        moderatorCookie = await signIn('dave', 'sign-in');
+        // The playground requires moderators to use two-factor.
+        ({ cookie: moderatorCookie } = await setUpTwoFactor(await signIn('dave', 'sign-in'), 'password123'));
         const created = await post(
             '/admin/create-user',
             { name: 'Carol', email: 'carol@roles.test', password: 'password123', role: 'user' },
@@ -1033,11 +1095,27 @@ describe('the account page', () => {
         expect(response.headers.get('location')).toMatch(/^\/login\?redirect=%2Faccount|^\/login\?redirect=\/account/);
     });
 
-    it("renders the signed-in user's sections on the server", async () => {
+    it('renders the overview and the open tab on the server, the profile tab by default', async () => {
         const html = await (await get('/account', userCookie)).text();
-        for (const text of ['Your account', 'alice@example.com', 'Profile', 'Email', 'Devices', 'Delete account']) {
+        // The overview, the tabs, and the profile tab's cards.
+        for (const text of [
+            'Your account',
+            'alice@example.com',
+            'Member since',
+            'Sign-in methods',
+            'Security',
+            'Devices',
+            'Delete',
+            'How you appear to others'
+        ]) {
             expect(html, text).toContain(text);
         }
+        // Another tab, from the URL.
+        const devices = await (await get('/account?tab=devices', userCookie)).text();
+        expect(devices).toContain('Where you&#39;re signed in.');
+        expect(devices).not.toContain('How you appear to others');
+        // An unknown tab falls back to the profile.
+        expect(await (await get('/account?tab=nope', userCookie)).text()).toContain('How you appear to others');
     });
 });
 
@@ -1062,5 +1140,218 @@ describe('changing a verified email', () => {
         const [email] = await (await get('/api/_playground/outbox')).json();
         expect(email).toMatchObject({ email: 'change-email-confirmation', to: 'ivy@example.com' });
         expect(email.text).toContain('ivy-new@example.com');
+    });
+});
+
+describe('provider sign-in errors', () => {
+    it('are explained on the sign-in page', async () => {
+        const html = await (await get('/login?error=email_not_found')).text();
+        expect(html).toContain('share an email address');
+    });
+});
+
+const postAuth = (path: string, cookie: string, body: object = {}) =>
+    fetch(`${base}/api/auth${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: base, cookie },
+        body: JSON.stringify(body)
+    });
+
+describe('two-factor authentication (on in the playground, with email codes)', () => {
+    const post = postAuth;
+    const cookies = cookiesOf;
+
+    let uri: string;
+    let backupCodes: string[];
+
+    it('reports the plugin, with email codes, and for users without a password too', async () => {
+        const capabilities = await (await get('/api/_better-auth-ui/capabilities')).json();
+        expect(capabilities.twoFactor).toEqual({ otp: true, allowPasswordless: true });
+    });
+
+    it('is set up from the account page: an app, confirmed with its first code', async () => {
+        const cookie = await signIn('tess', 'sign-up');
+        expect(await (await get('/api/_better-auth-ui/two-factor', cookie)).json()).toEqual({
+            enabled: false,
+            app: false,
+            passkeySession: false
+        });
+        expect(await (await get('/account?tab=security', cookie)).text()).toContain('Two-factor authentication');
+
+        expect((await post('/two-factor/enable', cookie, { password: 'wrong-password' })).status).toBe(400);
+        const enabled = await post('/two-factor/enable', cookie, { password: 'password123' });
+        ({ totpURI: uri, backupCodes } = await enabled.json());
+        expect(uri).toMatch(/^otpauth:\/\/totp\/Better%20Auth%20UI%20playground:tess%40example\.com\?/);
+        expect(backupCodes).toHaveLength(10);
+        // Not on until the app's first code confirms it.
+        expect((await (await get('/api/_better-auth-ui/two-factor', cookie)).json()).enabled).toBe(false);
+
+        const verified = await post('/two-factor/verify-totp', cookie, { code: totp(uri) });
+        expect(verified.status).toBe(200);
+        // Better Auth replaces the session when two-factor turns on.
+        expect(await (await get('/api/_better-auth-ui/two-factor', cookies(verified))).json()).toEqual({
+            enabled: true,
+            app: true,
+            passkeySession: false
+        });
+    });
+
+    it('asks for a code after signing in with the password, then signs in', async () => {
+        const response = await fetch(`${base}/api/auth/sign-in/email`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base },
+            body: JSON.stringify({ email: 'tess@example.com', password: 'password123' })
+        });
+        expect(await response.json()).toEqual({ twoFactorRedirect: true, twoFactorMethods: ['totp', 'otp'] });
+        const pending = cookies(response);
+        // No session until the second step.
+        expect(await (await get('/api/auth/get-session', pending)).json()).toBeNull();
+        const page = await get('/two-factor?methods=totp,otp', pending);
+        expect(page.status).toBe(200);
+        expect(await page.text()).toContain('Enter your code');
+
+        expect((await post('/two-factor/verify-totp', pending, { code: '000000' })).status).toBe(401);
+        const verified = await post('/two-factor/verify-totp', pending, { code: totp(uri) });
+        expect(verified.status).toBe(200);
+        const session = await (await get('/api/auth/get-session', cookies(verified))).json();
+        expect(session.user.email).toBe('tess@example.com');
+    });
+
+    it('takes a code by email, or a backup code once', async () => {
+        const start = async () =>
+            cookies(
+                await fetch(`${base}/api/auth/sign-in/email`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json', origin: base },
+                    body: JSON.stringify({ email: 'tess@example.com', password: 'password123' })
+                })
+            );
+
+        const byEmail = await start();
+        expect((await post('/two-factor/send-otp', byEmail)).status).toBe(200);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const [email] = await (await get('/api/_playground/outbox')).json();
+        expect(email).toMatchObject({ to: 'tess@example.com', email: 'two-factor-code' });
+        const code = email.subject.match(/(\d{6})$/)[1];
+        expect((await post('/two-factor/verify-otp', byEmail, { code })).status).toBe(200);
+
+        const backup = await start();
+        expect((await post('/two-factor/verify-backup-code', backup, { code: backupCodes[0] })).status).toBe(200);
+        const again = await start();
+        expect((await post('/two-factor/verify-backup-code', again, { code: backupCodes[0] })).status).toBe(401);
+    });
+});
+
+describe('requiring two-factor (moderators, in the playground)', () => {
+    let monaCookie: string;
+
+    beforeAll(async () => {
+        const cookie = await signIn('mona', 'sign-up');
+        const monaId = (await (await get('/api/auth/get-session', cookie)).json()).user.id;
+        await postAuth('/admin/set-role', adminCookie, { userId: monaId, role: 'moderator' });
+        monaCookie = await signIn('mona', 'sign-in');
+    });
+
+    it('sends them to the account page to set it up', async () => {
+        const response = await get('/admin/users', monaCookie);
+        expect(response.status).toBe(302);
+        expect(response.headers.get('location')).toBe('/account?twoFactor=required');
+        // With the security tab open, flagged.
+        const html = await (await get('/account', monaCookie)).text();
+        expect(html).toContain('Set up two-factor authentication');
+        expect(html).toContain('Action needed');
+        expect(html).toContain('Your account requires a code as well when you sign in.');
+        // Others aren't asked.
+        expect(await (await get('/account', userCookie)).text()).not.toContain('Set up two-factor authentication');
+    });
+
+    it("refuses the app's API and Better Auth's admin endpoints until then", async () => {
+        expect((await get('/api/_better-auth-ui/sessions', monaCookie)).status).toBe(403);
+        expect((await get('/api/auth/admin/list-users', monaCookie)).status).toBe(403);
+        // What setting it up needs still works.
+        expect((await get('/api/_better-auth-ui/two-factor', monaCookie)).status).toBe(200);
+        expect((await get('/api/auth/get-session', monaCookie)).status).toBe(200);
+    });
+
+    it("opens up once it's on, and then it can't be turned off", async () => {
+        const { cookie } = await setUpTwoFactor(monaCookie, 'password123');
+        expect((await get('/admin/users', cookie)).status).toBe(200);
+        expect((await get('/api/auth/admin/list-users', cookie)).status).toBe(200);
+        expect((await get('/api/_better-auth-ui/sessions', cookie)).status).toBe(200);
+        expect((await postAuth('/two-factor/disable', cookie, { password: 'password123' })).status).toBe(403);
+        expect(await (await get('/account?tab=security', cookie)).text()).not.toContain('Turn off');
+    });
+});
+
+describe('passkeys (on in the playground)', () => {
+    it('reports the plugin', async () => {
+        expect((await (await get('/api/_better-auth-ui/capabilities')).json()).passkey).toBe(true);
+    });
+
+    it('offers passkey sign-in, and adding passkeys on the account page', async () => {
+        const signInPage = await (await get('/login')).text();
+        expect(signInPage).toContain('Sign in with a passkey');
+        expect(signInPage).toContain('autocomplete="email webauthn"');
+        const account = await (await get('/account?tab=security', userCookie)).text();
+        expect(account).toContain('Passkeys');
+        expect(account).toContain('Add a passkey');
+        expect(await (await get('/api/auth/passkey/list-user-passkeys', userCookie)).json()).toEqual([]);
+    });
+
+    it('starts registering one for signed-in users only', async () => {
+        const options = await get('/api/auth/passkey/generate-register-options', userCookie);
+        expect(options.status).toBe(200);
+        expect((await options.json()).rp).toEqual({ name: 'Better Auth UI playground', id: 'localhost' });
+        expect((await get('/api/auth/passkey/generate-register-options')).status).toBe(401);
+    });
+});
+
+describe('social sign-ins ask for the code too (through a mock OAuth provider)', () => {
+    /** Signs in through the playground's mock provider, as a browser would; returns Better Auth's callback response. */
+    const socialSignIn = async (email: string, cookie = '') => {
+        const start = await postAuth('/sign-in/social', cookie, { provider: 'mock', callbackURL: '/account' });
+        const { url } = await start.json();
+        const authorize = await fetch(`${url}&email=${encodeURIComponent(email)}`, { redirect: 'manual' });
+        return fetch(authorize.headers.get('location')!, {
+            redirect: 'manual',
+            headers: { cookie: [cookie, cookiesOf(start)].filter(Boolean).join('; ') }
+        });
+    };
+    const sessionEmail = async (cookie: string) =>
+        ((await (await get('/api/auth/get-session', cookie)).json()) as { user: { email: string } } | null)?.user
+            .email ?? null;
+
+    let uri: string;
+
+    it('signs in users without two-factor straight away', async () => {
+        const callback = await socialSignIn('sol@mock.test');
+        expect(callback.status).toBe(302);
+        expect(callback.headers.get('location')).toBe('/account');
+        const cookie = cookiesOf(callback);
+        expect(await sessionEmail(cookie)).toBe('sol@mock.test');
+        // No password: two-factor goes on without one.
+        ({ uri } = await setUpTwoFactor(cookie));
+    });
+
+    it('sends users with it on to the code page instead, without a session, then on', async () => {
+        const callback = await socialSignIn('sol@mock.test');
+        expect(callback.status).toBe(302);
+        expect(callback.headers.get('location')).toBe('/two-factor?redirect=%2Faccount&methods=totp%2Cotp');
+        const pending = cookiesOf(callback);
+        expect(await sessionEmail(pending)).toBeNull();
+
+        const verified = await postAuth('/two-factor/verify-totp', pending, { code: totp(uri), trustDevice: true });
+        expect(verified.status).toBe(200);
+        expect(await sessionEmail(cookiesOf(verified))).toBe('sol@mock.test');
+
+        // A trusted device isn't asked again.
+        const trust = cookiesOf(verified)
+            .split('; ')
+            .filter((cookie) => cookie.includes('trust_device'))
+            .join('; ');
+        expect(trust).not.toBe('');
+        const trusted = await socialSignIn('sol@mock.test', trust);
+        expect(trusted.headers.get('location')).toBe('/account');
+        expect(await sessionEmail(cookiesOf(trusted))).toBe('sol@mock.test');
     });
 });

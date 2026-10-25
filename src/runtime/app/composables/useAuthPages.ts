@@ -9,6 +9,7 @@ export type AuthPagePaths = {
     forgotPassword: string | false;
     resetPassword: string | false;
     account: string | false;
+    twoFactor: string | false;
 };
 
 export const useAuthPages = () => (useRuntimeConfig().public.betterAuthUi as { pages: AuthPagePaths }).pages;
@@ -23,3 +24,7 @@ export const useRedirectTarget = () => {
     const fromQuery = useRoute().query[auth?.redirectQueryKey ?? 'redirect'];
     return safeLocalPath(fromQuery) ?? safeLocalPath(auth?.redirects?.authenticated) ?? '/';
 };
+
+/** Where to go after signing out: the module's `signOutRedirect`, `/` by default. */
+export const useSignOutTarget = () =>
+    (useRuntimeConfig().public.betterAuthUi as { signOutRedirect?: string }).signOutRedirect ?? '/';

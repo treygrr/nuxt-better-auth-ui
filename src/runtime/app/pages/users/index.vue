@@ -14,6 +14,7 @@ import {
     useAdminCan,
     useAdminPath,
     useAdminUsers,
+    useAuthCapabilities,
     useBetterAuthAdminConfig,
     useFetch,
     useRoute,
@@ -55,7 +56,7 @@ const routeFilter = String(useRoute().query.filter ?? '');
 const filter = ref(
     routeFilter === 'admins'
         ? `role:${adminRole}`
-        : ['banned', 'unverified', ...staffRoles.map((role) => `role:${role}`)].includes(routeFilter)
+        : ['banned', 'unverified', 'no-two-factor', ...staffRoles.map((role) => `role:${role}`)].includes(routeFilter)
           ? routeFilter
           : 'all'
 );
@@ -64,12 +65,18 @@ const rowSelection = ref<Record<string, boolean>>({});
 const columnVisibility = ref<Record<string, boolean>>({});
 
 // Better Auth's list-users takes one filter at a time.
-const filters: Record<string, { field: 'role' | 'banned' | 'emailVerified'; value: string } | undefined> = {
+const filters: Record<
+    string,
+    { field: 'role' | 'banned' | 'emailVerified' | 'twoFactorEnabled'; value: string } | undefined
+> = {
     all: undefined,
     ...Object.fromEntries(staffRoles.map((role) => [`role:${role}`, { field: 'role' as const, value: role }])),
     banned: { field: 'banned', value: 'true' },
-    unverified: { field: 'emailVerified', value: 'false' }
+    unverified: { field: 'emailVerified', value: 'false' },
+    // The Two-Factor plugin's column on the user.
+    'no-two-factor': { field: 'twoFactorEnabled', value: 'false' }
 };
+const { capabilities } = useAuthCapabilities();
 
 watch([debouncedSearch, searchField, filter, sorting], () => {
     page.value = 1;
@@ -329,10 +336,8 @@ const columns: TableColumn<AdminUser>[] = [
             const ids = providers.value[row.original.id];
             if (!ids) return providersStatus.value === 'pending' ? h('span', { class: 'text-dimmed' }, '…') : null;
             if (!ids.length) return h(UBadge, { label: 'None', color: 'warning', variant: 'outline' });
-            return h(
-                'div',
-                { class: 'flex items-center gap-1.5' },
-                sortProviders(ids).map((id) =>
+            return h('div', { class: 'flex items-center gap-1.5' }, [
+                ...sortProviders(ids).map((id) =>
                     h(UTooltip, { text: providerInfo(id).label }, () =>
                         h(UIcon, {
                             name: providerInfo(id).icon,
@@ -340,8 +345,18 @@ const columns: TableColumn<AdminUser>[] = [
                             'aria-label': providerInfo(id).label
                         })
                     )
-                )
-            );
+                ),
+                // Two-factor, from the user's own record (the Two-Factor plugin's column).
+                row.original.twoFactorEnabled
+                    ? h(UTooltip, { text: 'Two-factor on' }, () =>
+                          h(UIcon, {
+                              name: 'i-lucide-shield-check',
+                              class: 'size-4.5 text-success',
+                              'aria-label': 'Two-factor on'
+                          })
+                      )
+                    : null
+            ]);
         }
     },
     ...(activityTracking
@@ -414,13 +429,14 @@ const columnLabels: Record<string, string> = {
     lastActive: 'Last active'
 };
 
-// One filter per staff role, eg "Admins", "Moderators".
-const filterItems = [
+// One filter per staff role, eg "Admins", "Moderators"; "Two-factor off" when the app uses two-factor.
+const filterItems = computed(() => [
     { label: 'All users', value: 'all' },
     ...staffRoles.map((role) => ({ label: `${upperFirst(role)}s`, value: `role:${role}` })),
     { label: 'Banned', value: 'banned' },
-    { label: 'Unverified', value: 'unverified' }
-];
+    { label: 'Unverified', value: 'unverified' },
+    ...(capabilities.value?.twoFactor ? [{ label: 'Two-factor off', value: 'no-two-factor' }] : [])
+]);
 
 const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));
 </script>

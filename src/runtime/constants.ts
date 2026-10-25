@@ -5,6 +5,3 @@ export const UI_API = '/api/_better-auth-ui';
 
 /** The admin dashboard's routes. */
 export const ADMIN_API = UI_API;
-
-/** Where the demo data from the Nuxt UI dashboard template is served (inbox, customers, members, notifications). */
-export const DEMO_API = `${ADMIN_API}/demo`;

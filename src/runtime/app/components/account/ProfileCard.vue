@@ -2,6 +2,8 @@
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 import { reactive, ref, useToast, watch } from '#imports';
 
+import CardTitle from './CardTitle.vue';
+
 /** Name and avatar, through Better Auth's updateUser. */
 const { user, updateUser } = useUserSession();
 const toast = useToast();
@@ -32,6 +34,7 @@ async function save() {
 
 <template>
     <UPageCard title="Profile" description="How you appear to others." variant="subtle">
+        <template #title><CardTitle icon="i-lucide-user-round-pen" title="Profile" /></template>
         <form class="space-y-4" @submit.prevent="save">
             <div class="flex items-center gap-4">
                 <UAvatar :src="state.image || undefined" :alt="state.name" size="3xl" />

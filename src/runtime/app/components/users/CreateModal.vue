@@ -1,9 +1,23 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { computed, reactive, ref, useAdminUsers, useBetterAuthAdminConfig, useToast } from '#imports';
+import {
+    computed,
+    onMounted,
+    reactive,
+    ref,
+    useAdminPath,
+    useAdminUsers,
+    useBetterAuthAdminConfig,
+    useRoute,
+    useRouter,
+    useToast
+} from '#imports';
 
 const emit = defineEmits<{ created: [] }>();
+const adminPath = useAdminPath();
+const route = useRoute();
+const router = useRouter();
 
 const { roles: allRoles } = useBetterAuthAdminConfig();
 const roles = computed(() => allRoles);
@@ -23,11 +37,23 @@ const state = reactive<Schema>({ name: '', email: '', password: '', role: 'user'
 const users = useAdminUsers();
 const toast = useToast();
 
+// Opened by a link, eg the home page's "New user": ?create=1. In the browser, once the page is up.
+onMounted(() => {
+    if (route.query.create === undefined) return;
+    open.value = true;
+    router.replace({ query: { ...route.query, create: undefined } });
+});
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
     try {
         const { password, ...rest } = event.data;
-        await users.create({ ...rest, ...(password && { password }) });
-        toast.add({ title: 'User created', description: event.data.email, color: 'success' });
+        const created = await users.create({ ...rest, ...(password && { password }) });
+        toast.add({
+            title: 'User created',
+            description: event.data.email,
+            color: 'success',
+            actions: [{ label: 'Open', color: 'neutral', variant: 'outline', to: adminPath(`/users/${created.id}`) }]
+        });
         Object.assign(state, { name: '', email: '', password: '', role: 'user' });
         open.value = false;
         emit('created');

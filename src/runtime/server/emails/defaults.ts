@@ -20,6 +20,10 @@ export const defaultEmails: {
         subject: 'Confirm deleting your account',
         text: `Hi ${user.name},\n\nOpen this link to permanently delete your account and everything in it:\n\n${url}\n\nIf you didn't ask for this, ignore this email; your account stays as it is.`
     }),
+    'two-factor-code': ({ user, otp }) => ({
+        subject: `Your sign-in code: ${otp}`,
+        text: `Hi ${user.name},\n\nYour sign-in code is:\n\n${otp}\n\nIt expires in a few minutes. If you didn't just sign in, change your password: someone else knows it.`
+    }),
     'existing-user-sign-up': ({ user }) => ({
         subject: 'Someone tried to sign up with your email',
         text: `Hi ${user.name},\n\nSomeone tried to create an account with your email address, but you already have one. If it was you, sign in instead, or reset your password if you've forgotten it.\n\nIf it wasn't you, you can ignore this email.`

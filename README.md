@@ -4,10 +4,11 @@ Auth UI for [Better Auth](https://better-auth.com) in Nuxt, built with [Nuxt UI]
 dashboard at `/admin`, where staff manage users through Better Auth's
 [Admin plugin](https://better-auth.com/docs/plugins/admin), sign-in pages, a self-service account page, and auth emails with your own templates. Configure it under `betterAuthUi` in `nuxt.config.ts`.
 
-The dashboard is the [Nuxt UI dashboard template](https://github.com/nuxt-ui-templates/dashboard) (MIT), brought in
-whole: a collapsible sidebar with search, a home page with stats and a revenue chart, an inbox, a customers table,
-settings pages and a notifications panel. Those pages still show the template's sample data, served from
-`/api/_better-auth-ui/demo/*`; **Users** is the real thing, backed by Better Auth.
+The dashboard's layout comes from the [Nuxt UI dashboard template](https://github.com/nuxt-ui-templates/dashboard)
+(MIT): a collapsible sidebar headed by your app's name (Better Auth's `appName`), and a search (⌘K) that finds pages,
+actions such as "Create a user", and users by name or email. Keyboard shortcuts: `g` then `h` (home), `u` (users),
+`s` (sessions), `a` (audit log) or `c` (configuration). The menu at the foot of the sidebar has your account, light,
+dark or system appearance, the way back to the site, and signing out. Everything in it is backed by Better Auth.
 
 ## User management
 
@@ -15,7 +16,8 @@ settings pages and a notifications panel. Those pages still show the template's 
   day, week or month over a chosen range, and the newest users. All from count queries on Better Auth's tables.
 - **Users list:** search by email or name, filter (admins, banned, unverified), sort, paginate; select rows to ban or
   delete several at once.
-- **Add user:** name, email, optional password, role.
+- **Add user:** name, email, optional password, role. "New user" on the home page (or `/admin/users?create=1`) opens
+  it straight away; once created, the toast links to their page.
 - **Resend verification email** to an unverified user, from their row menu or page. Better Auth only lets signed-in
   users resend to themselves, so the module calls `auth.api.sendVerificationEmail` on the server, which sends through
   the app's own email (and template).
@@ -61,9 +63,15 @@ settings pages and a notifications panel. Those pages still show the template's 
   Better Auth's own dashboard, whose `activityTracking` adds a `lastActiveAt` user column instead).
 - **Last sign-in** on the users list and each user's page, from those events: no extra writes, so it only knows
   sign-ins within the log's retention (older shows as "not in the last 30 days").
+- **Two-factor** (with the Two-Factor plugin): a shield on the users list for users who have it on, a "Two-factor
+  off" filter, and a badge on each user's page, including "required, not set up" for roles under
+  `twoFactor.required`.
+- **Configuration page:** how the app is set up, read-only, from its Better Auth config and `betterAuthUi` options:
+  sign-in methods and providers, email verification and password rules, two-factor (and who must use it), passkeys,
+  impersonation, email changes and deletion, which emails have your own template, the audit log and activity
+  tracking. Plus a **roles and permissions** table: every Better Auth Admin permission against every role, checked
+  exactly as the server checks it, with the roles that can open the admin pages marked "Staff".
 - You can't ban, delete or change the role of your own account here; Better Auth also refuses self-bans.
-
-> **Status: early.** The template's other pages (inbox, customers, settings) still show sample data.
 
 ## Setup
 
@@ -148,6 +156,10 @@ export default defineNuxtConfig({
             bannedUserMessage: 'Your account is suspended. Contact support.',
             impersonationSessionDuration: 60 * 60 // seconds
         },
+        // Two-factor authentication. See "Two-factor authentication" below.
+        twoFactor: { enabled: false, otp: false, required: false },
+        // Passkeys (install @better-auth/passkey). See "Passkeys" below.
+        passkey: { enabled: false },
         // Auth emails: delivery and templates. See "Emails" below.
         emails: {}
     }
@@ -166,6 +178,7 @@ On by default, in your app's own layout, built with Nuxt UI's `UAuthForm` and `@
 | Forgot password   | `/forgot-password` | emails a reset link (the same answer whether or not the email has an account)    |
 | Reset password    | `/reset-password`  | where reset links land: choose a new password, or ask for a new link if it expired |
 | Account           | `/account`         | see "Account page" below                                                        |
+| Two-factor        | `/two-factor`      | the second step of a password sign-in, for users with two-factor on             |
 
 - **Each page shows only what your Better Auth set-up supports**, read from it at runtime: social buttons for configured
   providers, sign-up only when it's enabled, password length rules, "Forgot password?" only with reset emails.
@@ -178,9 +191,14 @@ On by default, in your app's own layout, built with Nuxt UI's `UAuthForm` and `@
     }
     ```
 
+- **Social sign-in:** returning users go back where they were heading; brand-new accounts start on the account page
+  (Better Auth's `newUserCallbackURL`); if the provider sign-in fails (eg GitHub hides the email), they come back to
+  the sign-in page with a readable message (`errorCallbackURL`).
 - `/login` is where `@nuxtjs/better-auth` sends signed-out visitors by default. After signing in, people go back
   where they came from (its `?redirect=`, checked to be a path on your site), else to its `redirects.authenticated`,
   else `/`. Signed-in visitors are sent away from these pages.
+- **Signing out** (the account page's button, the admin menu's "Log out") goes to `/`; change it with
+  `signOutRedirect: '/goodbye'`.
 
 ## Account page
 
@@ -193,12 +211,92 @@ user and session APIs ([User & Accounts](https://better-auth.com/docs/concepts/u
 | Profile          | change their name and avatar                                                                       |                                       |
 | Email            | resend the verification link; change their email (approved from the old address when it's verified, then verified at the new one) | `user.changeEmail.enabled` to change |
 | Password         | change it, optionally signing out other devices; accounts without one get a link to set one        | email and password sign-in            |
+| Passkeys         | add, rename and remove passkeys                                                                    | the Passkey plugin                    |
+| Two-factor       | set up an authenticator app (QR code, backup codes) or email codes; new backup codes; turn it off   | the Two-Factor plugin                 |
 | Sign-in methods  | connect another social provider, disconnect one (never the last)                                   | social providers                      |
 | Devices          | see where they're signed in, sign out of one or all others                                         |                                       |
 | Delete account   | with their password, a recent sign-in, or an email confirmation                                    | `user.deleteUser.enabled`             |
 
-Sections the app's Better Auth set-up doesn't support are left out. The lists are server-rendered from Better Auth's
+An overview card sits on top: avatar, name, email, role, "member since", and a tile for each part of the account's
+security (email, two-factor, passkeys, sign-in methods, devices) that opens where it's managed. Below it the sections
+are in tabs (Profile, Security, Devices, Delete), with the open one in the URL (`/account?tab=security`), so it's
+server-rendered and linkable. Sections the app's Better Auth set-up doesn't support are left out. The lists are server-rendered from Better Auth's
 `list-accounts` and `list-sessions`.
+
+## Two-factor authentication
+
+Better Auth's [Two-Factor plugin](https://better-auth.com/docs/plugins/2fa), added by the module:
+
+```ts
+betterAuthUi: {
+    twoFactor: {
+        enabled: true,
+        // Codes by email too (needs emails.send; template: `two-factor-code`).
+        otp: true,
+        // The name authenticator apps show. Default: your Better Auth appName.
+        issuer: 'Neomons',
+        // Seconds "trust this device" lasts. Default: 30 days.
+        trustDeviceMaxAge: 60 * 60 * 24 * 30,
+        // Who must have it on: true for everyone, or roles. Default: nobody.
+        required: ['admin', 'moderator']
+    }
+}
+```
+
+Then run Better Auth's migrations: the plugin adds a `twoFactorEnabled` column to the user table and a `twoFactor`
+table.
+
+- **Setting up**, on the account page: scan a QR code (drawn in the browser; the secret never leaves it), confirm with
+  the app's first code, save the backup codes. Or, with `otp`, have codes emailed instead. Users with a password
+  confirm with it; social-only users can set it up too.
+- **Signing in** then asks for a code on `/two-factor` (keeping `?redirect=`): from the app, by email, or a backup code
+  (each works once), with "trust this device". Better Auth locks the account for a while after repeated wrong codes.
+- **Every sign-in is challenged, not just passwords.** Better Auth's plugin only challenges password sign-ins and
+  [suggests hooks](https://better-auth.com/docs/plugins/2fa#sign-in-with-2fa) for the rest; the module adds them, for
+  social and Generic OAuth callbacks, social ID tokens, magic links, email OTP and One Tap. They run the plugin's own
+  challenge, so codes, trusted devices and lockout work the same; callbacks redirect to `/two-factor` instead of
+  signing in. (Passkeys aren't challenged: a passkey is already a second factor.)
+- **`required`:** until those users set it up, pages send them to the account page (with a banner saying why), and
+  your `/api` routes, the admin's and Better Auth's admin endpoints answer 403; Better Auth's other endpoints stay
+  open, since setting it up goes through them. Once it's on, they can't turn it off. **A passkey sign-in counts**:
+  it's complete on its own, so a session started with a passkey isn't held back, while one started with a password
+  (or a provider) still needs two-factor. The module notes passkey sessions in Better Auth's `verification` table
+  (as its Two-Factor plugin does for trusted devices), so there's no extra table. Users are matched by Better
+  Auth Admin roles, so a role change applies on their next request.
+- **Adding the plugin yourself** (eg for options the module doesn't pass) works too: leave `twoFactor.enabled` off,
+  add `twoFactor()` and `twoFactorClient()` to your auth configs, and the account page picks it up. The extra
+  challenges and `required` come with the module's plugin only.
+
+## Passkeys
+
+Better Auth's [Passkey plugin](https://better-auth.com/docs/plugins/passkey), from its own package:
+
+```bash
+pnpm add @better-auth/passkey
+```
+
+```ts
+betterAuthUi: {
+    passkey: {
+        enabled: true,
+        // All optional, Better Auth's defaults otherwise:
+        rpName: 'Neomons', // the site name passkey prompts show; default: your appName
+        rpID: 'neomons.com', // the domain passkeys belong to; default: your base URL's hostname
+        origin: 'https://neomons.com' // where they're used from; default: the request's origin
+    }
+}
+```
+
+Then run Better Auth's migrations (it adds a `passkey` table).
+
+- **Account page:** add a passkey (optionally named, eg "Work laptop"; the browser asks where to keep it), see when
+  each was added and whether it's synced, rename or remove them.
+- **Sign-in page:** a "Sign in with a passkey" button, and the browser offers saved passkeys from the email field
+  (conditional UI, where supported). Either way it goes on to `?redirect=` like any sign-in.
+- Passkey sign-ins aren't asked for a two-factor code: a passkey is already something you have plus your device's
+  fingerprint, face or PIN.
+- **Adding the plugin yourself** works too: leave `passkey.enabled` off, add `passkey()` and `passkeyClient()` to
+  your auth configs, and the pages pick it up.
 
 ## Emails
 
@@ -269,6 +367,7 @@ own templates, delivered by your own function (Resend, SMTP, …).
 | `existing-user-sign-up` | `emailAndPassword.onExistingUserSignUp`     | `{ user }`              |
 | `change-email-confirmation` | `user.changeEmail.sendChangeEmailConfirmation` | `{ user, newEmail, url, token }` |
 | `delete-account`        | `user.deleteUser.sendDeleteAccountVerification` | `{ user, url, token }` |
+| `two-factor-code`       | Two-Factor `otpOptions.sendOTP` (added by the module with `twoFactor.otp`) | `{ user, otp }` |
 
 Emails are sent in the background, not awaited, as
 [Better Auth advises](https://better-auth.com/docs/concepts/email) (waiting would reveal through timing which emails

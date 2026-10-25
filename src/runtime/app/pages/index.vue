@@ -1,29 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, useAdminCan, useAdminDashboard, useAdminPath, useLazyFetch } from '#imports';
+import { computed, ref, shallowRef, useAdminCan, useAdminPath, useLazyFetch } from '#imports';
 import { addDays, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, max, startOfDay, sub } from 'date-fns';
 import { ADMIN_API } from '../../constants';
 import type { AdminStats, Period, Range } from '../types';
-import { shownItems } from '../utils/menu';
 
 const adminPath = useAdminPath();
-
-const { isNotificationsSlideoverOpen } = useAdminDashboard();
-
-const can = useAdminCan();
-const items = shownItems([
-    [
-        {
-            label: 'New mail',
-            icon: 'i-lucide-send',
-            to: adminPath('/inbox')
-        },
-        can({ user: ['create'] }) && {
-            label: 'New user',
-            icon: 'i-lucide-user-plus',
-            to: adminPath('/users')
-        }
-    ]
-]);
+const canCreate = useAdminCan()({ user: ['create'] });
 
 const range = shallowRef<Range>({
     start: sub(new Date(), { days: 14 }),
@@ -68,17 +50,13 @@ const { data: stats } = useLazyFetch<AdminStats>(`${ADMIN_API}/stats`, {
                 </template>
 
                 <template #right>
-                    <UTooltip text="Notifications" :shortcuts="['N']">
-                        <UButton color="neutral" variant="ghost" square @click="isNotificationsSlideoverOpen = true">
-                            <UChip color="error" inset>
-                                <UIcon name="i-lucide-bell" class="size-5 shrink-0" />
-                            </UChip>
-                        </UButton>
-                    </UTooltip>
-
-                    <UDropdownMenu :items="items">
-                        <UButton icon="i-lucide-plus" size="md" class="rounded-full" />
-                    </UDropdownMenu>
+                    <!-- Opens the users page's create form. -->
+                    <UButton
+                        v-if="canCreate"
+                        :to="adminPath('/users?create=1')"
+                        icon="i-lucide-user-plus"
+                        label="New user"
+                    />
                 </template>
             </UDashboardNavbar>
 

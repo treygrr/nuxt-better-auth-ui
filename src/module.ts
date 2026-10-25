@@ -3,20 +3,23 @@ import { existsSync } from 'node:fs';
 import type { NuxtPage } from '@nuxt/schema';
 
 import { resolveRoles, rolesFile, rolesTypes, type AdminRolePermissions } from './roles';
-import type { BetterAuthEmailName } from './runtime/server/emails/types';
+import { EMAIL_NAMES, type BetterAuthEmailName } from './runtime/server/emails/types';
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
-import { ADMIN_API, DEMO_API, UI_API } from './runtime/constants';
+import { ADMIN_API, UI_API } from './runtime/constants';
+import { safeLocalPath } from './runtime/app/utils/redirect';
 import {
     addComponentsDir,
     addImports,
     addServerHandler,
     addLayout,
+    addRouteMiddleware,
     addTemplate,
     createResolver,
     defineNuxtModule,
     extendPages,
     extendRouteRules,
     resolvePath,
+    tryResolveModule,
     useLogger
 } from '@nuxt/kit';
 
@@ -104,6 +107,53 @@ export type PagesOptions = {
     resetPassword: string | false;
     /** The signed-in user's account page: profile, email, password, sign-in methods, devices, deleting it. @default '/account' */
     account: string | false;
+    /** The second step of signing in with a password, for users with two-factor on (see `twoFactor`). @default '/two-factor' */
+    twoFactor: string | false;
+};
+
+/** Two-factor authentication, through Better Auth's Two-Factor plugin (https://better-auth.com/docs/plugins/2fa). */
+export type TwoFactorOptions = {
+    /**
+     * Adds the plugin, so users can turn on two-factor from their account page and are asked for a code after
+     * signing in, with a password or without (social, magic links, …). Users without a password can turn it on too
+     * (the plugin's `allowPasswordless`). The plugin adds a `twoFactorEnabled` column to the user table and a
+     * `twoFactor` table: run Better Auth's migrations after turning it on.
+     * @default false
+     */
+    enabled: boolean;
+    /**
+     * Users who must have two-factor on: `true` for everyone, or roles, eg `['admin', 'moderator']`. Until they set
+     * it up, pages send them to the account page, and the app's `/api` routes and Better Auth's admin endpoints
+     * answer 403; once it's on, they can't turn it off.
+     * @default false
+     */
+    required: boolean | string[];
+    /**
+     * Codes by email as well as authenticator apps (the plugin's `otpOptions.sendOTP`), sent through
+     * `emails.send` with the `two-factor-code` template.
+     * @default false
+     */
+    otp: boolean;
+    /** The name authenticator apps show. Better Auth's default: the app name in the auth config. */
+    issuer?: string;
+    /** Seconds "trust this device" lasts. Better Auth's default: 2592000 (30 days). */
+    trustDeviceMaxAge?: number;
+};
+
+/** Passkeys, through Better Auth's Passkey plugin (https://better-auth.com/docs/plugins/passkey). */
+export type PasskeyOptions = {
+    /**
+     * Adds the plugin (install `@better-auth/passkey`), so users can add passkeys from their account page and sign
+     * in with one. It adds a `passkey` table: run Better Auth's migrations after turning it on.
+     * @default false
+     */
+    enabled: boolean;
+    /** The site name passkey prompts show. Better Auth's default: the app name in the auth config. */
+    rpName?: string;
+    /** The domain passkeys belong to, eg `example.com`. Better Auth's default: the hostname of its base URL. */
+    rpID?: string;
+    /** The origin passkeys are used from, eg `https://example.com`. Better Auth's default: the request's origin. */
+    origin?: string;
 };
 
 export type ModuleOptions = {
@@ -114,6 +164,15 @@ export type ModuleOptions = {
      * the app's Better Auth set-up supports (eg social buttons for configured providers).
      */
     pages: PagesOptions;
+    /**
+     * Where people go after signing out from the account page or the admin menu: a path on your site.
+     * @default '/'
+     */
+    signOutRedirect: string;
+    /** Two-factor authentication, off by default. */
+    twoFactor: TwoFactorOptions;
+    /** Passkeys, off by default. */
+    passkey: PasskeyOptions;
     /**
      * Auth emails, sent through `betterAuthEmails` in the app's auth config. Paths are relative to the project
      * root, eg `./server/emails/send.ts`; Nuxt aliases work too (`~~/server/…`).
@@ -155,8 +214,12 @@ export default defineNuxtModule<ModuleOptions>({
             signUp: '/signup',
             forgotPassword: '/forgot-password',
             resetPassword: '/reset-password',
-            account: '/account'
+            account: '/account',
+            twoFactor: '/two-factor'
         },
+        signOutRedirect: '/',
+        twoFactor: { enabled: false, otp: false, required: false },
+        passkey: { enabled: false },
         emails: {}
     },
     // Installed before this module, in order, and checked against these versions.
@@ -172,13 +235,7 @@ export default defineNuxtModule<ModuleOptions>({
 
         // The app's email sender and templates, for `betterAuthEmails`. A virtual module, so Nitro bundles the
         // app's files; the helper only imports it when it sends, since the auth config also loads at build time.
-        const EMAILS: BetterAuthEmailName[] = [
-            'verify-email',
-            'reset-password',
-            'existing-user-sign-up',
-            'change-email-confirmation',
-            'delete-account'
-        ];
+        const EMAILS = EMAIL_NAMES;
         const unknownEmails = Object.keys(emails.templates ?? {}).filter(
             (name) => !EMAILS.includes(name as BetterAuthEmailName)
         );
@@ -227,8 +284,25 @@ export default defineNuxtModule<ModuleOptions>({
             ['signUp', 'sign-up.vue'],
             ['forgotPassword', 'forgot-password.vue'],
             ['resetPassword', 'reset-password.vue'],
-            ['account', 'account.vue']
+            ['account', 'account.vue'],
+            ['twoFactor', 'two-factor.vue']
         ];
+        const { twoFactor } = moduleOptions;
+        if (twoFactor.otp && !emails.send) {
+            throw new Error('[better-auth-ui] twoFactor.otp sends codes by email: set emails.send too.');
+        }
+        if (twoFactor.required && !twoFactor.enabled) {
+            throw new Error('[better-auth-ui] twoFactor.required needs twoFactor.enabled.');
+        }
+        if (Array.isArray(twoFactor.required) && options.enabled) {
+            const roleNames = ['user', options.role, ...Object.keys(options.roles)];
+            const unknown = twoFactor.required.filter((role) => !roleNames.includes(role));
+            if (unknown.length) {
+                throw new Error(
+                    `[better-auth-ui] twoFactor.required: ${unknown.join(', ')} isn't a role. Use ${roleNames.join(', ')}.`
+                );
+            }
+        }
         extendPages((pages) => {
             for (const [name, file] of AUTH_PAGES) {
                 const path = pagePaths[name];
@@ -261,7 +335,124 @@ export default defineNuxtModule<ModuleOptions>({
             { name: 'useRedirectTarget', from: resolve('./runtime/app/composables/useAuthPages') }
         ]);
 
-        (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = { pages: pagePaths };
+        if (!safeLocalPath(moduleOptions.signOutRedirect)) {
+            throw new Error(
+                `[better-auth-ui] signOutRedirect must be a path on your site, eg '/', not "${moduleOptions.signOutRedirect}".`
+            );
+        }
+        (nuxt.options.runtimeConfig.public as Record<string, unknown>).betterAuthUi = {
+            pages: pagePaths,
+            signOutRedirect: moduleOptions.signOutRedirect,
+            twoFactorRequired: twoFactor.required
+        };
+
+        // Better Auth's Two-Factor plugin, with codes by email through the module's emails when `otp` is on.
+        if (twoFactor.enabled) {
+            const twoFactorOptions = {
+                // Social-only users can turn it on too: the module also asks for the code after passwordless sign-ins.
+                allowPasswordless: true,
+                ...(twoFactor.issuer !== undefined && { issuer: twoFactor.issuer }),
+                ...(twoFactor.trustDeviceMaxAge !== undefined && { trustDeviceMaxAge: twoFactor.trustDeviceMaxAge })
+            };
+            const twoFactorServer = addTemplate({
+                filename: 'better-auth-ui/two-factor-server.mjs',
+                write: true,
+                getContents: () =>
+                    [
+                        "import { twoFactor } from 'better-auth/plugins'",
+                        ...(twoFactor.otp
+                            ? [
+                                  `import { betterAuthEmails } from ${JSON.stringify(resolve('./runtime/server/emails/index'))}`,
+                                  `export default twoFactor({ ...${JSON.stringify(twoFactorOptions)}, otpOptions: { sendOTP: betterAuthEmails.twoFactorCode } })`
+                              ]
+                            : [`export default twoFactor(${JSON.stringify(twoFactorOptions)})`])
+                    ].join('\n')
+            });
+            const twoFactorClient = addTemplate({
+                filename: 'better-auth-ui/two-factor-client.mjs',
+                write: true,
+                getContents: () =>
+                    [
+                        "import { twoFactorClient } from 'better-auth/client/plugins'",
+                        // The sign-in page sends users on to the two-factor page itself, keeping where they were heading.
+                        'export default twoFactorClient()'
+                    ].join('\n')
+            });
+            // Challenges passwordless sign-ins too, and enforces `required`. Right after the plugin, so later plugins'
+            // hooks (the audit log) see a challenged sign-in as not signed in yet.
+            const enforcement = addTemplate({
+                filename: 'better-auth-ui/two-factor-enforcement.mjs',
+                write: true,
+                getContents: () => {
+                    const auth = (nuxt.options.runtimeConfig.public as { auth?: { redirectQueryKey?: string } }).auth;
+                    const enforcementOptions = {
+                        required: twoFactor.required,
+                        page: pagePaths.twoFactor,
+                        redirectQueryKey: auth?.redirectQueryKey ?? 'redirect'
+                    };
+                    return [
+                        `import { twoFactorEnforcement } from ${JSON.stringify(resolve('./runtime/server/two-factor/plugin'))}`,
+                        `export default twoFactorEnforcement(${JSON.stringify(enforcementOptions)})`
+                    ].join('\n');
+                }
+            });
+            nuxt.hook('better-auth:plugins:extend', (sources) => {
+                (sources.server ??= []).push(twoFactorServer.dst, enforcement.dst);
+                (sources.client ??= []).push(twoFactorClient.dst);
+            });
+            if (twoFactor.required) {
+                addServerHandler({
+                    middleware: true,
+                    handler: resolve('./runtime/server/middleware/two-factor-required')
+                });
+                addRouteMiddleware({
+                    name: 'better-auth-ui-two-factor-required',
+                    path: resolve('./runtime/app/middleware/two-factor-required'),
+                    global: true
+                });
+            }
+        }
+        // Also for apps that add the plugin themselves: the account page shows two-factor whenever it's in use.
+        addServerHandler({
+            route: `${UI_API}/two-factor`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/two-factor.get')
+        });
+
+        // Better Auth's Passkey plugin, from its own package, which the app installs.
+        const { passkey } = moduleOptions;
+        if (passkey.enabled) {
+            if (!(await tryResolveModule('@better-auth/passkey', nuxt.options.modulesDir))) {
+                throw new Error('[better-auth-ui] passkey.enabled needs the @better-auth/passkey package: install it.');
+            }
+            const passkeyOptions = Object.fromEntries(
+                (['rpName', 'rpID', 'origin'] as const)
+                    .filter((key) => passkey[key] !== undefined)
+                    .map((key) => [key, passkey[key]])
+            );
+            const passkeyServer = addTemplate({
+                filename: 'better-auth-ui/passkey-server.mjs',
+                write: true,
+                getContents: () =>
+                    [
+                        "import { passkey } from '@better-auth/passkey'",
+                        `export default passkey(${JSON.stringify(passkeyOptions)})`
+                    ].join('\n')
+            });
+            const passkeyClient = addTemplate({
+                filename: 'better-auth-ui/passkey-client.mjs',
+                write: true,
+                getContents: () =>
+                    [
+                        "import { passkeyClient } from '@better-auth/passkey/client'",
+                        'export default passkeyClient()'
+                    ].join('\n')
+            });
+            nuxt.hook('better-auth:plugins:extend', (sources) => {
+                (sources.server ??= []).push(passkeyServer.dst);
+                (sources.client ??= []).push(passkeyClient.dst);
+            });
+        }
         if (!options.enabled) return;
 
         // The admin dashboard.
@@ -304,7 +495,9 @@ export default defineNuxtModule<ModuleOptions>({
             lastSignIn: options.auditLog && options.auditUserEvents,
             activityTracking: options.activityTracking.enabled,
             activityInterval: options.activityTracking.updateInterval ?? 300_000,
-            auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays))
+            auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)),
+            // For the configuration page: whether emails can be sent, and which have the app's own template.
+            emails: { send: !!emails.send, templates: Object.keys(emails.templates ?? {}) }
         } satisfies BetterAuthAdminPublicConfig;
 
         // The roles, built with Better Auth's access control. The server and client plugins and the admin pages
@@ -454,14 +647,6 @@ export default defineNuxtModule<ModuleOptions>({
             handler: resolve('./runtime/server/api/users/accounts.delete')
         });
 
-        // Sample data from the Nuxt UI dashboard template, for the inbox, customers and settings pages.
-        for (const name of ['customers', 'mails', 'members', 'notifications']) {
-            addServerHandler({
-                route: `${DEMO_API}/${name}`,
-                method: 'get',
-                handler: resolve(`./runtime/server/api/demo/${name}`)
-            });
-        }
         addLayout({ src: resolve('./runtime/app/layouts/admin.vue') }, LAYOUT);
 
         const page = (name: string, path: string, file: string, children?: NuxtPage[]): NuxtPage => ({
@@ -478,18 +663,8 @@ export default defineNuxtModule<ModuleOptions>({
                 page('user', '/users/:id', 'users/[id].vue'),
                 page('sessions', '/sessions', 'sessions.vue'),
                 ...(options.auditLog ? [page('audit', '/audit', 'audit.vue')] : []),
-                // From the dashboard template, with its sample data
-                page('inbox', '/inbox', 'inbox.vue'),
-                page('customers', '/customers', 'customers.vue'),
-                {
-                    ...page('', '/settings', 'settings.vue', [
-                        { ...page('settings', '', 'settings/index.vue'), path: '' },
-                        { ...page('settings-members', '', 'settings/members.vue'), path: 'members' },
-                        { ...page('settings-notifications', '', 'settings/notifications.vue'), path: 'notifications' },
-                        { ...page('settings-security', '', 'settings/security.vue'), path: 'security' }
-                    ]),
-                    name: undefined
-                }
+                // What the app's set-up allows, and who can do what (read-only).
+                page('configuration', '/configuration', 'configuration.vue')
             );
         });
 

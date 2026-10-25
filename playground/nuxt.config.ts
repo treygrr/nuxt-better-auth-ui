@@ -12,6 +12,11 @@ export default defineNuxtConfig({
                 moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] }
             }
         },
+        // Two-factor from the account page: an authenticator app, or codes by email (to the outbox).
+        // Passkeys: added from the account page, signed in with on the sign-in page.
+        passkey: { enabled: true, rpName: 'Better Auth UI playground' },
+        // Moderators must have it on.
+        twoFactor: { enabled: true, otp: true, issuer: 'Better Auth UI playground', required: ['moderator'] },
         // Delivery to the playground outbox, and an HTML verification email; the rest are plain-text defaults.
         emails: {
             send: './server/emails/send.ts',

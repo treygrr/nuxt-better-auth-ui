@@ -2,6 +2,8 @@
 import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composables';
 import { computed, navigateTo, ref, useAuthCapabilities } from '#imports';
 
+import CardTitle from './CardTitle.vue';
+
 /**
  * Deleting the account, as Better Auth's deleteUser decides: with an email confirmation when the app sends one,
  * else straight away after the password (or with a recent sign-in, for accounts without one).
@@ -42,6 +44,7 @@ async function confirm() {
         variant="subtle"
         :ui="{ title: 'text-error' }"
     >
+        <template #title><CardTitle icon="i-lucide-trash-2" title="Delete account" color="error" /></template>
         <UAlert
             v-if="emailSent"
             color="warning"

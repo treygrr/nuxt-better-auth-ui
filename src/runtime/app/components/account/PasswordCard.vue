@@ -2,6 +2,8 @@
 import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composables';
 import { computed, reactive, ref, useAuthCapabilities, useAuthPages, useToast } from '#imports';
 
+import CardTitle from './CardTitle.vue';
+
 /**
  * Changing the password; or, for social-only accounts, setting one through a reset email, as Better Auth's docs
  * recommend (its setPassword is server-only).
@@ -50,6 +52,7 @@ async function sendSetLink() {
         "
         variant="subtle"
     >
+        <template #title><CardTitle icon="i-lucide-lock-keyhole" title="Password" /></template>
         <form v-if="props.hasPassword" class="space-y-4" @submit.prevent="change">
             <UFormField label="Current password" required>
                 <UInput

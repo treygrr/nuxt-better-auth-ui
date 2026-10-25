@@ -22,9 +22,21 @@ export type BetterAuthEmails = {
     'change-email-confirmation': { user: EmailUser; newEmail: string; url: string; token: string };
     /** `user.deleteUser.sendDeleteAccountVerification`: confirm deleting the account. */
     'delete-account': { user: EmailUser; url: string; token: string };
+    /** Two-Factor plugin `otpOptions.sendOTP`: a sign-in code, when `betterAuthUi.twoFactor.otp` is on. */
+    'two-factor-code': { user: EmailUser; otp: string };
 };
 
 export type BetterAuthEmailName = keyof BetterAuthEmails;
+
+/** Every email, in the order the docs and the admin's configuration page list them. */
+export const EMAIL_NAMES: BetterAuthEmailName[] = [
+    'verify-email',
+    'reset-password',
+    'existing-user-sign-up',
+    'change-email-confirmation',
+    'delete-account',
+    'two-factor-code'
+];
 
 /** What a template returns: an HTML body (with the default subject), or the parts it wants to set. */
 export type RenderedEmail = string | { subject?: string; html?: string; text?: string };

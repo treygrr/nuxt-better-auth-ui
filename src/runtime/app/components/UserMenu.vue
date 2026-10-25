@@ -1,221 +1,58 @@
 <script setup lang="ts">
-import { computed, navigateTo, useAdminPath, useAppConfig, useColorMode } from '#imports';
+import { computed, navigateTo, useAuthPages, useColorMode } from '#imports';
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 
-const adminPath = useAdminPath();
+import { useSignOutTarget } from '../composables/useAuthPages';
 
+/** The signed-in admin, at the foot of the sidebar: their account, the colour mode, back to the site, sign out. */
 defineProps<{
     collapsed?: boolean;
 }>();
 
 const colorMode = useColorMode();
-const appConfig = useAppConfig();
-
-const colors = [
-    'red',
-    'orange',
-    'amber',
-    'yellow',
-    'lime',
-    'green',
-    'emerald',
-    'teal',
-    'cyan',
-    'sky',
-    'blue',
-    'indigo',
-    'violet',
-    'purple',
-    'fuchsia',
-    'pink',
-    'rose'
-];
-const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone', 'taupe', 'mauve', 'mist', 'olive'];
-
-// The signed-in admin, from Better Auth (the template showed a fixed demo user).
 const session = useUserSession();
+const pages = useAuthPages();
+const signOutTarget = useSignOutTarget();
+
 const user = computed(() => ({
     name: session.user.value?.name ?? '',
+    email: session.user.value?.email ?? '',
     avatar: {
         src: session.user.value?.image ?? undefined,
         alt: session.user.value?.name ?? ''
     }
 }));
 
+const modes = [
+    { label: 'Light', value: 'light', icon: 'i-lucide-sun' },
+    { label: 'Dark', value: 'dark', icon: 'i-lucide-moon' },
+    { label: 'System', value: 'system', icon: 'i-lucide-monitor' }
+] as const;
+
 const items = computed<DropdownMenuItem[][]>(() => [
     [
         {
             type: 'label',
-            label: user.value.name,
+            label: user.value.email,
             avatar: user.value.avatar
         }
     ],
     [
-        {
-            label: 'Profile',
-            icon: 'i-lucide-user'
-        },
-        {
-            label: 'Billing',
-            icon: 'i-lucide-credit-card'
-        },
-        {
-            label: 'Settings',
-            icon: 'i-lucide-settings',
-            to: adminPath('/settings')
-        }
-    ],
-    [
-        {
-            label: 'Theme',
-            icon: 'i-lucide-palette',
-            children: [
-                {
-                    label: 'Primary',
-                    slot: 'chip',
-                    chip: appConfig.ui.colors.primary,
-                    content: {
-                        align: 'center',
-                        collisionPadding: 16
-                    },
-                    children: colors.map((color) => ({
-                        label: color,
-                        chip: color,
-                        slot: 'chip',
-                        checked: appConfig.ui.colors.primary === color,
-                        type: 'checkbox',
-                        onSelect: (e) => {
-                            e.preventDefault();
-
-                            appConfig.ui.colors.primary = color;
-                        }
-                    }))
-                },
-                {
-                    label: 'Neutral',
-                    slot: 'chip',
-                    chip: appConfig.ui.colors.neutral === 'neutral' ? 'old-neutral' : appConfig.ui.colors.neutral,
-                    content: {
-                        align: 'end',
-                        collisionPadding: 16
-                    },
-                    children: neutrals.map((color) => ({
-                        label: color,
-                        chip: color === 'neutral' ? 'old-neutral' : color,
-                        slot: 'chip',
-                        type: 'checkbox',
-                        checked: appConfig.ui.colors.neutral === color,
-                        onSelect: (e) => {
-                            e.preventDefault();
-
-                            appConfig.ui.colors.neutral = color;
-                        }
-                    }))
-                }
-            ]
-        },
+        ...(pages.account ? [{ label: 'Your account', icon: 'i-lucide-user-round', to: pages.account }] : []),
         {
             label: 'Appearance',
             icon: 'i-lucide-sun-moon',
-            children: [
-                {
-                    label: 'Light',
-                    icon: 'i-lucide-sun',
-                    type: 'checkbox',
-                    checked: colorMode.value === 'light',
-                    onSelect(e: Event) {
-                        e.preventDefault();
-
-                        colorMode.preference = 'light';
-                    }
-                },
-                {
-                    label: 'Dark',
-                    icon: 'i-lucide-moon',
-                    type: 'checkbox',
-                    checked: colorMode.value === 'dark',
-                    onUpdateChecked(checked: boolean) {
-                        if (checked) {
-                            colorMode.preference = 'dark';
-                        }
-                    },
-                    onSelect(e: Event) {
-                        e.preventDefault();
-                    }
+            children: modes.map((mode) => ({
+                label: mode.label,
+                icon: mode.icon,
+                type: 'checkbox' as const,
+                checked: colorMode.preference === mode.value,
+                onSelect(event: Event) {
+                    event.preventDefault();
+                    colorMode.preference = mode.value;
                 }
-            ]
-        }
-    ],
-    [
-        {
-            label: 'Templates',
-            icon: 'i-lucide-layout-template',
-            children: [
-                {
-                    label: 'Starter',
-                    to: 'https://starter-template.nuxt.dev/'
-                },
-                {
-                    label: 'Landing',
-                    to: 'https://landing-template.nuxt.dev/'
-                },
-                {
-                    label: 'Docs',
-                    to: 'https://docs-template.nuxt.dev/'
-                },
-                {
-                    label: 'SaaS',
-                    to: 'https://saas-template.nuxt.dev/'
-                },
-                {
-                    label: 'Dashboard',
-                    to: 'https://dashboard-template.nuxt.dev/',
-                    color: 'primary',
-                    checked: true,
-                    type: 'checkbox'
-                },
-                {
-                    label: 'Chat',
-                    to: 'https://chat-template.nuxt.dev/'
-                },
-                {
-                    label: 'Portfolio',
-                    to: 'https://portfolio-template.nuxt.dev/'
-                },
-                {
-                    label: 'Changelog',
-                    to: 'https://changelog-template.nuxt.dev/'
-                },
-                {
-                    label: 'Editor',
-                    to: 'https://editor-template.nuxt.dev/'
-                },
-                {
-                    label: 'Calendar',
-                    to: 'https://calendar-template.nuxt.dev/'
-                }
-            ]
-        }
-    ],
-    [
-        {
-            label: 'Documentation',
-            icon: 'i-lucide-book-open',
-            to: 'https://ui.nuxt.com/docs/getting-started/installation/nuxt',
-            target: '_blank'
-        },
-        {
-            label: 'GitHub repository',
-            icon: 'i-simple-icons-github',
-            to: 'https://github.com/nuxt-ui-templates/dashboard',
-            target: '_blank'
-        },
-        {
-            label: 'Deploy to Vercel',
-            icon: 'i-simple-icons-vercel',
-            to: 'https://vercel.com/new/clone?repository-name=dashboard&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fdashboard&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fdashboard-dark.png&demo-url=https%3A%2F%2Fdashboard-template.nuxt.dev%2F&demo-title=Nuxt%20Dashboard%20Template&demo-description=A%20dashboard%20template%20with%20multi-column%20layout%20for%20building%20sophisticated%20admin%20interfaces.',
-            target: '_blank'
+            }))
         }
     ],
     [
@@ -230,7 +67,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
             onSelect: () =>
                 session.signOut({
                     onSuccess: async () => {
-                        await navigateTo('/');
+                        await navigateTo(signOutTarget);
                     }
                 })
         }
@@ -242,14 +79,12 @@ const items = computed<DropdownMenuItem[][]>(() => [
     <UDropdownMenu
         :items="items"
         :content="{ align: 'center', collisionPadding: 12 }"
-        :ui="{ content: collapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)' }"
+        :ui="{ content: collapsed ? 'w-56' : 'w-(--reka-dropdown-menu-trigger-width)' }"
     >
         <UButton
-            v-bind="{
-                ...user,
-                label: collapsed ? undefined : user?.name,
-                trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down'
-            }"
+            :avatar="user.avatar"
+            :label="collapsed ? undefined : user.name"
+            :trailing-icon="collapsed ? undefined : 'i-lucide-chevrons-up-down'"
             color="neutral"
             variant="ghost"
             block
@@ -259,17 +94,5 @@ const items = computed<DropdownMenuItem[][]>(() => [
                 trailingIcon: 'text-dimmed'
             }"
         />
-
-        <template #chip-leading="{ item }">
-            <div class="inline-flex items-center justify-center shrink-0 size-5">
-                <span
-                    class="rounded-full ring ring-bg bg-(--chip-light) dark:bg-(--chip-dark) size-2"
-                    :style="{
-                        '--chip-light': `var(--color-${(item as any).chip}-500)`,
-                        '--chip-dark': `var(--color-${(item as any).chip}-400)`
-                    }"
-                />
-            </div>
-        </template>
     </UDropdownMenu>
 </template>

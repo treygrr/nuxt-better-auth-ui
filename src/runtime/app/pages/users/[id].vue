@@ -8,14 +8,17 @@ import {
     useAdminCan,
     useAdminPath,
     useAdminUsers,
+    useAuthCapabilities,
     useBetterAuthAdminConfig,
     useFetch,
     useLazyFetch,
     useRoute,
+    useRuntimeConfig,
     useToast
 } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
+import { requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 import type { AdminAccount, AdminAuditEntry, AdminSession, AdminUser } from '../../types';
 import { useImpersonateItem } from '../../composables/useImpersonateItem';
 import { device } from '../../utils/device';
@@ -113,6 +116,19 @@ const accountItems = (account: AdminAccount): DropdownMenuItem[][] => {
 };
 
 const isSelf = computed(() => user.value?.id === session.user.value?.id);
+
+// Two-factor, when the app uses it: on, off, or required by their role and not set up yet.
+const { capabilities } = useAuthCapabilities();
+const { twoFactorRequired } = useRuntimeConfig().public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };
+const twoFactorBadge = computed(() => {
+    if (!capabilities.value?.twoFactor || !user.value) return null;
+    if (user.value.twoFactorEnabled) {
+        return { label: 'Two-factor on', color: 'success' as const, icon: 'i-lucide-shield-check' };
+    }
+    return requiresTwoFactor(user.value, twoFactorRequired)
+        ? { label: 'Two-factor required, not set up', color: 'warning' as const, icon: 'i-lucide-shield-alert' }
+        : { label: 'Two-factor off', color: 'neutral' as const, icon: 'i-lucide-shield-off' };
+});
 
 const modal = ref<'role' | 'ban' | 'delete' | 'password' | 'edit' | null>(null);
 const modalOpen = (name: NonNullable<typeof modal.value>) =>
@@ -289,6 +305,13 @@ const thisSession = computed(() => session.session.value?.id);
                                     variant="outline"
                                 />
                                 <UBadge v-if="user.banned" label="Banned" color="error" variant="subtle" />
+                                <UBadge
+                                    v-if="twoFactorBadge"
+                                    :label="twoFactorBadge.label"
+                                    :color="twoFactorBadge.color"
+                                    :icon="twoFactorBadge.icon"
+                                    variant="outline"
+                                />
                             </div>
                         </div>
                     </div>

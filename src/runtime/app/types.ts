@@ -1,32 +1,3 @@
-import type { AvatarProps } from '@nuxt/ui';
-
-export type UserStatus = 'subscribed' | 'unsubscribed' | 'bounced';
-
-export interface User {
-    id: number;
-    name: string;
-    email: string;
-    avatar?: AvatarProps;
-    status: UserStatus;
-    location: string;
-}
-
-export interface Mail {
-    id: number;
-    unread?: boolean;
-    from: User;
-    subject: string;
-    body: string;
-    date: string;
-}
-
-export interface Member {
-    name: string;
-    username: string;
-    role: 'member' | 'owner';
-    avatar: AvatarProps;
-}
-
 export interface Stat {
     title: string;
     icon: string;
@@ -49,14 +20,6 @@ export interface AdminStats {
     series: Array<{ date: string; signUps: number }>;
 }
 
-export interface Notification {
-    id: number;
-    unread?: boolean;
-    sender: User;
-    body: string;
-    date: string;
-}
-
 export type Period = 'daily' | 'weekly' | 'monthly';
 
 export interface Range {
@@ -75,6 +38,8 @@ export interface AdminUser {
     banned?: boolean | null;
     banReason?: string | null;
     banExpires?: string | Date | null;
+    /** With the Two-Factor plugin. */
+    twoFactorEnabled?: boolean | null;
     createdAt: string | Date;
     updatedAt: string | Date;
 }
@@ -92,7 +57,6 @@ export interface AdminSession {
     expiresAt: string | Date;
 }
 
-/** One page of users, and what to show. */
 /** A linked sign-in method, as the module's accounts route returns it (no passwords or tokens). */
 export interface AdminAccount {
     id: string;

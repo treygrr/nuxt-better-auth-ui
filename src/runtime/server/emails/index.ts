@@ -1,3 +1,4 @@
+/// <reference path="./virtual.d.ts" />
 // Public entry, `@treygrr/nuxt-better-auth-ui/emails`, for the app's auth config and email templates.
 // No Nuxt or Nitro imports: Better Auth's Nuxt module also loads the auth config at build time.
 import { defaultEmails } from './defaults';
@@ -99,5 +100,7 @@ export const betterAuthEmails = {
         sendInBackground('existing-user-sign-up', data),
     changeEmailConfirmation: async (data: BetterAuthEmails['change-email-confirmation']) =>
         sendInBackground('change-email-confirmation', data),
-    deleteAccount: async (data: BetterAuthEmails['delete-account']) => sendInBackground('delete-account', data)
+    deleteAccount: async (data: BetterAuthEmails['delete-account']) => sendInBackground('delete-account', data),
+    /** Added by the module itself when `betterAuthUi.twoFactor.otp` is on. */
+    twoFactorCode: async (data: BetterAuthEmails['two-factor-code']) => sendInBackground('two-factor-code', data)
 };

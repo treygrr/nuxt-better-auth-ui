@@ -18,12 +18,14 @@ export type BetterAuthAdminPublicConfig = {
     activityInterval: number;
     /** Days the audit log keeps entries; 0 keeps them forever. */
     auditLogRetentionDays: number;
+    /** Whether the app set an email sender, and the emails it has its own template for. */
+    emails: { send: boolean; templates: string[] };
 };
 
 export const useBetterAuthAdminConfig = () =>
     (useRuntimeConfig().public.betterAuthUi as { admin: BetterAuthAdminPublicConfig }).admin;
 
-/** Turns an admin-relative path (`/`, `/inbox`) into a URL under the configured admin route. */
+/** Turns an admin-relative path (`/`, `/users`) into a URL under the configured admin route. */
 export const useAdminPath = () => {
     const { route } = useBetterAuthAdminConfig();
     return (path: string) => (path === '/' ? route : `${route}${path}`);

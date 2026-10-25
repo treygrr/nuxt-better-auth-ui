@@ -1,30 +1,24 @@
-import { defineShortcuts, ref, useAdminPath, useRoute, useRouter, watch } from '#imports';
+import { defineShortcuts, useAdminCan, useAdminPath, useBetterAuthAdminConfig, useRouter } from '#imports';
 import { createSharedComposable } from '@vueuse/core';
 
+/**
+ * The admin pages' keyboard shortcuts, set up once by the layout: g then h (home), u (users), s (sessions),
+ * a (audit log) or c (configuration).
+ */
 const _useDashboard = () => {
-    const route = useRoute();
     const router = useRouter();
     const adminPath = useAdminPath();
-    const isNotificationsSlideoverOpen = ref(false);
+    const { auditLog } = useBetterAuthAdminConfig();
+    const can = useAdminCan();
+    const go = (path: string) => () => router.push(adminPath(path));
 
     defineShortcuts({
-        'g-h': () => router.push(adminPath('/')),
-        'g-i': () => router.push(adminPath('/inbox')),
-        'g-c': () => router.push(adminPath('/customers')),
-        'g-s': () => router.push(adminPath('/settings')),
-        n: () => (isNotificationsSlideoverOpen.value = !isNotificationsSlideoverOpen.value)
+        'g-h': go('/'),
+        'g-u': go('/users'),
+        ...(can({ session: ['list'] }) && { 'g-s': go('/sessions') }),
+        ...(auditLog && { 'g-a': go('/audit') }),
+        'g-c': go('/configuration')
     });
-
-    watch(
-        () => route.fullPath,
-        () => {
-            isNotificationsSlideoverOpen.value = false;
-        }
-    );
-
-    return {
-        isNotificationsSlideoverOpen
-    };
 };
 
 export const useAdminDashboard = createSharedComposable(_useDashboard);
