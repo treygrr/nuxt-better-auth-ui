@@ -3,7 +3,7 @@ import { $fetch } from '#imports';
 
 import { ADMIN_API } from '../../constants';
 
-import type { AdminAccount, AdminAuditEntry, AdminSession, AdminStats, AdminUser, AdminUserQuery } from '../types';
+import type { AdminUser } from '../types';
 
 type Result<T> = { data: T | null; error: { message?: string; code?: string } | null };
 
@@ -13,8 +13,6 @@ type Result<T> = { data: T | null; error: { message?: string; code?: string } | 
  */
 type AdminClient = {
     admin: {
-        listUsers(input: { query: Record<string, unknown> }): Promise<Result<{ users: AdminUser[]; total: number }>>;
-        getUser(input: { query: { id: string } }): Promise<Result<AdminUser>>;
         createUser(input: {
             email: string;
             password?: string;
@@ -31,7 +29,6 @@ type AdminClient = {
         }): Promise<Result<{ user: AdminUser }>>;
         unbanUser(input: { userId: string }): Promise<Result<{ user: AdminUser }>>;
         setUserPassword(input: { userId: string; newPassword: string }): Promise<Result<{ status: boolean }>>;
-        listUserSessions(input: { userId: string }): Promise<Result<{ sessions: AdminSession[] }>>;
         revokeUserSession(input: { sessionToken: string }): Promise<Result<{ success: boolean }>>;
         revokeUserSessions(input: { userId: string }): Promise<Result<{ success: boolean }>>;
         removeUser(input: { userId: string }): Promise<Result<{ success: boolean }>>;
@@ -52,7 +49,10 @@ const fetchError = (error: { data?: { statusMessage?: string; message?: string }
     throw new Error(error?.data?.statusMessage || error?.data?.message || error?.message || 'The request failed');
 };
 
-/** Better Auth's admin API for users, returning data or throwing an Error with a readable message. */
+/**
+ * Better Auth's admin actions on users, returning data or throwing an Error with a readable message. Pages read
+ * their data with useFetch instead, so it's fetched during server rendering.
+ */
 export const useAdminUsers = () => {
     const client = () => {
         const authClient = useAuthClient() as unknown as AdminClient | null;
@@ -62,28 +62,6 @@ export const useAdminUsers = () => {
     const admin = () => client().admin;
 
     return {
-        list: (query: AdminUserQuery) =>
-            unwrap(
-                admin().listUsers({
-                    query: {
-                        limit: query.limit,
-                        offset: query.offset,
-                        sortBy: query.sortBy ?? 'createdAt',
-                        sortDirection: query.sortDirection ?? 'desc',
-                        ...(query.search && {
-                            searchValue: query.search,
-                            searchField: query.searchField ?? 'email',
-                            searchOperator: 'contains'
-                        }),
-                        ...(query.filter && {
-                            filterField: query.filter.field,
-                            filterValue: query.filter.value,
-                            filterOperator: 'eq'
-                        })
-                    }
-                })
-            ),
-        get: (id: string) => unwrap(admin().getUser({ query: { id } })),
         create: (input: { name: string; email: string; password?: string; role: string }) =>
             unwrap(admin().createUser(input)).then(({ user }) => user),
         update: (userId: string, data: Partial<Pick<AdminUser, 'name' | 'email' | 'image' | 'emailVerified'>>) =>
@@ -96,29 +74,12 @@ export const useAdminUsers = () => {
         /** Emails the user a link to choose a new password, through the app's own reset flow. */
         sendPasswordReset: (email: string, redirectTo?: string) =>
             unwrap(client().requestPasswordReset({ email, redirectTo })),
-        sessions: (userId: string) => unwrap(admin().listUserSessions({ userId })).then(({ sessions }) => sessions),
         revokeSession: (sessionToken: string) => unwrap(admin().revokeUserSession({ sessionToken })),
         revokeSessions: (userId: string) => unwrap(admin().revokeUserSessions({ userId })),
         remove: (userId: string) => unwrap(admin().removeUser({ userId })),
-        /** Linked sign-in methods, from this module's own route (the Admin plugin has none). */
-        accounts: (userId: string) =>
-            $fetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`).catch(fetchError),
         /** Signs in as the user; the admin's own session is kept to return to. */
         impersonate: (userId: string) => unwrap(admin().impersonateUser({ userId })),
         stopImpersonating: () => unwrap(admin().stopImpersonating()),
-        /** The audit log, newest first; `userId` limits it to entries where they acted or were acted on. */
-        audit: (query: { limit: number; offset: number; action?: string; userId?: string }) =>
-            $fetch<{ entries: AdminAuditEntry[]; total: number }>(`${ADMIN_API}/audit`, { query }).catch(fetchError),
-        /** The home page's numbers; `boundaries` are the chart's period boundaries, start to end. */
-        stats: (boundaries: Date[]) =>
-            $fetch<AdminStats>(`${ADMIN_API}/stats`, {
-                query: { buckets: boundaries.map((date) => date.toISOString()).join(',') }
-            }).catch(fetchError),
-        /** Sign-in methods of several users at once, as `{ [userId]: providerIds }`, for the users list. */
-        providers: (userIds: string[]) =>
-            $fetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, { query: { userIds: userIds.join(',') } }).catch(
-                fetchError
-            ),
         /** Removes one sign-in method; the server refuses to remove a user's last one. */
         removeAccount: (userId: string, accountId: string) =>
             $fetch(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts/${encodeURIComponent(accountId)}`, {

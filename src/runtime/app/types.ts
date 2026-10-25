@@ -91,17 +91,6 @@ export interface AdminSession {
 }
 
 /** One page of users, and what to show. */
-export interface AdminUserQuery {
-    limit: number;
-    offset: number;
-    search?: string;
-    searchField?: 'email' | 'name';
-    sortBy?: string;
-    sortDirection?: 'asc' | 'desc';
-    /** One filter at a time, as Better Auth's list-users supports. */
-    filter?: { field: 'role' | 'banned' | 'emailVerified'; value: string };
-}
-
 /** A linked sign-in method, as the module's accounts route returns it (no passwords or tokens). */
 export interface AdminAccount {
     id: string;

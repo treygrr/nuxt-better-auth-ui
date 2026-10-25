@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, h, resolveComponent, useAdminPath } from '#imports';
 import type { TableColumn } from '@nuxt/ui';
-import { formatTimeAgo } from '@vueuse/core';
 
 import type { AdminAuditEntry } from '../types';
 import { auditAction, auditDetails } from '../utils/audit';
@@ -19,7 +18,7 @@ const columnVisibility = computed(() => ({
 
 const UBadge = resolveComponent('UBadge');
 const ULink = resolveComponent('ULink');
-const UTooltip = resolveComponent('UTooltip');
+const NuxtTime = resolveComponent('NuxtTime');
 const adminPath = useAdminPath();
 
 /** A person as recorded, linking to their page; their account may since have been deleted. */
@@ -40,9 +39,8 @@ const columns: TableColumn<AdminAuditEntry>[] = [
         accessorKey: 'createdAt',
         header: 'When',
         cell: ({ row }) =>
-            h(UTooltip, { text: new Date(row.original.createdAt).toLocaleString() }, () =>
-                h('span', { class: 'whitespace-nowrap' }, formatTimeAgo(new Date(row.original.createdAt)))
-            )
+            // Relative, with the full date and time as its title.
+            h(NuxtTime, { datetime: row.original.createdAt, relative: true, title: true, class: 'whitespace-nowrap' })
     },
     {
         id: 'actor',

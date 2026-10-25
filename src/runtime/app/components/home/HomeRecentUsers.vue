@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, resolveComponent, useAdminPath, useAdminUsers, useAsyncData } from '#imports';
+import { h, resolveComponent, useAdminPath, useFetch } from '#imports';
 import type { TableColumn } from '@nuxt/ui';
 
 import type { AdminUser } from '../../types';
@@ -7,16 +7,14 @@ import type { AdminUser } from '../../types';
 const UAvatar = resolveComponent('UAvatar');
 const UBadge = resolveComponent('UBadge');
 const ULink = resolveComponent('ULink');
+const NuxtTime = resolveComponent('NuxtTime');
 
 const adminPath = useAdminPath();
-const admin = useAdminUsers();
 
 // The newest users, from Better Auth's own list-users.
-const { data } = await useAsyncData(
-    'better-auth-admin-recent-users',
-    () => admin.list({ limit: 5, offset: 0, sortBy: 'createdAt', sortDirection: 'desc' }),
-    { server: false }
-);
+const { data } = await useFetch<{ users: AdminUser[]; total: number }>('/api/auth/admin/list-users', {
+    query: { limit: 5, sortBy: 'createdAt', sortDirection: 'desc' }
+});
 
 const columns: TableColumn<AdminUser>[] = [
     {
@@ -35,7 +33,8 @@ const columns: TableColumn<AdminUser>[] = [
         accessorKey: 'createdAt',
         header: 'Joined',
         cell: ({ row }) =>
-            new Date(row.original.createdAt).toLocaleString('en-US', {
+            h(NuxtTime, {
+                datetime: row.original.createdAt,
                 day: 'numeric',
                 month: 'short',
                 hour: '2-digit',

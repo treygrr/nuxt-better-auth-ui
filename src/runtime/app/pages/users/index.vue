@@ -13,15 +13,16 @@ import {
     resolveComponent,
     useAdminPath,
     useAdminUsers,
-    useAsyncData,
     useBetterAuthAdminConfig,
+    useFetch,
     useRoute,
     useTemplateRef,
     useToast,
     watch
 } from '#imports';
 
-import type { AdminUser, AdminUserQuery } from '../../types';
+import { ADMIN_API } from '../../../constants';
+import type { AdminUser } from '../../types';
 import { useImpersonateItem } from '../../composables/useImpersonateItem';
 import { providerInfo, sortProviders } from '../../utils/providers';
 
@@ -31,6 +32,7 @@ const UButton = resolveComponent('UButton');
 const UCheckbox = resolveComponent('UCheckbox');
 const UDropdownMenu = resolveComponent('UDropdownMenu');
 const UIcon = resolveComponent('UIcon');
+const NuxtTime = resolveComponent('NuxtTime');
 const UTooltip = resolveComponent('UTooltip');
 
 const adminPath = useAdminPath();
@@ -52,7 +54,8 @@ const sorting = ref([{ id: 'createdAt', desc: true }]);
 const rowSelection = ref<Record<string, boolean>>({});
 const columnVisibility = ref<Record<string, boolean>>({});
 
-const filters: Record<string, AdminUserQuery['filter']> = {
+// Better Auth's list-users takes one filter at a time.
+const filters: Record<string, { field: 'role' | 'banned' | 'emailVerified'; value: string } | undefined> = {
     all: undefined,
     admins: { field: 'role', value: adminRole },
     banned: { field: 'banned', value: 'true' },
@@ -66,30 +69,31 @@ watch(page, () => {
     rowSelection.value = {};
 });
 
-const { data, status, error, refresh } = await useAsyncData(
-    'better-auth-admin-users',
-    () =>
-        admin.list({
-            limit: PAGE_SIZE,
-            offset: (page.value - 1) * PAGE_SIZE,
-            search: debouncedSearch.value.trim() || undefined,
-            searchField: searchField.value,
-            sortBy: sorting.value[0]?.id ?? 'createdAt',
-            sortDirection: sorting.value[0]?.desc === false ? 'asc' : 'desc',
-            filter: filters[filter.value]
-        }),
-    { server: false, watch: [page, debouncedSearch, searchField, filter, sorting] }
+// Better Auth's list-users, fetched during server rendering and refetched as the query changes.
+const listQuery = computed(() => {
+    const term = debouncedSearch.value.trim();
+    const where = filters[filter.value];
+    return {
+        limit: PAGE_SIZE,
+        offset: (page.value - 1) * PAGE_SIZE,
+        sortBy: sorting.value[0]?.id ?? 'createdAt',
+        sortDirection: sorting.value[0]?.desc === false ? 'asc' : 'desc',
+        ...(term && { searchValue: term, searchField: searchField.value, searchOperator: 'contains' }),
+        ...(where && { filterField: where.field, filterValue: where.value, filterOperator: 'eq' })
+    };
+});
+const { data, status, error, refresh } = await useFetch<{ users: AdminUser[]; total: number }>(
+    '/api/auth/admin/list-users',
+    { query: listQuery }
 );
 
 const users = computed(() => data.value?.users ?? []);
 
-// Each listed user's sign-in methods, fetched for the whole page in one request.
-const { data: providers, status: providersStatus } = await useAsyncData(
-    'better-auth-admin-users-providers',
-    (): Promise<Record<string, string[]>> =>
-        users.value.length ? admin.providers(users.value.map((user) => user.id)) : Promise.resolve({}),
-    { server: false, watch: [users], default: () => ({}) as Record<string, string[]> }
-);
+// Each listed user's sign-in methods, for the whole page in one request.
+const { data: providers, status: providersStatus } = await useFetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, {
+    query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
+    default: () => ({})
+});
 const isSelf = (user: AdminUser) => user.id === session.user.value?.id;
 const selected = computed(() => users.value.filter((user) => rowSelection.value[user.id]));
 
@@ -218,13 +222,13 @@ const columns: TableColumn<AdminUser>[] = [
             h(UCheckbox, {
                 modelValue: table.getIsSomePageRowsSelected() ? 'indeterminate' : table.getIsAllPageRowsSelected(),
                 'onUpdate:modelValue': (value: boolean | 'indeterminate') => table.toggleAllPageRowsSelected(!!value),
-                ariaLabel: 'Select all'
+                'aria-label': 'Select all'
             }),
         cell: ({ row }) =>
             h(UCheckbox, {
                 modelValue: row.getIsSelected(),
                 'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
-                ariaLabel: 'Select row'
+                'aria-label': 'Select row'
             })
     },
     {
@@ -303,7 +307,7 @@ const columns: TableColumn<AdminUser>[] = [
     {
         accessorKey: 'createdAt',
         header: sortHeader('Joined'),
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleDateString()
+        cell: ({ row }) => h(NuxtTime, { datetime: row.original.createdAt, dateStyle: 'medium' })
     },
     {
         id: 'actions',
@@ -318,7 +322,7 @@ const columns: TableColumn<AdminUser>[] = [
                         color: 'neutral',
                         variant: 'ghost',
                         class: 'ml-auto',
-                        ariaLabel: 'Actions'
+                        'aria-label': 'Actions'
                     })
                 )
             )
@@ -435,7 +439,9 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                 color="error"
                 icon="i-lucide-circle-alert"
                 title="Couldn't load users"
-                :description="error.message"
+                :description="
+                    (error.data as { message?: string } | undefined)?.message || error.statusMessage || error.message
+                "
             />
 
             <UTable

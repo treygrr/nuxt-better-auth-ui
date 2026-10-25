@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, shallowRef, useAdminDashboard, useAdminPath, useAdminUsers, useAsyncData } from '#imports';
+import { computed, ref, shallowRef, useAdminDashboard, useAdminPath, useLazyFetch } from '#imports';
 import { addDays, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, max, startOfDay, sub } from 'date-fns';
 import type { DropdownMenuItem } from '@nuxt/ui';
-import type { Period, Range } from '../types';
+import { ADMIN_API } from '../../constants';
+import type { AdminStats, Period, Range } from '../types';
 
 const adminPath = useAdminPath();
 
@@ -45,10 +46,15 @@ const boundaries = (by: Period = period.value): Date[] => {
     return result.length > MAX_BOUNDARIES && by !== 'monthly' ? boundaries('monthly') : result;
 };
 
-const admin = useAdminUsers();
-const { data: stats } = await useAsyncData('better-auth-admin-stats', () => admin.stats(boundaries()), {
-    server: false,
-    watch: [range, period]
+// Browser only: the periods are days, weeks or months in the admin's time zone, which the server doesn't know.
+// The page renders from `stats` alone, which is undefined on the server and while hydrating.
+const { data: stats } = useLazyFetch<AdminStats>(`${ADMIN_API}/stats`, {
+    query: computed(() => ({
+        buckets: boundaries()
+            .map((date) => date.toISOString())
+            .join(',')
+    })),
+    server: false
 });
 </script>
 

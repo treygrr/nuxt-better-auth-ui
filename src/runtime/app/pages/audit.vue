@@ -1,15 +1,8 @@
 <script setup lang="ts">
-import {
-    computed,
-    ref,
-    useAdminPath,
-    useAdminUsers,
-    useAsyncData,
-    useBetterAuthAdminConfig,
-    useRoute,
-    watch
-} from '#imports';
+import { computed, ref, useAdminPath, useBetterAuthAdminConfig, useFetch, useRoute, watch } from '#imports';
 
+import { ADMIN_API } from '../../constants';
+import type { AdminAuditEntry } from '../types';
 import { AUDIT_ACTIONS } from '../utils/audit';
 
 const PAGE_SIZE = 25;
@@ -30,18 +23,15 @@ const actions = [
     ...Object.entries(AUDIT_ACTIONS).map(([value, { label, icon }]) => ({ label, value, icon }))
 ];
 
-const admin = useAdminUsers();
-const { data, status, error } = await useAsyncData(
-    'better-auth-admin-audit',
-    () =>
-        admin.audit({
-            limit: PAGE_SIZE,
-            offset: (page.value - 1) * PAGE_SIZE,
-            action: action.value === 'all' ? undefined : action.value,
-            userId: userId.value
-        }),
-    { server: false, watch: [page, action, userId] }
-);
+// Fetched during server rendering and refetched as the filters change.
+const { data, status, error } = await useFetch<{ entries: AdminAuditEntry[]; total: number }>(`${ADMIN_API}/audit`, {
+    query: computed(() => ({
+        limit: PAGE_SIZE,
+        offset: (page.value - 1) * PAGE_SIZE,
+        action: action.value === 'all' ? undefined : action.value,
+        userId: userId.value
+    }))
+});
 const total = computed(() => data.value?.total ?? 0);
 </script>
 
@@ -77,7 +67,9 @@ const total = computed(() => data.value?.total ?? 0);
                 color="error"
                 icon="i-lucide-circle-alert"
                 title="Couldn't load the audit log"
-                :description="error.message"
+                :description="
+                    (error.data as { message?: string } | undefined)?.message || error.statusMessage || error.message
+                "
             />
             <AdminAuditLogTable v-else :entries="data?.entries ?? []" :loading="status === 'pending'" />
 

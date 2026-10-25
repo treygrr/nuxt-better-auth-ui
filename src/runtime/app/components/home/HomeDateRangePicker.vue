@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { computed } from '#imports';
-import { DateFormatter, getLocalTimeZone, CalendarDate, today } from '@internationalized/date';
+import { getLocalTimeZone, CalendarDate, today } from '@internationalized/date';
 import type { Range } from '../../types';
-
-const df = new DateFormatter('en-US', {
-    dateStyle: 'medium'
-});
 
 const selected = defineModel<Range>({ required: true });
 
@@ -80,10 +76,11 @@ const selectRange = (range: { days?: number; months?: number; years?: number }) 
             <span class="truncate">
                 <template v-if="selected.start">
                     <template v-if="selected.end">
-                        {{ df.format(selected.start) }} - {{ df.format(selected.end) }}
+                        <NuxtTime :datetime="selected.start" date-style="medium" /> -
+                        <NuxtTime :datetime="selected.end" date-style="medium" />
                     </template>
                     <template v-else>
-                        {{ df.format(selected.start) }}
+                        <NuxtTime :datetime="selected.start" date-style="medium" />
                     </template>
                 </template>
                 <template v-else> Pick a date </template>

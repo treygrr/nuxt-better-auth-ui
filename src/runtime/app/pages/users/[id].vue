@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { formatTimeAgo } from '@vueuse/core';
 import {
     computed,
     navigateTo,
     ref,
     useAdminPath,
     useAdminUsers,
-    useAsyncData,
     useBetterAuthAdminConfig,
+    useFetch,
+    useLazyFetch,
     useRoute,
     useToast
 } from '#imports';
 
-import type { AdminAccount, AdminSession, AdminUser } from '../../types';
+import { ADMIN_API } from '../../../constants';
+import type { AdminAccount, AdminAuditEntry, AdminSession, AdminUser } from '../../types';
 import { useImpersonateItem } from '../../composables/useImpersonateItem';
 import { providerInfo } from '../../utils/providers';
 
@@ -25,28 +26,34 @@ const session = useUserSession();
 const admin = useAdminUsers();
 const toast = useToast();
 
+// Fetched during server rendering, with the admin's cookies, and handed to the browser in the payload.
 const {
     data: user,
     error,
     refresh: refreshUser
-} = await useAsyncData(`better-auth-admin-user-${userId}`, () => admin.get(userId), { server: false });
-const { data: sessions, refresh: refreshSessions } = await useAsyncData(
-    `better-auth-admin-user-sessions-${userId}`,
-    () => admin.sessions(userId),
-    { server: false }
-);
+} = await useFetch<AdminUser>('/api/auth/admin/get-user', { query: { id: userId } });
+// Browser only: Better Auth can't read a POST body from Nuxt's in-process server requests. The card keys off
+// `sessions === undefined`, which the server and the hydrating browser agree on (status doesn't: idle vs pending).
+const { data: sessions, refresh: refreshSessions } = useLazyFetch('/api/auth/admin/list-user-sessions', {
+    method: 'POST',
+    body: { userId },
+    server: false,
+    transform: (result: { sessions: AdminSession[] }) => result.sessions
+});
 const {
     data: accounts,
     error: accountsError,
     refresh: refreshAccounts
-} = await useAsyncData(`better-auth-admin-user-accounts-${userId}`, () => admin.accounts(userId), { server: false });
+} = await useFetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`);
 // The latest audit log entries about this user, when the log is on.
 const ACTIVITY_SIZE = 10;
-const { data: activity, refresh: refreshActivity } = await useAsyncData(
-    `better-auth-admin-user-activity-${userId}`,
-    () => (auditLog ? admin.audit({ limit: ACTIVITY_SIZE, offset: 0, userId }) : Promise.resolve(null)),
-    { server: false }
+const { data: activity, refresh: refreshActivity } = await useFetch<{ entries: AdminAuditEntry[]; total: number }>(
+    `${ADMIN_API}/audit`,
+    { query: { limit: ACTIVITY_SIZE, offset: 0, userId }, immediate: auditLog }
 );
+/** The server's message for a failed request, eg Better Auth's "User not found". */
+const errorText = (failure: { data?: unknown; statusMessage?: string; message: string }) =>
+    (failure.data as { message?: string } | undefined)?.message || failure.statusMessage || failure.message;
 const refresh = () => Promise.all([refreshUser(), refreshSessions(), refreshAccounts(), refreshActivity()]);
 
 const provider = (account: AdminAccount) => providerInfo(account.providerId);
@@ -85,7 +92,6 @@ const accountItems = (account: AdminAccount): DropdownMenuItem[][] => {
 };
 
 const isSelf = computed(() => user.value?.id === session.user.value?.id);
-const date = (value?: string | Date | null) => (value ? new Date(value).toLocaleString() : '—');
 
 const modal = ref<'role' | 'ban' | 'delete' | 'password' | 'edit' | null>(null);
 const modalOpen = (name: NonNullable<typeof modal.value>) =>
@@ -216,7 +222,7 @@ const thisSession = computed(() => session.session.value?.id);
                 color="error"
                 icon="i-lucide-circle-alert"
                 title="Couldn't load this user"
-                :description="error.message"
+                :description="errorText(error)"
             >
                 <template #actions>
                     <UButton :to="adminPath('/users')" label="Back to users" color="neutral" variant="outline" />
@@ -230,14 +236,14 @@ const thisSession = computed(() => session.session.value?.id);
             </div>
 
             <div v-else-if="user" class="flex flex-col gap-4 sm:gap-6 lg:gap-8 w-full lg:max-w-3xl mx-auto">
-                <UAlert
-                    v-if="user.banned"
-                    color="error"
-                    variant="subtle"
-                    icon="i-lucide-ban"
-                    title="Banned"
-                    :description="`${user.banReason || 'No reason given'} · ${user.banExpires ? `until ${date(user.banExpires)}` : 'until unbanned'}`"
-                >
+                <UAlert v-if="user.banned" color="error" variant="subtle" icon="i-lucide-ban" title="Banned">
+                    <template #description>
+                        {{ user.banReason || 'No reason given' }} ·
+                        <template v-if="user.banExpires">
+                            until <NuxtTime :datetime="user.banExpires" date-style="medium" time-style="short" />
+                        </template>
+                        <template v-else>until unbanned</template>
+                    </template>
                     <template #actions>
                         <UButton
                             label="Unban"
@@ -287,9 +293,9 @@ const thisSession = computed(() => session.session.value?.id);
                         <dt class="text-muted">User ID</dt>
                         <dd class="font-mono truncate">{{ user.id }}</dd>
                         <dt class="text-muted">Joined</dt>
-                        <dd>{{ date(user.createdAt) }}</dd>
+                        <dd><NuxtTime :datetime="user.createdAt" date-style="medium" time-style="short" /></dd>
                         <dt class="text-muted">Last updated</dt>
-                        <dd>{{ date(user.updatedAt) }}</dd>
+                        <dd><NuxtTime :datetime="user.updatedAt" date-style="medium" time-style="short" /></dd>
                     </dl>
                 </UPageCard>
 
@@ -299,7 +305,7 @@ const thisSession = computed(() => session.session.value?.id);
                         color="error"
                         variant="subtle"
                         icon="i-lucide-circle-alert"
-                        :description="accountsError.message"
+                        :description="errorText(accountsError)"
                     />
                     <p v-else-if="!accounts?.length" class="text-sm text-muted">
                         No sign-in methods. They can't sign in until they reset their password.
@@ -314,7 +320,7 @@ const thisSession = computed(() => session.session.value?.id);
                             <div class="min-w-0">
                                 <p class="text-sm font-medium text-highlighted">{{ provider(account).label }}</p>
                                 <p class="text-xs text-muted truncate">
-                                    Connected {{ date(account.createdAt) }}
+                                    Connected <NuxtTime :datetime="account.createdAt" date-style="medium" />
                                     <template v-if="account.providerId !== 'credential'"
                                         >· {{ account.providerId }} ID {{ account.accountId }}</template
                                     >
@@ -344,7 +350,8 @@ const thisSession = computed(() => session.session.value?.id);
                         />
                     </template>
 
-                    <p v-if="!sessions?.length" class="text-sm text-muted">No active sessions.</p>
+                    <USkeleton v-if="sessions === undefined" class="h-12 w-full" />
+                    <p v-else-if="!sessions?.length" class="text-sm text-muted">No active sessions.</p>
                     <ul v-else class="divide-y divide-default">
                         <li
                             v-for="item in sessions"
@@ -375,8 +382,8 @@ const thisSession = computed(() => session.session.value?.id);
                                     </p>
                                     <p class="text-xs text-muted truncate">
                                         {{ item.ipAddress || 'Unknown IP' }} · active
-                                        {{ formatTimeAgo(new Date(item.updatedAt)) }} · expires
-                                        {{ date(item.expiresAt) }}
+                                        <NuxtTime :datetime="item.updatedAt" relative /> · expires
+                                        <NuxtTime :datetime="item.expiresAt" date-style="medium" time-style="short" />
                                     </p>
                                 </div>
                             </div>
