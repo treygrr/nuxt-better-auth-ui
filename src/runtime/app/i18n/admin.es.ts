@@ -50,10 +50,38 @@ export const adminEs = {
     nav: {
         home: 'Inicio',
         users: 'Usuarios',
+        organizations: 'Organizaciones',
         sessions: 'Sesiones',
         auditLog: 'Registro de auditoría',
         configuration: 'Configuración',
         backToSite: 'Volver al sitio'
+    },
+    organizations: {
+        title: 'Organizaciones',
+        intro: 'Todas las organizaciones, de la más reciente a la más antigua. Sus miembros las gestionan desde su cuenta.',
+        search: 'Buscar por nombre…',
+        loadFailed: 'No se pudieron cargar las organizaciones',
+        empty: 'Aún no hay organizaciones.',
+        back: 'Volver a organizaciones',
+        columns: {
+            name: 'Organización',
+            members: 'Miembros',
+            created: 'Creada'
+        },
+        count: {
+            one: '{count} organización',
+            other: '{count} organizaciones'
+        },
+        created: 'Creada',
+        members: 'Miembros ({count})',
+        readOnly: 'Solo lectura aquí: los miembros con el rol adecuado los cambian desde su cuenta.',
+        invitations: 'Invitaciones pendientes',
+        noInvitations: 'No hay invitaciones pendientes.',
+        invitedBy: 'Invitado por {name}',
+        expires: 'caduca',
+        userDescription: 'Las organizaciones a las que pertenece {name} y su rol en cada una.',
+        noneForUser: 'No pertenece a ninguna organización.',
+        joined: 'Se unió'
     },
     search: {
         placeholder: 'Busca páginas y usuarios…',
@@ -475,6 +503,8 @@ export const adminEs = {
             guestAccounts: 'Cuentas de invitado',
             deviceSignIn: 'Inicio de sesión en dispositivos',
             apiKeys: 'Claves de API',
+            organizations: 'Organizaciones',
+            organizationsNoCreate: 'Los usuarios no pueden crearlas',
             bearerTokens: 'Tokens Bearer',
             jwt: 'JWT para otros servicios',
             jwksAt: 'Claves públicas (JWKS): {url}',
@@ -541,7 +571,8 @@ export const adminEs = {
             newSignIn: 'Alerta: nuevo inicio de sesión',
             passwordChanged: 'Alerta: contraseña cambiada',
             twoFactorChanged: 'Alerta: dos pasos activada o desactivada',
-            passkeyAdded: 'Alerta: llave de acceso agregada'
+            passkeyAdded: 'Alerta: llave de acceso agregada',
+            organizationInvitation: 'Invitación a una organización'
         },
         roles: {
             title: 'Roles y permisos',

@@ -33,6 +33,8 @@ export default defineNuxtConfig({
         // "Text me a code" on sign-in (a new number signs up) and a phone card on the account page; texts to the outbox.
         phoneNumber: { enabled: true, signUp: true },
         sms: { send: './server/sms/send.ts' },
+        // An "Organizations" tab on the account page, invitations by email (to the outbox), admin organization pages.
+        organization: { enabled: true },
         // Session tokens in an Authorization header, and JWTs verified with /api/auth/jwks.
         bearer: true,
         jwt: true,

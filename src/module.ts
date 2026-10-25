@@ -305,6 +305,35 @@ export type PhoneNumberOptions = {
     signUp?: boolean;
 };
 
+/** Better Auth's organizations (https://better-auth.com/docs/plugins/organization), for teams, workspaces, companies… */
+export type OrganizationOptions = {
+    /**
+     * Adds the plugin: an "Organizations" tab on the account page (create one, switch the active one, members and
+     * their roles, invitations, leaving and deleting), a page to accept an invitation, and admin pages listing every
+     * organization. Invitations are emailed (`organization-invitation`) when `emails.send` is set; their links can be
+     * copied either way. Adds `organization`, `member` and `invitation` tables and an `activeOrganizationId` session
+     * column: run Better Auth's migrations.
+     * @default false
+     */
+    enabled: boolean;
+    /** The invitation page; its links are `<page>/<invitation id>`. @default '/accept-invitation' */
+    invitationPage?: string;
+    /** Whether users can create organizations. Better Auth's default: true. */
+    allowUserToCreateOrganization?: boolean;
+    /** Organizations a user can create. Better Auth's default: unlimited. */
+    organizationLimit?: number;
+    /** Members an organization can have. Better Auth's default: 100. */
+    membershipLimit?: number;
+    /** The creator's role. Better Auth's default: 'owner'. */
+    creatorRole?: 'owner' | 'admin';
+    /** Seconds an invitation lasts. Better Auth's default: 48 hours. */
+    invitationExpiresIn?: number;
+    /** Invitations need a verified email to see, accept or decline. */
+    requireEmailVerificationOnInvitation?: boolean;
+    /** Better Auth's teams within organizations (no UI for teams yet). */
+    teams?: boolean;
+};
+
 /** JWTs for services that verify them with the app's JWKS, through Better Auth's JWT plugin. */
 export type JwtOptions = {
     /** Who issues the tokens. Better Auth's default: the app's base URL. */
@@ -366,6 +395,8 @@ export type ModuleOptions = {
     apiKey: ApiKeyOptions;
     /** Signing in with a code by text, off by default. */
     phoneNumber: PhoneNumberOptions;
+    /** Organizations, off by default. */
+    organization: OrganizationOptions;
     /**
      * Session tokens in an `Authorization: Bearer` header instead of cookies, for native apps and other servers,
      * through Better Auth's Bearer plugin: sign-ins return the token in a `set-auth-token` header. `{ requireSignature:
@@ -487,6 +518,7 @@ export default defineNuxtModule<ModuleOptions>({
         deviceAuthorization: { enabled: false },
         apiKey: { enabled: false },
         phoneNumber: { enabled: false },
+        organization: { enabled: false },
         bearer: false,
         jwt: false,
         captcha: false,
@@ -613,6 +645,21 @@ export default defineNuxtModule<ModuleOptions>({
                 global: true
             });
         }
+        // Where people accept an organization invitation, signed in.
+        const organizationOptions = moduleOptions.organization;
+        const invitationPage = organizationOptions.enabled
+            ? `/${(organizationOptions.invitationPage ?? '/accept-invitation').replace(/^\/+|\/+$/g, '')}`
+            : false;
+        if (invitationPage) {
+            extendPages((pages) => {
+                pages.push({
+                    name: 'better-auth-ui-invitation',
+                    path: `${invitationPage}/:id`,
+                    file: resolve('./runtime/app/pages/auth/invitation.vue')
+                });
+            });
+            extendRouteRules(`${invitationPage}/**`, { auth: { only: 'user' } });
+        }
         // Where people approve a device's code (Device Authorization), signed in.
         const { deviceAuthorization } = moduleOptions;
         const devicePage = deviceAuthorization.enabled
@@ -658,6 +705,8 @@ export default defineNuxtModule<ModuleOptions>({
             deviceClients: deviceAuthorization.clients ?? {},
             // The permissions people may give an API key.
             apiKeyScopes: moduleOptions.apiKey.scopes ?? {},
+            // Where organization invitations are accepted (false without organizations).
+            invitationPage,
             signOutRedirect: moduleOptions.signOutRedirect,
             twoFactorRequired: twoFactor.required,
             locale: moduleOptions.locale,
@@ -975,6 +1024,39 @@ export default defineNuxtModule<ModuleOptions>({
                 ["import { phoneNumberClient } from 'better-auth/client/plugins'", 'export default phoneNumberClient()']
             );
         }
+        if (invitationPage) {
+            const orgOptions = Object.fromEntries(
+                (
+                    [
+                        'allowUserToCreateOrganization',
+                        'organizationLimit',
+                        'membershipLimit',
+                        'creatorRole',
+                        'invitationExpiresIn',
+                        'requireEmailVerificationOnInvitation'
+                    ] as const
+                )
+                    .filter((key) => organizationOptions[key] !== undefined)
+                    .map((key) => [key, organizationOptions[key]])
+            );
+            const teams = organizationOptions.teams ? { teams: { enabled: true } } : {};
+            addAuthPlugin(
+                'organization',
+                [
+                    "import { organization } from 'better-auth/plugins'",
+                    `import { betterAuthEmails } from ${emailsHelper}`,
+                    `export default organization({ ...${JSON.stringify({ ...orgOptions, ...teams })}${
+                        emails.send
+                            ? `, sendInvitationEmail: betterAuthEmails.organizationInvitation(${JSON.stringify(invitationPage)})`
+                            : ''
+                    } })`
+                ],
+                [
+                    "import { organizationClient } from 'better-auth/client/plugins'",
+                    `export default organizationClient(${JSON.stringify(teams)})`
+                ]
+            );
+        }
         if (moduleOptions.bearer) {
             const bearerOptions = moduleOptions.bearer === true ? {} : moduleOptions.bearer;
             addAuthPlugin('bearer', [
@@ -1077,6 +1159,7 @@ export default defineNuxtModule<ModuleOptions>({
             activityInterval: options.activityTracking.updateInterval ?? 300_000,
             auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)),
             notes: options.notes,
+            organizations: moduleOptions.organization.enabled,
             // For the configuration page: whether emails can be sent, and which have the app's own template.
             emails: { send: !!emails.send, templates: Object.keys(emails.templates ?? {}) }
         } satisfies BetterAuthAdminPublicConfig;
@@ -1259,6 +1342,24 @@ export default defineNuxtModule<ModuleOptions>({
             method: 'get',
             handler: resolve('./runtime/server/api/user-fields.get')
         });
+        // Organizations (Organization plugin), which Better Auth only shows to their members.
+        if (moduleOptions.organization.enabled) {
+            addServerHandler({
+                route: `${ADMIN_API}/organizations`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/organizations/index.get')
+            });
+            addServerHandler({
+                route: `${ADMIN_API}/organizations/:id`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/organizations/[id].get')
+            });
+            addServerHandler({
+                route: `${ADMIN_API}/users/:id/organizations`,
+                method: 'get',
+                handler: resolve('./runtime/server/api/users/organizations.get')
+            });
+        }
         // A user's API keys (API Key plugin), which Better Auth only lists for their owner.
         addServerHandler({
             route: `${ADMIN_API}/users/:id/api-keys`,
@@ -1303,6 +1404,12 @@ export default defineNuxtModule<ModuleOptions>({
                 page('users', '/users', 'users/index.vue'),
                 page('user', '/users/:id', 'users/[id].vue'),
                 page('sessions', '/sessions', 'sessions.vue'),
+                ...(moduleOptions.organization.enabled
+                    ? [
+                          page('organizations', '/organizations', 'organizations/index.vue'),
+                          page('organization', '/organizations/:id', 'organizations/[id].vue')
+                      ]
+                    : []),
                 ...(options.auditLog ? [page('audit', '/audit', 'audit.vue')] : []),
                 // What the app's set-up allows, and who can do what (read-only).
                 page('configuration', '/configuration', 'configuration.vue')

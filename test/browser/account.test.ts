@@ -11,7 +11,7 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await signUp('Tabby', 'tabby@browser.test');
         const session = await browser.open();
         await signInWithForm(session, 'tabby@browser.test', '/account');
-        for (const tab of ['profile', 'security', 'devices', 'api-keys', 'delete']) {
+        for (const tab of ['profile', 'security', 'devices', 'organizations', 'api-keys', 'delete']) {
             await session.go(`/account?tab=${tab}`);
             await expect(session.page.getByRole('tab', { selected: true }).count(), tab).resolves.toBe(1);
         }
@@ -27,6 +27,25 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await expect(
             session.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
         ).resolves.toBe(false);
+    });
+
+    it('creates an organization, makes it active and opens it', async () => {
+        await signUp('Orla', 'orla@browser.test');
+        const session = await browser.open();
+        await signInWithForm(session, 'orla@browser.test', '/account');
+        await session.go('/account?tab=organizations');
+        await session.page.getByRole('button', { name: 'Create organization' }).click();
+        await session.page.getByLabel('Name').fill('Orla & Co');
+        await expect(session.page.getByLabel('Slug').inputValue()).resolves.toBe('orla-co');
+        await session.page.getByRole('dialog').getByRole('button', { name: 'Create organization' }).click();
+        await session.page.getByText('Created Orla & Co').waitFor();
+        // A new organization becomes the active one (Better Auth's create sets it).
+        await session.page.getByText('Active').first().waitFor();
+
+        await session.page.getByRole('button', { name: 'Manage' }).click();
+        await session.page.getByText('Members (1)').waitFor();
+        await session.page.getByRole('dialog').getByText('orla@browser.test').waitFor();
+        expect(session.problems).toEqual([]);
     });
 
     it('creates an API key, shows it once, and revokes it', async () => {

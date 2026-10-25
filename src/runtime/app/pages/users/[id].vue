@@ -27,7 +27,7 @@ import { shownItems } from '../../utils/menu';
 import { providerInfo } from '../../utils/providers';
 
 const adminPath = useAdminPath();
-const { role: adminRole, auditLog, notes } = useBetterAuthAdminConfig();
+const { role: adminRole, auditLog, notes, organizations } = useBetterAuthAdminConfig();
 const userId = useRoute().params.id as string;
 const session = useUserSession();
 const admin = useAdminUsers();
@@ -482,6 +482,8 @@ const thisSession = computed(() => session.session.value?.id);
                 />
 
                 <AdminUsersFieldsCard :user="user" @updated="refresh" />
+
+                <AdminUsersOrganizationsCard v-if="organizations" :user="user" />
 
                 <AdminUsersApiKeysCard v-if="capabilities?.apiKey" :user="user" @changed="refresh" />
 

@@ -45,6 +45,17 @@ export type BetterAuthEmails = {
     'two-factor-changed': { user: EmailUser; enabled: boolean; time: string; accountUrl: string };
     /** A passkey was added to the account. */
     'passkey-added': { user: EmailUser; name: string | null; time: string; accountUrl: string };
+    /**
+     * Organization plugin `sendInvitationEmail`, when `betterAuthUi.organization` is on: `url` opens the module's
+     * invitation page. There may be no account yet.
+     */
+    'organization-invitation': {
+        email: string;
+        organization: string;
+        inviter: { name: string; email: string };
+        role: string;
+        url: string;
+    };
 };
 
 export type BetterAuthEmailName = keyof BetterAuthEmails;
@@ -62,7 +73,8 @@ export const EMAIL_NAMES: BetterAuthEmailName[] = [
     'new-sign-in',
     'password-changed',
     'two-factor-changed',
-    'passkey-added'
+    'passkey-added',
+    'organization-invitation'
 ];
 
 /** What a template returns: an HTML body (with the default subject), or the parts it wants to set. */

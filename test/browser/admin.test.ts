@@ -18,7 +18,14 @@ describe.skipIf(!hasBrowser)('admin dashboard (browser)', () => {
         await signUp('Chief', 'chief@browser.test');
         new Database(databasePath).prepare("update user set role = 'admin' where email = 'chief@browser.test'").run();
         const session = await admin();
-        for (const path of ['/admin', '/admin/users', '/admin/sessions', '/admin/audit', '/admin/configuration']) {
+        for (const path of [
+            '/admin',
+            '/admin/users',
+            '/admin/organizations',
+            '/admin/sessions',
+            '/admin/audit',
+            '/admin/configuration'
+        ]) {
             await session.go(path);
             expect(session.path(), path).toBe(path);
         }

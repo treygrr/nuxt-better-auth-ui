@@ -68,6 +68,10 @@ export const defaultEmails: Record<'en' | 'es', Defaults> = {
         'passkey-added': ({ user, name, time, accountUrl }) => ({
             subject: 'A passkey was added to your account',
             text: `Hi ${user.name},\n\nA passkey${name ? ` ("${name}")` : ''} was added to your account (${time}). It can sign in without your password.\n\nIf this wasn't you, remove it now and change your password:\n\n${accountUrl}`
+        }),
+        'organization-invitation': ({ organization, inviter, role, url }) => ({
+            subject: `${inviter.name} invited you to join ${organization}`,
+            text: `Hi,\n\n${inviter.name} (${inviter.email}) invited you to join ${organization} as ${role}. Accept or decline here:\n\n${url}\n\nIf you weren't expecting this, you can ignore this email.`
         })
     },
     es: {
@@ -134,6 +138,10 @@ export const defaultEmails: Record<'en' | 'es', Defaults> = {
         'passkey-added': ({ user, name, time, accountUrl }) => ({
             subject: 'Se agregó una llave de acceso a tu cuenta',
             text: `Hola, ${user.name}:\n\nSe agregó una llave de acceso${name ? ` («${name}»)` : ''} a tu cuenta (${time}). Con ella se puede iniciar sesión sin tu contraseña.\n\nSi no fuiste tú, quítala ahora y cambia tu contraseña:\n\n${accountUrl}`
+        }),
+        'organization-invitation': ({ organization, inviter, role, url }) => ({
+            subject: `${inviter.name} te invitó a unirte a ${organization}`,
+            text: `Hola:\n\n${inviter.name} (${inviter.email}) te invitó a unirte a ${organization} como ${role}. Acepta o rechaza la invitación aquí:\n\n${url}\n\nSi no la esperabas, puedes ignorar este correo.`
         })
     }
 };

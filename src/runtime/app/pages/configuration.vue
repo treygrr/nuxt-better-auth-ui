@@ -111,6 +111,14 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                 { label: t('admin.configuration.rows.guestAccounts'), ...on(!!c.anonymous) },
                 { label: t('admin.configuration.rows.deviceSignIn'), ...on(c.deviceAuthorization) },
                 { label: t('admin.configuration.rows.apiKeys'), ...on(c.apiKey) },
+                {
+                    label: t('admin.configuration.rows.organizations'),
+                    ...on(!!c.organization),
+                    hint:
+                        c.organization && !c.organization.allowCreate
+                            ? t('admin.configuration.rows.organizationsNoCreate')
+                            : undefined
+                },
                 { label: t('admin.configuration.rows.bearerTokens'), ...on(c.bearer) },
                 {
                     label: t('admin.configuration.rows.jwt'),
@@ -310,7 +318,8 @@ const EMAIL_LABELS: Record<(typeof EMAIL_NAMES)[number], MessageKey> = {
     'new-sign-in': 'admin.configuration.emails.newSignIn',
     'password-changed': 'admin.configuration.emails.passwordChanged',
     'two-factor-changed': 'admin.configuration.emails.twoFactorChanged',
-    'passkey-added': 'admin.configuration.emails.passkeyAdded'
+    'passkey-added': 'admin.configuration.emails.passkeyAdded',
+    'organization-invitation': 'admin.configuration.emails.organizationInvitation'
 };
 
 // Who can do what: Better Auth's Admin permissions, checked against each role exactly as the server checks them.

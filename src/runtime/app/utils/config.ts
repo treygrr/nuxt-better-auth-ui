@@ -20,6 +20,8 @@ export type BetterAuthAdminPublicConfig = {
     auditLogRetentionDays: number;
     /** Staff notes on users. */
     notes: boolean;
+    /** The module added the Organization plugin: the admin's organization pages. */
+    organizations: boolean;
     /** Whether the app set an email sender, and the emails it has its own template for. */
     emails: { send: boolean; templates: string[] };
 };

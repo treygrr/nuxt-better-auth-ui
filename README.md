@@ -465,6 +465,41 @@ The device side is the app's, with Better Auth's client (`deviceAuthorizationCli
 for the codes, then `device.token(…)` every `interval` until it's approved. That returns a Better Auth session token,
 used with the Bearer plugin. The session shows on the account page's Devices tab, where it can be signed out.
 
+## Organizations
+
+Better Auth's organizations as they are, for whatever your app uses them for (teams, workspaces, companies):
+
+```ts
+betterAuthUi: {
+    organization: {
+        enabled: true,
+        invitationPage: '/accept-invitation', // invitation links: <page>/<id>
+        allowUserToCreateOrganization: true,
+        organizationLimit: 5,
+        membershipLimit: 100,
+        creatorRole: 'owner',
+        invitationExpiresIn: 60 * 60 * 48, // seconds
+        requireEmailVerificationOnInvitation: false,
+        teams: false // Better Auth's teams (no UI for them yet)
+    }
+}
+```
+
+- **Account page:** an "Organizations" tab: their organizations, the active one marked, switching to another, and
+  creating one (a name and a slug made from it). "Manage" opens one: its members (owners and admins change roles and
+  remove members), invitations (send one by email with a role, copy its link, cancel it), leaving it, and (owners)
+  deleting it. Invitations sent to them show at the top with Accept and Decline (Better Auth lists them only for a
+  verified email).
+- **Invitation page:** the email's link (`/accept-invitation/<id>`, signed in) shows who invited them, to which
+  organization and as what, then Accept or Decline. Invitations go out through the module's emails (template
+  `organization-invitation`) when `emails.send` is set; their links can be copied from the organization either way.
+- **Admin:** an "Organizations" page listing every one (search by name, member counts), each organization's page with
+  its members (linking to their user pages) and pending invitations, and a user's organizations on their page.
+  Read-only: Better Auth's Organization plugin only lets an organization's own members change it, so staff see but
+  don't edit.
+- Uses Better Auth's words (organization, owner, admin, member) and its default roles. Adds Better Auth's
+  `organization`, `member` and `invitation` tables and the session's `activeOrganizationId`: run its migrations.
+
 ## API keys
 
 Keys for people's scripts, bots and integrations, through Better Auth's API Key plugin. Install its package, then:

@@ -51,10 +51,38 @@ export const adminEn = {
     nav: {
         home: 'Home',
         users: 'Users',
+        organizations: 'Organizations',
         sessions: 'Sessions',
         auditLog: 'Audit log',
         configuration: 'Configuration',
         backToSite: 'Back to site'
+    },
+    organizations: {
+        title: 'Organizations',
+        intro: 'Every organization, newest first. Their members manage them from their account page.',
+        search: 'Search by name…',
+        loadFailed: "Couldn't load the organizations",
+        empty: 'No organizations yet.',
+        back: 'Back to organizations',
+        columns: {
+            name: 'Organization',
+            members: 'Members',
+            created: 'Created'
+        },
+        count: {
+            one: '{count} organization',
+            other: '{count} organizations'
+        },
+        created: 'Created',
+        members: 'Members ({count})',
+        readOnly: 'Read-only here: members with the right role change these from their account page.',
+        invitations: 'Pending invitations',
+        noInvitations: 'No pending invitations.',
+        invitedBy: 'Invited by {name}',
+        expires: 'expires',
+        userDescription: 'The organizations {name} belongs to, and their role in each.',
+        noneForUser: 'Not in any organization.',
+        joined: 'Joined'
     },
     search: {
         placeholder: 'Search pages and users…',
@@ -474,6 +502,8 @@ export const adminEn = {
             guestAccounts: 'Guest accounts',
             deviceSignIn: 'Device sign-in (codes)',
             apiKeys: 'API keys',
+            organizations: 'Organizations',
+            organizationsNoCreate: "Users can't create them",
             bearerTokens: 'Bearer tokens',
             jwt: 'JWTs for other services',
             jwksAt: 'Public keys (JWKS): {url}',
@@ -541,7 +571,8 @@ export const adminEn = {
             newSignIn: 'Alert: new sign-in',
             passwordChanged: 'Alert: password changed',
             twoFactorChanged: 'Alert: two-factor on or off',
-            passkeyAdded: 'Alert: passkey added'
+            passkeyAdded: 'Alert: passkey added',
+            organizationInvitation: 'Organization invitation'
         },
         roles: {
             title: 'Roles and permissions',

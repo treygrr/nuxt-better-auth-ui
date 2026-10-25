@@ -56,7 +56,7 @@ export async function renderEmail<Name extends BetterAuthEmailName>(
     return { subject: rendered.subject ?? fallback.subject, text: rendered.text ?? fallback.text, html: rendered.html };
 }
 
-/** Who an email goes to: its user's address, or (for sign-in links, which may not have an account yet) its own. */
+/** Who an email goes to: its user's address, or (for sign-in links and invitations, maybe to no account yet) its own. */
 const recipient = (data: { user?: { email: string }; email?: string }) => data.user?.email ?? data.email!;
 
 async function deliver<Name extends BetterAuthEmailName>(name: Name, data: BetterAuthEmails[Name]) {
@@ -111,7 +111,32 @@ export const betterAuthEmails = {
         sendInBackground('magic-link', { email, url, token }),
     /** Added by the module itself when `betterAuthUi.emailOtp` is on. */
     emailCode: async ({ email, otp, type }: BetterAuthEmails['email-code']) =>
-        sendInBackground('email-code', { email, otp, type })
+        sendInBackground('email-code', { email, otp, type }),
+    /**
+     * Added by the module itself when `betterAuthUi.organization` is on: Better Auth's `sendInvitationEmail` data, and
+     * the invitation page to link to (on the request's site).
+     */
+    organizationInvitation:
+        (invitationPage: string) =>
+        async (
+            data: {
+                id: string;
+                email: string;
+                role: string;
+                organization: { name: string };
+                inviter: { user: { name: string; email: string } };
+            },
+            request?: Request
+        ) => {
+            const origin = request ? new URL(request.url).origin : '';
+            sendInBackground('organization-invitation', {
+                email: data.email,
+                organization: data.organization.name,
+                inviter: { name: data.inviter.user.name, email: data.inviter.user.email },
+                role: data.role,
+                url: `${origin}${invitationPage}/${encodeURIComponent(data.id)}`
+            });
+        }
 };
 
 /** Sends any of the module's emails in the background: for the module's own plugins, such as the security alerts. */

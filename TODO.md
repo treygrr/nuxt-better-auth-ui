@@ -6,13 +6,10 @@ Each follows the module's pattern: a `betterAuthUi` flag adds the plugin, the pa
 the app added it, the admin and configuration page show it, Spanish included.
 
 7. **More sign-in providers**, including game platforms. See below.
-8. **Organizations** (`organization`). Better Auth's organizations as they are, for whatever an app uses them for
-   (teams, workspaces, companies, groups): members with roles (owner, admin, member, or the app's own, through Better
-   Auth's access control), invitations, leaving and removing members, and Better Auth's teams within an
-   organization when the app turns them on. Account page: an "Organizations" tab (create, invitations to accept,
-   switch the active organization). Admin: organization pages (members, roles, invitations, delete), a user's
-   organizations on their page, audit-logged. Uses Better Auth's own words; apps rename them (eg "team", "workspace")
-   by overriding the module's messages (below).
+8. **Organizations, what's left.** Done: the plugin, the account tab, the invitation page, admin pages (read-only).
+   Left: a UI for Better Auth's teams; the app's own organization roles (dynamic access control) in the role pickers,
+   which show Better Auth's defaults; staff changing organizations (Better Auth has no admin endpoints for them, and
+   writing its tables directly would bypass its hooks); organization actions in the audit log.
 9. **Stripe** (`@better-auth/stripe`, its own package). Subscriptions: a "Billing" tab on the account page (current
    plan, upgrade or change, cancel, invoices through Stripe's customer portal), the plan on each user's admin page
    and a plan filter on the users list, and an option to give a role while a plan is active. Webhooks stay Better

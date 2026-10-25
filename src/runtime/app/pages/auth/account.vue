@@ -20,6 +20,7 @@ import DeleteCard from '../../components/account/DeleteCard.vue';
 import DevicesCard from '../../components/account/DevicesCard.vue';
 import EmailCard from '../../components/account/EmailCard.vue';
 import GuestCard from '../../components/account/GuestCard.vue';
+import OrganizationsCard from '../../components/account/OrganizationsCard.vue';
 import OverviewCard from '../../components/account/OverviewCard.vue';
 import PasskeysCard from '../../components/account/PasskeysCard.vue';
 import PasswordCard from '../../components/account/PasswordCard.vue';
@@ -102,6 +103,16 @@ const tabs = computed<TabsItem[]>(() => [
                 ? { label: String(sessions.value.length), color: 'neutral', variant: 'soft' }
                 : undefined
     },
+    ...(capabilities.value?.organization && !isGuest.value
+        ? [
+              {
+                  label: t('account.tabs.organizations'),
+                  icon: 'i-lucide-building-2',
+                  value: 'organizations',
+                  slot: 'organizations'
+              }
+          ]
+        : []),
     ...(capabilities.value?.apiKey && !isGuest.value
         ? [{ label: t('account.tabs.apiKeys'), icon: 'i-lucide-key-square', value: 'api-keys', slot: 'api-keys' }]
         : []),
@@ -207,6 +218,10 @@ const open = (value: string) => {
 
                 <template #devices>
                     <DevicesCard :sessions="sessions" @changed="refreshSessions()" />
+                </template>
+
+                <template #organizations>
+                    <OrganizationsCard />
                 </template>
 
                 <template #api-keys>
