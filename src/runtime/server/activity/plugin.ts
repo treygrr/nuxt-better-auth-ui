@@ -48,12 +48,12 @@ export const adminActivityTracking = ({
                 await context.adapter.create({ model: ACTIVITY_MODEL, data: { userId, lastActiveAt: now } });
             }
         } catch (error) {
-            context.logger.error('[better-auth-admin] Could not record activity. Have migrations run?', error);
+            context.logger.error('[better-auth-ui] Could not record activity. Have migrations run?', error);
         }
     }
 
     return {
-        id: 'better-auth-admin-activity',
+        id: 'better-auth-ui-activity',
         schema: {
             [ACTIVITY_MODEL]: {
                 fields: {

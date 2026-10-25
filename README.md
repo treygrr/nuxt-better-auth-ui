@@ -1,13 +1,14 @@
-# @treygrr/nuxt-better-auth-admin
+# @treygrr/nuxt-better-auth-ui
 
-Admin pages for [Better Auth](https://better-auth.com) in Nuxt, built with [Nuxt UI](https://ui.nuxt.com). It adds
-Better Auth's [Admin plugin](https://better-auth.com/docs/plugins/admin) to your app's auth and a dashboard at
-`/admin` where users with the admin role manage other users.
+Auth UI for [Better Auth](https://better-auth.com) in Nuxt, built with [Nuxt UI](https://ui.nuxt.com): an admin
+dashboard at `/admin`, where staff manage users through Better Auth's
+[Admin plugin](https://better-auth.com/docs/plugins/admin), and auth emails with your own templates. Sign-in pages and a
+self-service account page are coming next. Configure it under `betterAuthUi` in `nuxt.config.ts`.
 
 The dashboard is the [Nuxt UI dashboard template](https://github.com/nuxt-ui-templates/dashboard) (MIT), brought in
 whole: a collapsible sidebar with search, a home page with stats and a revenue chart, an inbox, a customers table,
 settings pages and a notifications panel. Those pages still show the template's sample data, served from
-`/api/_better-auth-admin/demo/*`; **Users** is the real thing, backed by Better Auth.
+`/api/_better-auth-ui/demo/*`; **Users** is the real thing, backed by Better Auth.
 
 ## User management
 
@@ -28,13 +29,13 @@ settings pages and a notifications panel. Those pages still show the template's 
 - **Remove a sign-in method** from its menu, eg an old Google link, or their password. Like Better Auth's own
   unlink-account endpoint, the last one can't be removed (it would lock them out) unless the app sets
   `account.accountLinking.allowUnlinkingAll`.
-- **Sign in as a user** (impersonation, opt-in with `impersonation: true`), from the row menu or their page, to see
+- **Sign in as a user** (impersonation, opt-in with `admin.impersonation: true`), from the row menu or their page, to see
   the app as they do. It uses Better Auth's impersonation: a one-hour session that keeps yours to return to, and
   marks it as an impersonation in their sessions list. Admins and banned users can't be impersonated. Put
   `<AdminImpersonationBanner />` in your app's layout (eg `app.vue`) for a "You're signed in as …" bar with
   **Stop impersonating**, which returns you to their admin page. With the option off, the module refuses Better
   Auth's impersonate-user endpoint too, since Better Auth's default admin role is otherwise allowed to use it.
-- **Audit log** (on by default, `auditLog: false` to turn off): every successful admin action — creating, editing,
+- **Audit log** (on by default, `admin.auditLog: false` to turn off): every successful admin action — creating, editing,
   banning and unbanning users, role and password changes, deletions, signing sessions out, impersonation and
   removing sign-in methods — with who did it, to whom (names and emails as they were, so deleted users stay
   readable), details such as the ban reason, IP and browser. Entries are kept for 30 days
@@ -42,7 +43,7 @@ settings pages and a notifications panel. Those pages still show the template's 
   an **Activity** card on each user's page. It's a small Better Auth plugin that adds one table, `adminAuditLog`,
   through Better Auth's migrations (run them, or `npx @better-auth/cli generate` for Prisma or Drizzle); Better
   Auth's own tables aren't changed. A failed write is logged and never blocks the action.
-- **User activity** in the same log (on by default, `auditUserEvents: false` to turn off): sign-ups and sign-ins with
+- **User activity** in the same log (on by default, `admin.auditUserEvents: false` to turn off): sign-ups and sign-ins with
   their method (email, GitHub, a verification link, …), failed sign-ins (for real accounts only; typed-in emails
   without one aren't stored), sign-outs, password reset requests and changes, and email verification. Sign-ins are
   caught through Better Auth's documented `ctx.context.newSession`, so every sign-in method counts. Events that look
@@ -53,7 +54,7 @@ settings pages and a notifications panel. Those pages still show the template's 
   lists one user's sessions, so the module reads them itself, a page at a time, only when an admin opens the page
   (`session: list` permission). "Last active" is when Better Auth last refreshed the session (by default at most
   daily). Not available when sessions live only in secondary storage such as Redis.
-- **Last active and online now** (opt-in, `activityTracking: { enabled: true }`): a "Last active" column and
+- **Last active and online now** (opt-in, `admin.activityTracking: { enabled: true }`): a "Last active" column and
   detail, and an "Online now" card on the home page. When Better Auth checks a signed-in user's session (their page
   loads), the module records the time in its own `adminUserActivity` table, at most once per user per
   `updateInterval` (default 5 minutes) on each server, after the response. That's about one write per signed-in
@@ -68,13 +69,13 @@ settings pages and a notifications panel. Those pages still show the template's 
 ## Setup
 
 ```bash
-pnpm add @treygrr/nuxt-better-auth-admin
+pnpm add @treygrr/nuxt-better-auth-ui
 ```
 
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
-    modules: ['@treygrr/nuxt-better-auth-admin']
+    modules: ['@treygrr/nuxt-better-auth-ui']
 });
 ```
 
@@ -94,7 +95,7 @@ Tailwind doesn't scan `node_modules`, so point it at the admin pages in your mai
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
-@source "../../../node_modules/@treygrr/nuxt-better-auth-admin/dist/runtime";
+@source "../../../node_modules/@treygrr/nuxt-better-auth-ui/dist/runtime";
 ```
 
 The path is relative to the CSS file; adjust it if yours isn't at `app/assets/css/main.css`.
@@ -118,33 +119,38 @@ After that, admins can grant the role from the dashboard.
 
 ```ts
 export default defineNuxtConfig({
-    betterAuthAdmin: {
-        // Where the admin pages live.
-        route: '/admin',
-        // The role that can do everything in the admin pages and Better Auth's admin endpoints.
-        role: 'admin',
-        // More roles, with Better Auth Admin permissions. See "Roles" below.
-        roles: {},
-        // Let admins sign in as a user (Better Auth's impersonation). Off, its endpoint is refused too.
-        impersonation: false,
-        // Record admin actions in an adminAuditLog table (added through Better Auth's migrations).
-        auditLog: true,
-        // Days the audit log keeps entries; 0 keeps them forever.
-        auditLogRetentionDays: 30,
-        // Also log users' sign-ins, failed sign-ins, sign-outs and password changes; gives "last sign-in".
-        auditUserEvents: true,
-        // Opt-in "last active" and "online now"; about one write per signed-in user per interval.
-        activityTracking: { enabled: false, updateInterval: 5 * 60 * 1000 },
-        // Auth emails: delivery and templates. See "Emails" below.
-        emails: {},
+    betterAuthUi: {
+        // The admin dashboard (`/admin`).
+        admin: {
+            // false: no admin pages, routes or Admin plugin.
+            enabled: true,
+            // Where the admin pages live.
+            route: '/admin',
+            // The role that can do everything in the admin pages and Better Auth's admin endpoints.
+            role: 'admin',
+            // More roles, with Better Auth Admin permissions. See "Roles" below.
+            roles: {},
+            // Let admins sign in as a user (Better Auth's impersonation). Off, its endpoint is refused too.
+            impersonation: false,
+            // Record admin actions in an adminAuditLog table (added through Better Auth's migrations).
+            auditLog: true,
+            // Days the audit log keeps entries; 0 keeps them forever.
+            auditLogRetentionDays: 30,
+            // Also log users' sign-ins, failed sign-ins, sign-outs and password changes; gives "last sign-in".
+            auditUserEvents: true,
+            // Opt-in "last active" and "online now"; about one write per signed-in user per interval.
+            activityTracking: { enabled: false, updateInterval: 5 * 60 * 1000 },
 
-        // Better Auth Admin plugin options, passed through as documented
-        // (https://better-auth.com/docs/plugins/admin#options). All optional.
-        defaultRole: 'user', // must be user, the admin role, or one of roles
-        defaultBanReason: 'Breaking the rules', // when an admin gives none
-        defaultBanExpiresIn: 60 * 60 * 24 * 7, // seconds; default: forever
-        bannedUserMessage: 'Your account is suspended. Contact support.',
-        impersonationSessionDuration: 60 * 60 // seconds
+            // Better Auth Admin plugin options, passed through as documented
+            // (https://better-auth.com/docs/plugins/admin#options). All optional.
+            defaultRole: 'user', // must be user, the admin role, or one of roles
+            defaultBanReason: 'Breaking the rules', // when an admin gives none
+            defaultBanExpiresIn: 60 * 60 * 24 * 7, // seconds; default: forever
+            bannedUserMessage: 'Your account is suspended. Contact support.',
+            impersonationSessionDuration: 60 * 60 // seconds
+        },
+        // Auth emails: delivery and templates. See "Emails" below.
+        emails: {}
     }
 });
 ```
@@ -157,7 +163,7 @@ own templates, delivered by your own function (Resend, SMTP, …).
 1. **Point the module at your files** in `nuxt.config.ts` (relative to the project root; `~~/` works too):
 
     ```ts
-    betterAuthAdmin: {
+    betterAuthUi: {
         emails: {
             send: './server/emails/send.ts',
             // Optional: emails without a template are sent as plain text.
@@ -170,7 +176,7 @@ own templates, delivered by your own function (Resend, SMTP, …).
 
     ```ts
     // server/emails/send.ts
-    import { defineBetterAuthEmailSender } from '@treygrr/nuxt-better-auth-admin/emails';
+    import { defineBetterAuthEmailSender } from '@treygrr/nuxt-better-auth-ui/emails';
 
     export default defineBetterAuthEmailSender(async ({ to, subject, text, html }) => {
         await resend.emails.send({ from: 'Neomons <hello@neomons.com>', to, subject, text, html });
@@ -183,7 +189,7 @@ own templates, delivered by your own function (Resend, SMTP, …).
 
     ```ts
     // server/emails/verify-email.ts
-    import { defineBetterAuthEmail } from '@treygrr/nuxt-better-auth-admin/emails';
+    import { defineBetterAuthEmail } from '@treygrr/nuxt-better-auth-ui/emails';
 
     export default defineBetterAuthEmail('verify-email', async ({ user, url }) => ({
         subject: 'Verify your Neomons email',
@@ -195,7 +201,7 @@ own templates, delivered by your own function (Resend, SMTP, …).
 
     ```ts
     // server/auth.config.ts
-    import { betterAuthEmails } from '@treygrr/nuxt-better-auth-admin/emails';
+    import { betterAuthEmails } from '@treygrr/nuxt-better-auth-ui/emails';
 
     export default defineServerAuth({
         emailAndPassword: {
@@ -222,12 +228,14 @@ have accounts); a failed send is logged. A missing file fails the build.
 Besides `admin` (everything) and `user` (nothing), define roles with any of Better Auth's Admin permissions:
 
 ```ts
-betterAuthAdmin: {
-    roles: {
-        // Handles reports: can view, edit and ban users, and sign their sessions out.
-        moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] },
-        // Can look, not touch.
-        support: { user: ['list', 'get'], session: ['list'] }
+betterAuthUi: {
+    admin: {
+        roles: {
+            // Handles reports: can view, edit and ban users, and sign their sessions out.
+            moderator: { user: ['list', 'get', 'update', 'ban'], session: ['list', 'revoke'] },
+            // Can look, not touch.
+            support: { user: ['list', 'get'], session: ['list'] }
+        }
     }
 }
 ```
@@ -253,7 +261,7 @@ betterAuthAdmin: {
 
 - The module registers Better Auth's `admin()` and `adminClient()` plugins through `@nuxtjs/better-auth`'s
   `better-auth:plugins:extend` hook, so your auth config doesn't change.
-- The pages use their own `better-auth-admin` layout, the dashboard template's sidebar layout, separate from your app's
+- The pages use their own `better-auth-ui` layout, the dashboard template's sidebar layout, separate from your app's
   layouts. Its components are registered with an `Admin` prefix (`<AdminUserMenu>`, `<AdminHomeStats>`, …) so they
   can't clash with yours, and every runtime file imports from `#imports` explicitly, since Nuxt doesn't auto-import
   inside `node_modules`.
@@ -261,9 +269,9 @@ betterAuthAdmin: {
 - Left out, because they belong to your app: the template's `app.vue`, `error.vue`, `app.config.ts` colours and CSS
   theme.
 - Sign-in methods use the module's own routes, since the Admin plugin has none for them:
-  `GET /api/_better-auth-admin/users/:id/accounts` (Better Auth's `user: ['get']` permission; returns provider, account
+  `GET /api/_better-auth-ui/users/:id/accounts` (Better Auth's `user: ['get']` permission; returns provider, account
   ID, scope and dates, never passwords or tokens) and `DELETE …/accounts/:accountId` (`user: ['update']`).
-  `GET /api/_better-auth-admin/accounts?userIds=a,b,…` returns `{ [userId]: providerIds }` for up to 100 users, in one
+  `GET /api/_better-auth-ui/accounts?userIds=a,b,…` returns `{ [userId]: providerIds }` for up to 100 users, in one
   query, for the users list.
 - Route rules let only signed-in staff in (the admin role, and custom roles that can list users); others are sent to
   the login page or get a 403. Better Auth checks permissions again on every `/api/auth/admin/*` request. Users with

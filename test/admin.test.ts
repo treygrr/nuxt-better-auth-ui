@@ -13,7 +13,7 @@ const Database = createRequire(join(playgroundDir, 'package.json'))('better-sqli
 
 const port = 3941;
 const base = `http://localhost:${port}`;
-const dataDir = mkdtempSync(join(tmpdir(), 'better-auth-admin-'));
+const dataDir = mkdtempSync(join(tmpdir(), 'better-auth-ui-'));
 const databasePath = join(dataDir, 'auth.sqlite');
 let server: ChildProcess;
 
@@ -119,7 +119,7 @@ describe('the admin pages', () => {
     });
 
     it.each(['customers', 'mails', 'members', 'notifications'])('serve the demo %s data', async (name) => {
-        const response = await get(`/api/_better-auth-admin/demo/${name}`, adminCookie);
+        const response = await get(`/api/_better-auth-ui/demo/${name}`, adminCookie);
         expect(response.status).toBe(200);
         expect((await response.json()).length).toBeGreaterThan(0);
     });
@@ -231,7 +231,7 @@ describe('user management', () => {
 });
 
 describe("a user's sign-in methods", () => {
-    const accounts = (id: string, cookie?: string) => get(`/api/_better-auth-admin/users/${id}/accounts`, cookie);
+    const accounts = (id: string, cookie?: string) => get(`/api/_better-auth-ui/users/${id}/accounts`, cookie);
     const aliceId = async () =>
         (await (await get('/api/auth/admin/list-users?searchValue=alice@&searchField=email', adminCookie)).json())
             .users[0].id;
@@ -268,12 +268,12 @@ describe("a user's sign-in methods", () => {
 
 describe('removing sign-in methods', () => {
     const remove = (userId: string, accountId: string, cookie?: string) =>
-        fetch(`${base}/api/_better-auth-admin/users/${userId}/accounts/${accountId}`, {
+        fetch(`${base}/api/_better-auth-ui/users/${userId}/accounts/${accountId}`, {
             method: 'DELETE',
             headers: { origin: base, ...(cookie && { cookie }) }
         });
     const listAccounts = async (userId: string) =>
-        (await get(`/api/_better-auth-admin/users/${userId}/accounts`, adminCookie)).json();
+        (await get(`/api/_better-auth-ui/users/${userId}/accounts`, adminCookie)).json();
     const alice = async () =>
         (await (await get('/api/auth/admin/list-users?searchValue=alice@&searchField=email', adminCookie)).json())
             .users[0];
@@ -333,7 +333,7 @@ describe('removing sign-in methods', () => {
 
 describe("several users' sign-in methods at once", () => {
     const providersOf = (userIds: string[], cookie?: string) =>
-        get(`/api/_better-auth-admin/accounts?userIds=${userIds.join(',')}`, cookie);
+        get(`/api/_better-auth-ui/accounts?userIds=${userIds.join(',')}`, cookie);
     const idOf = async (name: string) =>
         (await (await get(`/api/auth/admin/list-users?searchValue=${name}@&searchField=email`, adminCookie)).json())
             .users[0].id;
@@ -344,7 +344,7 @@ describe("several users' sign-in methods at once", () => {
         expect(response.status).toBe(200);
         const providers = await response.json();
         for (const id of [alice, bob]) {
-            const accounts = await (await get(`/api/_better-auth-admin/users/${id}/accounts`, adminCookie)).json();
+            const accounts = await (await get(`/api/_better-auth-ui/users/${id}/accounts`, adminCookie)).json();
             expect(providers[id].sort()).toEqual(accounts.map((a: { providerId: string }) => a.providerId).sort());
         }
         expect(providers['no-such-user']).toEqual([]);
@@ -374,7 +374,7 @@ describe('reading many accounts', () => {
             'insert into account (id, accountId, providerId, userId, createdAt, updatedAt) values (?, ?, ?, ?, ?, ?)'
         );
         for (let i = 0; i < 120; i++) insert.run(`many-${i}`, String(i), `provider-${i}`, id, createdAt, createdAt);
-        const response = await get(`/api/_better-auth-admin/accounts?userIds=${id}`, adminCookie);
+        const response = await get(`/api/_better-auth-ui/accounts?userIds=${id}`, adminCookie);
         expect((await response.json())[id]).toHaveLength(before + 120);
         db.prepare("delete from account where id like 'many-%'").run();
     });
@@ -382,7 +382,7 @@ describe('reading many accounts', () => {
 
 describe('home page stats', () => {
     const stats = (buckets: Date[], cookie = adminCookie) =>
-        get(`/api/_better-auth-admin/stats?buckets=${buckets.map((date) => date.toISOString()).join(',')}`, cookie);
+        get(`/api/_better-auth-ui/stats?buckets=${buckets.map((date) => date.toISOString()).join(',')}`, cookie);
     const day = 24 * 60 * 60 * 1000;
 
     it('counts users, sign-ups, bans and sessions from the database', async () => {
@@ -461,7 +461,7 @@ describe('impersonation', () => {
         expect(impersonated.user.email).toBe('alice@example.com');
         expect(impersonated.session.impersonatedBy).toBe(admin.user.id);
         // The admin pages are closed to them now.
-        expect((await get('/api/_better-auth-admin/stats?buckets=2026-01-01,2026-01-02', cookie)).status).toBe(403);
+        expect((await get('/api/_better-auth-ui/stats?buckets=2026-01-01,2026-01-02', cookie)).status).toBe(403);
 
         const stopped = await post('/admin/stop-impersonating', cookie);
         expect(stopped.status).toBe(200);
@@ -503,7 +503,7 @@ describe('audit log', () => {
             body: JSON.stringify(body)
         });
     const log = async (query = '') => {
-        const response = await get(`/api/_better-auth-admin/audit?limit=100${query}`, adminCookie);
+        const response = await get(`/api/_better-auth-ui/audit?limit=100${query}`, adminCookie);
         expect(response.status).toBe(200);
         return (await response.json()) as { entries: Entry[]; total: number };
     };
@@ -560,7 +560,7 @@ describe('audit log', () => {
         db.prepare(
             'insert into account (id, accountId, providerId, userId, createdAt, updatedAt) values (?, ?, ?, ?, ?, ?)'
         ).run('audit-github', '1', 'github', carolId, createdAt, createdAt);
-        const response = await fetch(`${base}/api/_better-auth-admin/users/${carolId}/accounts/audit-github`, {
+        const response = await fetch(`${base}/api/_better-auth-ui/users/${carolId}/accounts/audit-github`, {
             method: 'DELETE',
             headers: { origin: base, cookie: adminCookie }
         });
@@ -626,8 +626,8 @@ describe('audit log', () => {
     });
 
     it('is closed to users without the permission', async () => {
-        expect((await get('/api/_better-auth-admin/audit', userCookie)).status).toBe(403);
-        expect((await get('/api/_better-auth-admin/audit')).status).toBe(401);
+        expect((await get('/api/_better-auth-ui/audit', userCookie)).status).toBe(403);
+        expect((await get('/api/_better-auth-ui/audit')).status).toBe(401);
     });
 });
 
@@ -649,7 +649,7 @@ describe('audit log retention', () => {
         insert.run('retention-recent', at(20));
         const ids = async () =>
             (
-                (await (await get('/api/_better-auth-admin/audit?userId=retention-target', adminCookie)).json()) as {
+                (await (await get('/api/_better-auth-ui/audit?userId=retention-target', adminCookie)).json()) as {
                     entries: Array<{ id: string }>;
                 }
             ).entries.map((entry) => entry.id);
@@ -716,7 +716,7 @@ describe('custom roles', () => {
         expect(
             (await post('/admin/update-user', { userId: carolId, data: { name: 'Carol B' } }, moderatorCookie)).status
         ).toBe(200);
-        expect((await get(`/api/_better-auth-admin/users/${carolId}/accounts`, moderatorCookie)).status).toBe(200);
+        expect((await get(`/api/_better-auth-ui/users/${carolId}/accounts`, moderatorCookie)).status).toBe(200);
     });
 
     it("refuses what it doesn't", async () => {
@@ -756,7 +756,7 @@ describe('custom roles', () => {
 
 describe('resending verification emails', () => {
     const resend = (userId: string, cookie = adminCookie) =>
-        fetch(`${base}/api/_better-auth-admin/users/${userId}/send-verification`, {
+        fetch(`${base}/api/_better-auth-ui/users/${userId}/send-verification`, {
             method: 'POST',
             headers: { origin: base, cookie }
         });
@@ -786,9 +786,7 @@ describe('resending verification emails', () => {
         });
         expect((await outbox())[0]!.html).toContain('Hi Fay, welcome!');
         expect((await outbox())[0]!.text).toContain('/api/auth/verify-email?token=');
-        const { entries } = await (
-            await get(`/api/_better-auth-admin/audit?limit=1&userId=${fayId}`, adminCookie)
-        ).json();
+        const { entries } = await (await get(`/api/_better-auth-ui/audit?limit=1&userId=${fayId}`, adminCookie)).json();
         expect(entries[0].action).toBe('user.send-verification');
     });
 
@@ -829,7 +827,7 @@ describe("users' own activity", () => {
         details: Record<string, unknown> | null;
     };
     const events = async (email: string) => {
-        const { entries } = await (await get('/api/_better-auth-admin/audit?limit=100', adminCookie)).json();
+        const { entries } = await (await get('/api/_better-auth-ui/audit?limit=100', adminCookie)).json();
         return (entries as Entry[]).filter((entry) => entry.targetEmail === email && entry.action.startsWith('auth.'));
     };
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
@@ -903,11 +901,11 @@ describe('last sign-in', () => {
                 .users[0].id;
         const [gina, carol] = [await idOf('gina'), 'no-such-user'];
         const latest = await (
-            await get(`/api/_better-auth-admin/last-sign-in?userIds=${gina},${carol}`, adminCookie)
+            await get(`/api/_better-auth-ui/last-sign-in?userIds=${gina},${carol}`, adminCookie)
         ).json();
         expect(Date.now() - new Date(latest[gina]).getTime()).toBeLessThan(60_000);
         expect(latest[carol]).toBeNull();
-        expect((await get(`/api/_better-auth-admin/last-sign-in?userIds=${gina}`, userCookie)).status).toBe(403);
+        expect((await get(`/api/_better-auth-ui/last-sign-in?userIds=${gina}`, userCookie)).status).toBe(403);
     });
 });
 
@@ -917,7 +915,7 @@ describe('the sessions page', () => {
         total: number;
     };
     const list = async (query = '', cookie = adminCookie) => {
-        const response = await get(`/api/_better-auth-admin/sessions?${query}`, cookie);
+        const response = await get(`/api/_better-auth-ui/sessions?${query}`, cookie);
         expect(response.status).toBe(200);
         return (await response.json()) as Listed;
     };
@@ -954,15 +952,14 @@ describe('the sessions page', () => {
     });
 
     it('needs the session: list permission', async () => {
-        expect((await get('/api/_better-auth-admin/sessions', userCookie)).status).toBe(403);
+        expect((await get('/api/_better-auth-ui/sessions', userCookie)).status).toBe(403);
     });
 });
 
 describe('activity tracking (opt-in; on in the playground, every minute)', () => {
     const settle = () => new Promise((resolve) => setTimeout(resolve, 300));
     const lastActiveOf = async (id: string) =>
-        (await (await get(`/api/_better-auth-admin/last-active?userIds=${id}`, adminCookie)).json())[id] as
-            string | null;
+        (await (await get(`/api/_better-auth-ui/last-active?userIds=${id}`, adminCookie)).json())[id] as string | null;
 
     it('records when a signed-in user was last active, at most once per interval', async () => {
         const cookie = await signIn('hal', 'sign-up');
@@ -981,11 +978,11 @@ describe('activity tracking (opt-in; on in the playground, every minute)', () =>
     it('counts who is online in the home stats', async () => {
         const now = Date.now();
         const buckets = [new Date(now - 86_400_000), new Date(now + 1000)].map((date) => date.toISOString()).join(',');
-        const stats = await (await get(`/api/_better-auth-admin/stats?buckets=${buckets}`, adminCookie)).json();
+        const stats = await (await get(`/api/_better-auth-ui/stats?buckets=${buckets}`, adminCookie)).json();
         expect(stats.online).toBeGreaterThanOrEqual(1);
     });
 
     it('needs the user: list permission', async () => {
-        expect((await get('/api/_better-auth-admin/last-active?userIds=x', userCookie)).status).toBe(403);
+        expect((await get('/api/_better-auth-ui/last-active?userIds=x', userCookie)).status).toBe(403);
     });
 });

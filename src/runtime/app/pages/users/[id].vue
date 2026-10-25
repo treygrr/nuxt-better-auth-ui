@@ -201,7 +201,7 @@ const thisSession = computed(() => session.session.value?.id);
 </script>
 
 <template>
-    <UDashboardPanel id="better-auth-admin-user">
+    <UDashboardPanel id="better-auth-ui-user">
         <template #header>
             <UDashboardNavbar :title="user?.name ?? 'User'">
                 <template #leading>

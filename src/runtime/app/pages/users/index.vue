@@ -426,7 +426,7 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
 </script>
 
 <template>
-    <UDashboardPanel id="better-auth-admin-users">
+    <UDashboardPanel id="better-auth-ui-users">
         <template #header>
             <UDashboardNavbar title="Users" :badge="data?.total">
                 <template #leading>

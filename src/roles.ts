@@ -16,7 +16,7 @@ export type ResolvedRoles = {
     withoutAccess: string[];
 };
 
-const error = (message: string) => new Error(`[better-auth-admin] ${message}`);
+const error = (message: string) => new Error(`[better-auth-ui] ${message}`);
 
 /** Checks the `roles` option against Better Auth's Admin permissions; throws on anything it wouldn't accept. */
 export function resolveRoles(adminRole: string, custom: Record<string, AdminRolePermissions>): ResolvedRoles {

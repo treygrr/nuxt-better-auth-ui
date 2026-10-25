@@ -2,6 +2,6 @@
 @import '@nuxt/ui';
 
 /* Tailwind skips node_modules, so point it at the admin pages' classes, as an app would. */
-@source "../../../node_modules/@treygrr/nuxt-better-auth-admin/dist/runtime";
+@source "../../../node_modules/@treygrr/nuxt-better-auth-ui/dist/runtime";
 /* In `pnpm dev` the module runs from source. */
 @source "../../../../src/runtime";

@@ -24,7 +24,9 @@ export default defineEventHandler(async (event) => {
 
     await (auth as unknown as AuthWithVerification).api.sendVerificationEmail({ body: { email: user.email } });
 
-    const config = useRuntimeConfig().public.betterAuthAdmin as { auditLog: boolean; auditLogRetentionDays: number };
+    const config = (
+        useRuntimeConfig().public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }
+    ).admin;
     if (config.auditLog) {
         await writeAuditEntry(
             context as never,

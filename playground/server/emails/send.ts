@@ -1,4 +1,4 @@
-import { defineBetterAuthEmailSender } from '@treygrr/nuxt-better-auth-admin/emails';
+import { defineBetterAuthEmailSender } from '@treygrr/nuxt-better-auth-ui/emails';
 
 import { outbox } from '../utils/outbox';
 

@@ -29,7 +29,9 @@ export default defineEventHandler(async (event) => {
     }
 
     await context.internalAdapter.deleteAccount(account.id);
-    const config = useRuntimeConfig().public.betterAuthAdmin as { auditLog: boolean; auditLogRetentionDays: number };
+    const config = (
+        useRuntimeConfig().public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }
+    ).admin;
     if (config.auditLog) {
         await writeAuditEntry(
             context as never,

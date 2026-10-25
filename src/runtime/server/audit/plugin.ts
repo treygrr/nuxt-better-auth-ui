@@ -49,7 +49,7 @@ async function prune(context: { adapter: Adapter; logger: Logger }, retentionDay
             where: [{ field: 'createdAt', operator: 'lt', value: cutoff }]
         });
     } catch (error) {
-        context.logger.error('[better-auth-admin] Could not prune the audit log.', error);
+        context.logger.error('[better-auth-ui] Could not prune the audit log.', error);
     }
 }
 
@@ -81,7 +81,7 @@ export async function writeAuditEntry(
             }
         });
     } catch (error) {
-        context.logger.error('[better-auth-admin] Could not write to the audit log. Have migrations run?', error);
+        context.logger.error('[better-auth-ui] Could not write to the audit log. Have migrations run?', error);
         return;
     }
     await prune(context, retentionDays);
@@ -141,7 +141,7 @@ export const adminAuditLog = ({
     userEvents?: boolean;
 } = {}) => {
     return {
-        id: 'better-auth-admin-audit-log',
+        id: 'better-auth-ui-audit-log',
         schema: {
             [AUDIT_MODEL]: {
                 fields: {
@@ -182,7 +182,7 @@ export const adminAuditLog = ({
                             target = person((await internal.findSession(body.sessionToken))?.user);
                         }
                         if (!actor) return;
-                        return { context: { betterAuthAdminAudit: { actor, target } satisfies Pending } };
+                        return { context: { betterAuthUiAudit: { actor, target } satisfies Pending } };
                     })
                 },
                 // Sign-outs, recorded before the session is gone.
@@ -200,7 +200,7 @@ export const adminAuditLog = ({
                 {
                     matcher: (ctx) => !!ctx.path && ctx.path in ACTIONS,
                     handler: createAuthMiddleware(async (ctx) => {
-                        const pending = (ctx as unknown as { betterAuthAdminAudit?: Pending }).betterAuthAdminAudit;
+                        const pending = (ctx as unknown as { betterAuthUiAudit?: Pending }).betterAuthUiAudit;
                         const returned = ctx.context.returned;
                         if (!pending || isAPIError(returned)) return;
                         const { action, details } = ACTIONS[ctx.path!]!;

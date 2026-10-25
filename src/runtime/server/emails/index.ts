@@ -1,4 +1,4 @@
-// Public entry, `@treygrr/nuxt-better-auth-admin/emails`, for the app's auth config and email templates.
+// Public entry, `@treygrr/nuxt-better-auth-ui/emails`, for the app's auth config and email templates.
 // No Nuxt or Nitro imports: Better Auth's Nuxt module also loads the auth config at build time.
 import { defaultEmails } from './defaults';
 import type {
@@ -45,7 +45,7 @@ export async function renderEmail<Name extends BetterAuthEmailName>(
     const fallback = defaultEmails[name](data);
     if (!template) return fallback;
     if (template.name !== name) {
-        throw new Error(`[better-auth-admin] The template for "${name}" is declared as "${template.name}"`);
+        throw new Error(`[better-auth-ui] The template for "${name}" is declared as "${template.name}"`);
     }
     const rendered = await template.render(data);
     if (typeof rendered === 'string') return { ...fallback, html: rendered };
@@ -57,9 +57,9 @@ async function deliver<Name extends BetterAuthEmailName>(
     data: BetterAuthEmails[Name] & { user: { email: string } }
 ) {
     // Loaded here, not at the top: the config only exists inside the built server.
-    const { emailConfig } = (await import('#better-auth-admin/email-config')) as { emailConfig: EmailConfig };
+    const { emailConfig } = (await import('#better-auth-ui/email-config')) as { emailConfig: EmailConfig };
     if (!emailConfig.send) {
-        throw new Error('[better-auth-admin] No email sender: set betterAuthAdmin.emails.send to a file exporting one');
+        throw new Error('[better-auth-ui] No email sender: set betterAuthUi.emails.send to a file exporting one');
     }
     const message = await renderEmail(
         name,
@@ -77,7 +77,7 @@ function sendInBackground<Name extends BetterAuthEmailName>(
     name: Name,
     data: BetterAuthEmails[Name] & { user: { email: string } }
 ) {
-    deliver(name, data).catch((error) => console.error(`[better-auth-admin] Couldn't send the "${name}" email`, error));
+    deliver(name, data).catch((error) => console.error(`[better-auth-ui] Couldn't send the "${name}" email`, error));
 }
 
 /**

@@ -20,7 +20,8 @@ export type BetterAuthAdminPublicConfig = {
     auditLogRetentionDays: number;
 };
 
-export const useBetterAuthAdminConfig = () => useRuntimeConfig().public.betterAuthAdmin as BetterAuthAdminPublicConfig;
+export const useBetterAuthAdminConfig = () =>
+    (useRuntimeConfig().public.betterAuthUi as { admin: BetterAuthAdminPublicConfig }).admin;
 
 /** Turns an admin-relative path (`/`, `/inbox`) into a URL under the configured admin route. */
 export const useAdminPath = () => {

@@ -1,4 +1,4 @@
-import { defineBetterAuthEmail } from '@treygrr/nuxt-better-auth-admin/emails';
+import { defineBetterAuthEmail } from '@treygrr/nuxt-better-auth-ui/emails';
 
 // An HTML template for the verification email. The reset email has no template, so it's the plain-text default.
 export default defineBetterAuthEmail('verify-email', async ({ user, url }) => ({

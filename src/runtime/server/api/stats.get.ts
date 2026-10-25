@@ -54,7 +54,14 @@ export default defineEventHandler(async (event) => {
         )
     ]);
     // With activity tracking: users active within the last update interval.
-    const config = useRuntimeConfig().public.betterAuthAdmin as { activityTracking: boolean; activityInterval: number };
+    const config = (
+        useRuntimeConfig().public.betterAuthUi as {
+            admin: {
+                activityTracking: boolean;
+                activityInterval: number;
+            };
+        }
+    ).admin;
     const online = config.activityTracking
         ? await count(ACTIVITY_MODEL, [
               { field: 'lastActiveAt', operator: 'gt', value: new Date(Date.now() - config.activityInterval) }

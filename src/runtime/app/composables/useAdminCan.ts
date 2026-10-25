@@ -1,5 +1,5 @@
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { roles } from '#better-auth-admin/roles';
+import { roles } from '#better-auth-ui/roles';
 
 export type AdminPermissions = { user?: string[]; session?: string[] };
 

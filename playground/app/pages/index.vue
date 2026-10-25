@@ -4,7 +4,7 @@ const { user, loggedIn, signOut } = useUserSession();
 
 <template>
     <UContainer class="flex flex-col items-start gap-4 py-16">
-        <h1 class="text-xl font-semibold">nuxt-better-auth-admin playground</h1>
+        <h1 class="text-xl font-semibold">nuxt-better-auth-ui playground</h1>
         <p v-if="loggedIn && user" class="text-muted">Signed in as {{ user.email }} ({{ user.role ?? 'user' }}).</p>
         <div class="flex gap-2">
             <UButton to="/admin" label="Admin" icon="i-lucide-shield" />

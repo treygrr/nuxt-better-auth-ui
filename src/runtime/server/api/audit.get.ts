@@ -18,7 +18,9 @@ export default defineEventHandler(async (event) => {
     const offset = Math.max(Number(query.offset) || 0, 0);
 
     // Entries past the retention period, which pruning may not have reached yet, are never shown.
-    const { auditLogRetentionDays } = useRuntimeConfig().public.betterAuthAdmin as { auditLogRetentionDays: number };
+    const { auditLogRetentionDays } = (
+        useRuntimeConfig().public.betterAuthUi as { admin: { auditLogRetentionDays: number } }
+    ).admin;
     const cutoff = retentionCutoff(auditLogRetentionDays);
     const where: Where[] = cutoff ? [{ field: 'createdAt', operator: 'gte', value: cutoff }] : [];
     if (typeof query.action === 'string' && query.action) where.push({ field: 'action', value: query.action });

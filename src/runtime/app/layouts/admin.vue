@@ -168,7 +168,7 @@ onMounted(async () => {
 <template>
     <UDashboardGroup unit="rem">
         <UDashboardSidebar
-            id="better-auth-admin"
+            id="better-auth-ui"
             v-model:open="open"
             collapsible
             resizable
