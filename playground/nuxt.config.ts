@@ -28,6 +28,8 @@ export default defineNuxtConfig({
         anonymous: { enabled: true, onLinkAccount: './server/auth/link-guest.ts' },
         // Signing in a TV app or CLI with a code, approved at /device.
         deviceAuthorization: { enabled: true, clients: { 'playground-tv': 'Playground TV' } },
+        // An "API keys" tab on the account page, with two permissions to pick from.
+        apiKey: { enabled: true, prefix: 'pg_', scopes: { projects: ['read', 'write'] } },
         lastLoginMethod: true,
         // Emails (to the outbox) about new-device sign-ins, password changes, two-factor and passkeys.
         securityAlerts: true,

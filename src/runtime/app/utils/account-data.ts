@@ -35,6 +35,26 @@ export const useAccountSessions = () =>
 export const useAccountTwoFactor = () =>
     useFetch<TwoFactorStatus>(`${UI_API}/two-factor`, { key: 'better-auth-ui-account-two-factor' });
 
+/** An API key, as Better Auth's API Key plugin lists it: never the key itself. */
+export type AccountApiKey = {
+    id: string;
+    name: string | null;
+    start: string | null;
+    permissions: Record<string, string[]> | string | null;
+    expiresAt: string | null;
+    lastRequest: string | null;
+    createdAt: string;
+};
+
+/** Only when the app uses the API Key plugin: its endpoint doesn't exist otherwise. */
+export const useAccountApiKeys = () =>
+    useFetch('/api/auth/api-key/list', {
+        key: 'better-auth-ui-account-api-keys',
+        query: { sortBy: 'createdAt', sortDirection: 'desc' },
+        transform: (result: { apiKeys: AccountApiKey[] }) => result.apiKeys,
+        default: () => [] as AccountApiKey[]
+    });
+
 /** Only when the app uses the Passkey plugin: its endpoint doesn't exist otherwise. */
 export const useAccountPasskeys = () =>
     useFetch<Passkey[]>('/api/auth/passkey/list-user-passkeys', {

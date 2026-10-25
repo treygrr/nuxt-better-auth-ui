@@ -13,6 +13,7 @@ import {
 
 import { needsTwoFactorSetUp, requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 
+import ApiKeysCard from '../../components/account/ApiKeysCard.vue';
 import ConnectionsCard from '../../components/account/ConnectionsCard.vue';
 import DataCard from '../../components/account/DataCard.vue';
 import DeleteCard from '../../components/account/DeleteCard.vue';
@@ -100,6 +101,9 @@ const tabs = computed<TabsItem[]>(() => [
                 ? { label: String(sessions.value.length), color: 'neutral', variant: 'soft' }
                 : undefined
     },
+    ...(capabilities.value?.apiKey && !isGuest.value
+        ? [{ label: t('account.tabs.apiKeys'), icon: 'i-lucide-key-square', value: 'api-keys', slot: 'api-keys' }]
+        : []),
     ...(capabilities.value?.deleteUser && !isGuest.value
         ? [{ label: t('account.tabs.delete'), icon: 'i-lucide-trash-2', value: 'delete', slot: 'delete' }]
         : [])
@@ -201,6 +205,10 @@ const open = (value: string) => {
 
                 <template #devices>
                     <DevicesCard :sessions="sessions" @changed="refreshSessions()" />
+                </template>
+
+                <template #api-keys>
+                    <ApiKeysCard />
                 </template>
 
                 <template #delete>

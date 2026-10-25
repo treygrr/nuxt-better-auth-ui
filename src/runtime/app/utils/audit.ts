@@ -77,6 +77,21 @@ export const AUDIT_ACTIONS: Record<string, { label: MessageKey; icon: string; co
         label: 'admin.audit.actions.authDeviceApproved',
         icon: 'i-lucide-tv',
         color: 'info'
+    },
+    'auth.api-key-created': {
+        label: 'admin.audit.actions.authApiKeyCreated',
+        icon: 'i-lucide-key-square',
+        color: 'info'
+    },
+    'auth.api-key-deleted': {
+        label: 'admin.audit.actions.authApiKeyDeleted',
+        icon: 'i-lucide-key-square',
+        color: 'neutral'
+    },
+    'user.api-key-revoke': {
+        label: 'admin.audit.actions.userApiKeyRevoke',
+        icon: 'i-lucide-key-square',
+        color: 'warning'
     }
 };
 
@@ -137,6 +152,8 @@ export function auditDetails(entry: AdminAuditEntry, t: Translate): string {
         case 'account.remove':
             return details.providerId ? providerInfo(String(details.providerId)).label : '';
         case 'user.passkey-remove':
+        case 'user.api-key-revoke':
+        case 'auth.api-key-created':
             return details.name ? String(details.name) : '';
         default:
             return '';

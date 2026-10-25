@@ -464,6 +464,8 @@ const thisSession = computed(() => session.session.value?.id);
                     @changed="refresh"
                 />
 
+                <AdminUsersApiKeysCard v-if="capabilities?.apiKey" :user="user" @changed="refresh" />
+
                 <AdminUsersNotesCard v-if="notes" :user="user" @changed="refresh" />
 
                 <UPageCard

@@ -142,7 +142,10 @@ export const adminEn = {
             authEmailVerified: 'Verified email',
             authPasswordResetRequested: 'Asked to reset password',
             authPasswordChanged: 'Changed password',
-            authDeviceApproved: 'Approved a device'
+            authDeviceApproved: 'Approved a device',
+            authApiKeyCreated: 'Created an API key',
+            authApiKeyDeleted: 'Deleted an API key',
+            userApiKeyRevoke: 'Revoked an API key'
         },
         details: {
             role: 'Role: {role}',
@@ -390,6 +393,21 @@ export const adminEn = {
         thePasskey: 'the passkey',
         removeFailed: "Couldn't remove the passkey"
     },
+    apiKeys: {
+        title: 'API keys',
+        description: "{name}'s keys for scripts and integrations. Revoke one that leaked.",
+        none: 'No API keys.',
+        unnamed: 'Unnamed key',
+        lastUsed: 'Last used',
+        neverUsed: 'Never used',
+        expires: 'expires',
+        noExpiry: 'never expires',
+        revokeTitle: 'Revoke this key?',
+        revokeDescription: 'Anything using “{key}” stops working at once.',
+        revoke: 'Revoke key',
+        revoked: 'Revoked {key}',
+        revokeFailed: "Couldn't revoke the key"
+    },
     notes: {
         title: 'Notes',
         description: 'Private to staff: {name} never sees these.',
@@ -439,6 +457,7 @@ export const adminEn = {
             digits: '{count} digits',
             guestAccounts: 'Guest accounts',
             deviceSignIn: 'Device sign-in (codes)',
+            apiKeys: 'API keys',
             usernames: 'Usernames',
             usernameImmutable: "Can't be changed once set",
             lastUsed: 'Last-used hint',

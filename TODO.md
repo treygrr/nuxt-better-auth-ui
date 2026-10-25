@@ -5,9 +5,6 @@
 Each follows the module's pattern: a `betterAuthUi` flag adds the plugin, the pages pick it up whether the module or
 the app added it, the admin and configuration page show it, Spanish included.
 
-3. **API keys** (`@better-auth/api-key`, its own package). An "API keys" card on the account page (create with
-   scopes and expiry, see the last few characters, revoke) for integrations, scripts and bots; admin view of a user's
-   keys.
 4. **Bearer and JWT** (`bearer`, `jwt`). Tokens instead of cookies, for native clients and server-to-server calls.
    Little UI: document the set-up, show the JWKS URL on the configuration page.
 5. **Phone number** (`phone-number`). Sign in with an SMS code, verify a phone. Needs an SMS sender, like emails

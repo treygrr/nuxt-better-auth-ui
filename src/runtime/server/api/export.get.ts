@@ -38,7 +38,7 @@ function parseDetails(details: unknown) {
 
 /**
  * Everything the app's auth keeps about the signed-in user, as a JSON download (GDPR's right of access): their user
- * row (with the app's own fields), sign-in methods, sessions, passkeys, two-factor, last activity and their audit
+ * row (with the app's own fields), sign-in methods, sessions, passkeys, API keys, two-factor, last activity and their audit
  * history. Never secrets: no password hashes, tokens, two-factor secrets, backup codes or passkey keys. Audit entries
  * by an admin say so, without the admin's name, email, IP or browser.
  */
@@ -54,6 +54,11 @@ export default defineEventHandler(async (event) => {
     ]);
     const passkeys = context.getPlugin('passkey')
         ? await optional(() => findAll<Row>(context, { model: 'passkey', where: [{ field: 'userId', value: userId }] }))
+        : [];
+    const apiKeys = context.getPlugin('api-key')
+        ? await optional(() =>
+              findAll<Row>(context, { model: 'apikey', where: [{ field: 'referenceId', value: userId }] })
+          )
         : [];
     const [activity] = await optional(() =>
         findAll<{ lastActiveAt: Date }>(context, {
@@ -96,6 +101,15 @@ export default defineEventHandler(async (event) => {
             deviceType: passkey.deviceType ?? null,
             backedUp: passkey.backedUp ?? null,
             createdAt: passkey.createdAt ?? null
+        })),
+        // Never the key (Better Auth keeps only its hash): its name, first characters and use.
+        apiKeys: apiKeys.map((key) => ({
+            name: key.name ?? null,
+            start: key.start ?? null,
+            permissions: parseDetails(key.permissions),
+            expiresAt: key.expiresAt ?? null,
+            lastRequest: key.lastRequest ?? null,
+            createdAt: key.createdAt ?? null
         })),
         twoFactor: { enabled: (profile as { twoFactorEnabled?: boolean } | null)?.twoFactorEnabled === true },
         lastActiveAt: activity?.lastActiveAt ?? null,

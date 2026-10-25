@@ -11,7 +11,7 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await signUp('Tabby', 'tabby@browser.test');
         const session = await browser.open();
         await signInWithForm(session, 'tabby@browser.test', '/account');
-        for (const tab of ['profile', 'security', 'devices', 'delete']) {
+        for (const tab of ['profile', 'security', 'devices', 'api-keys', 'delete']) {
             await session.go(`/account?tab=${tab}`);
             await expect(session.page.getByRole('tab', { selected: true }).count(), tab).resolves.toBe(1);
         }
@@ -27,6 +27,26 @@ describe.skipIf(!hasBrowser)('account page (browser)', () => {
         await expect(
             session.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
         ).resolves.toBe(false);
+    });
+
+    it('creates an API key, shows it once, and revokes it', async () => {
+        await signUp('Kai', 'kai@browser.test');
+        const session = await browser.open();
+        await signInWithForm(session, 'kai@browser.test', '/account');
+        await session.go('/account?tab=api-keys');
+        await session.page.getByRole('button', { name: 'Create key' }).click();
+        await session.page.getByLabel('Name').fill('Deploy script');
+        await session.page.getByLabel('projects:write').check();
+        await session.page.getByRole('dialog').getByRole('button', { name: 'Create key' }).click();
+        await session.page.getByText('Copy your new key').waitFor();
+        await expect(session.page.getByRole('dialog').getByRole('textbox').inputValue()).resolves.toMatch(/^pg_/);
+        await session.page.getByRole('button', { name: 'Done' }).click();
+
+        await session.page.getByText('projects:write').waitFor();
+        await session.page.getByRole('button', { name: 'Revoke' }).click();
+        await session.page.getByRole('dialog').getByRole('button', { name: 'Revoke' }).click();
+        await session.page.getByText('No API keys yet.').waitFor();
+        expect(session.problems).toEqual([]);
     });
 
     it('sets up two-factor with an app, then asks for its code at sign-in', async () => {

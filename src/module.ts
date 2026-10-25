@@ -261,6 +261,27 @@ export type DeviceAuthorizationOptions = {
     userCodeLength?: number;
 };
 
+/** API keys for integrations, scripts and bots, through Better Auth's API Key plugin (@better-auth/api-key). */
+export type ApiKeyOptions = {
+    /**
+     * Adds the plugin (install `@better-auth/api-key`) and an "API keys" tab on the account page: create a key (shown
+     * once), see each key's first characters, expiry and last use, and revoke it. Admins see and revoke a user's keys.
+     * Adds an `apikey` table: run Better Auth's migrations.
+     * @default false
+     */
+    enabled: boolean;
+    /** Put in front of every key, eg `myapp_` (Better Auth recommends ending it with an underscore). */
+    prefix?: string;
+    /**
+     * Permissions people may give a key, as Better Auth's API key permissions (resource → actions), eg
+     * `{ projects: ['read', 'write'] }`: the create form lists each as a checkbox. Without, keys have no permissions.
+     * The app checks them with Better Auth's `verifyApiKey({ body: { key, permissions } })`.
+     */
+    scopes?: Record<string, string[]>;
+    /** A key in the `x-api-key` header signs its owner in, like a session (Better Auth's `enableSessionForAPIKeys`). */
+    enableSessions?: boolean;
+};
+
 /** Bot protection, through Better Auth's Captcha plugin (https://better-auth.com/docs/plugins/captcha). */
 export type CaptchaOptions = {
     provider: 'cloudflare-turnstile' | 'hcaptcha' | 'google-recaptcha';
@@ -306,6 +327,8 @@ export type ModuleOptions = {
     anonymous: AnonymousOptions;
     /** Signing in devices with a code, off by default. */
     deviceAuthorization: DeviceAuthorizationOptions;
+    /** API keys, off by default. */
+    apiKey: ApiKeyOptions;
     /** Captcha on signing up, off by default (false). */
     captcha: CaptchaOptions | false;
     /**
@@ -405,6 +428,7 @@ export default defineNuxtModule<ModuleOptions>({
         emailOtp: { enabled: false },
         anonymous: { enabled: false },
         deviceAuthorization: { enabled: false },
+        apiKey: { enabled: false },
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
@@ -571,6 +595,8 @@ export default defineNuxtModule<ModuleOptions>({
             pages: pagePaths,
             // The device page's names for the apps that may ask (client_id → name).
             deviceClients: deviceAuthorization.clients ?? {},
+            // The permissions people may give an API key.
+            apiKeyScopes: moduleOptions.apiKey.scopes ?? {},
             signOutRedirect: moduleOptions.signOutRedirect,
             twoFactorRequired: twoFactor.required,
             locale: moduleOptions.locale,
@@ -830,6 +856,30 @@ export default defineNuxtModule<ModuleOptions>({
                 ]
             );
         }
+        const { apiKey } = moduleOptions;
+        if (apiKey.enabled) {
+            if (!(await tryResolveModule('@better-auth/api-key', nuxt.options.modulesDir))) {
+                throw new Error('[better-auth-ui] apiKey.enabled needs the @better-auth/api-key package: install it.');
+            }
+            const apiKeyOptions = {
+                ...(apiKey.prefix !== undefined && { defaultPrefix: apiKey.prefix }),
+                ...(apiKey.enableSessions && { enableSessionForAPIKeys: true })
+            };
+            addAuthPlugin(
+                'api-key',
+                [
+                    "import { apiKey } from '@better-auth/api-key'",
+                    `export default apiKey(${JSON.stringify(apiKeyOptions)})`
+                ],
+                ["import { apiKeyClient } from '@better-auth/api-key/client'", 'export default apiKeyClient()']
+            );
+            // Creating a key with permissions is server-only in Better Auth, so the account page creates them here.
+            addServerHandler({
+                route: `${UI_API}/api-keys`,
+                method: 'post',
+                handler: resolve('./runtime/server/api/api-keys.post')
+            });
+        }
         if (captcha) {
             const endpoints = captchaEndpoints(moduleOptions);
             addAuthPlugin('captcha', [
@@ -1084,6 +1134,17 @@ export default defineNuxtModule<ModuleOptions>({
             route: `${ADMIN_API}/users/:id/passkeys/:passkeyId`,
             method: 'delete',
             handler: resolve('./runtime/server/api/users/passkeys.delete')
+        });
+        // A user's API keys (API Key plugin), which Better Auth only lists for their owner.
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/api-keys`,
+            method: 'get',
+            handler: resolve('./runtime/server/api/users/api-keys.get')
+        });
+        addServerHandler({
+            route: `${ADMIN_API}/users/:id/api-keys/:keyId`,
+            method: 'delete',
+            handler: resolve('./runtime/server/api/users/api-keys.delete')
         });
         if (options.notes) {
             addServerHandler({

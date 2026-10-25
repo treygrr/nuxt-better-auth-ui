@@ -420,6 +420,39 @@ The device side is the app's, with Better Auth's client (`deviceAuthorizationCli
 for the codes, then `device.token(…)` every `interval` until it's approved. That returns a Better Auth session token,
 used with the Bearer plugin. The session shows on the account page's Devices tab, where it can be signed out.
 
+## API keys
+
+Keys for people's scripts, bots and integrations, through Better Auth's API Key plugin. Install its package, then:
+
+```bash
+pnpm add @better-auth/api-key
+```
+
+```ts
+betterAuthUi: {
+    apiKey: {
+        enabled: true,
+        prefix: 'myapp_', // in front of every key
+        // Permissions people may give a key (Better Auth's resource → actions), as checkboxes on the form.
+        scopes: { projects: ['read', 'write'] },
+        // A key in the x-api-key header signs its owner in, like a session.
+        enableSessions: false
+    }
+}
+```
+
+The account page gets an "API keys" tab: create a key with a name, an expiry (30, 90 or 365 days, or never) and
+permissions, see it once to copy it, then see each key's first characters, permissions, last use and expiry, and
+revoke it. Better Auth only takes a key's permissions from server calls, so the module creates keys through its own
+route, which checks them against `scopes` and calls Better Auth's `createApiKey` for the signed-in user; listing and
+revoking use Better Auth's endpoints. Your API checks a key with Better Auth's
+`auth.api.verifyApiKey({ body: { key, permissions: { projects: ['write'] } } })`.
+
+Admins see a user's keys on their page and revoke one that leaked (`user: update`); creating, deleting and revoking
+keys are in the audit log, and a user's data download lists their keys (never the key itself). Adds Better Auth's
+`apikey` table: run its migrations. Keys kept only in secondary storage (`storage: 'secondary-storage'`, when the app
+adds the plugin itself) don't show in the admin.
+
 ## Security alerts
 
 `securityAlerts: true` emails an account's owner when something sensitive happens to it, or pick some:

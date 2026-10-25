@@ -141,7 +141,10 @@ export const adminEs = {
             authEmailVerified: 'Verificó su correo',
             authPasswordResetRequested: 'Pidió restablecer la contraseña',
             authPasswordChanged: 'Cambió la contraseña',
-            authDeviceApproved: 'Aprobó un dispositivo'
+            authDeviceApproved: 'Aprobó un dispositivo',
+            authApiKeyCreated: 'Creó una clave de API',
+            authApiKeyDeleted: 'Borró una clave de API',
+            userApiKeyRevoke: 'Revocó una clave de API'
         },
         details: {
             role: 'Rol: {role}',
@@ -390,6 +393,21 @@ export const adminEs = {
         thePasskey: 'la llave de acceso',
         removeFailed: 'No se pudo quitar la llave de acceso'
     },
+    apiKeys: {
+        title: 'Claves de API',
+        description: 'Las claves de {name} para scripts e integraciones. Revoca una que se haya filtrado.',
+        none: 'No tiene claves de API.',
+        unnamed: 'Clave sin nombre',
+        lastUsed: 'Último uso',
+        neverUsed: 'Nunca usada',
+        expires: 'caduca',
+        noExpiry: 'no caduca',
+        revokeTitle: '¿Revocar esta clave?',
+        revokeDescription: 'Todo lo que use “{key}” deja de funcionar al momento.',
+        revoke: 'Revocar clave',
+        revoked: 'Se revocó {key}',
+        revokeFailed: 'No se pudo revocar la clave'
+    },
     notes: {
         title: 'Notas',
         description: 'Solo para el equipo: {name} nunca las ve.',
@@ -440,6 +458,7 @@ export const adminEs = {
             digits: '{count} dígitos',
             guestAccounts: 'Cuentas de invitado',
             deviceSignIn: 'Inicio de sesión en dispositivos',
+            apiKeys: 'Claves de API',
             usernames: 'Nombres de usuario',
             usernameImmutable: 'No se pueden cambiar una vez elegidos',
             lastUsed: 'Último método usado',

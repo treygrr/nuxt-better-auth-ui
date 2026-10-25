@@ -258,11 +258,16 @@ export const adminAuditLog = ({
                                 );
                             return;
                         }
-                        // Device Authorization: the user let a device (a TV, a CLI) sign in to their account.
-                        if (path === '/device/approve' && !failed) {
+                        // Device Authorization: the user let a device (a TV, a CLI) sign in to their account. API Key:
+                        // they deleted one of their keys (the module's create route records creating them).
+                        const OWN_ACTIONS: Record<string, string> = {
+                            '/device/approve': 'auth.device-approved',
+                            '/api-key/delete': 'auth.api-key-deleted'
+                        };
+                        if (path in OWN_ACTIONS && !failed) {
                             const session = await getSessionFromCtx(ctx);
                             if (session)
-                                await writeUserEvent(ctx, 'auth.device-approved', person(session.user as AuditPerson)!);
+                                await writeUserEvent(ctx, OWN_ACTIONS[path]!, person(session.user as AuditPerson)!);
                             return;
                         }
                         // These look the account up by email: in the background, so the response time is the same
