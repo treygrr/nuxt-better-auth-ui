@@ -34,7 +34,8 @@ export const authEn = {
         methods: {
             password: 'your password',
             passkey: 'a passkey',
-            magicLink: 'a sign-in link'
+            magicLink: 'a sign-in link',
+            emailCode: 'a code by email'
         },
         verifyFirst: {
             title: 'Verify your email first',
@@ -50,6 +51,19 @@ export const authEn = {
             usePassword: 'Use your password instead',
             sentTitle: 'Check your email',
             sentDescription: "We've sent a sign-in link to {email}. It works once and expires in a few minutes."
+        },
+        emailCode: {
+            button: 'Email me a code',
+            title: 'Sign in with a code',
+            description: "We'll email you a code to type in here. Handy on a device that doesn't have your email.",
+            submit: 'Send code',
+            failed: "Couldn't send the code",
+            enterTitle: 'Enter your code',
+            enterDescription: 'We sent a code to {email}. It expires in a few minutes.',
+            codeLabel: 'Code',
+            wrongCode: "Couldn't sign in with that code",
+            resend: 'Send a new code',
+            resent: 'New code sent'
         }
     },
     signUp: {
@@ -321,6 +335,10 @@ export const authEn = {
         INVALID_BACKUP_CODE: "That backup code isn't right, or was already used.",
         OTP_HAS_EXPIRED: 'That code has expired. Ask for a new one.',
         TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: 'Too many tries. Ask for a new code.',
+        // Email OTP's.
+        INVALID_OTP: "That code isn't right.",
+        OTP_EXPIRED: 'That code has expired. Ask for a new one.',
+        TOO_MANY_ATTEMPTS: 'Too many tries. Ask for a new code.',
         ACCOUNT_TEMPORARILY_LOCKED: 'Too many wrong codes. Your account is locked for a while; try again later.',
         MISSING_RESPONSE: "Complete the check to show you're not a bot.",
         VERIFICATION_FAILED: "The bot check didn't pass. Try it again."

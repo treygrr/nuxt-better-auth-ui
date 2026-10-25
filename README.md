@@ -169,6 +169,7 @@ export default defineNuxtConfig({
         // More ways to sign in, and bot protection. See "More sign-in options" below.
         username: { enabled: false },
         magicLink: { enabled: false },
+        emailOtp: { enabled: false },
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
@@ -326,7 +327,9 @@ betterAuthUi: {
     username: { enabled: true, minLength: 3, maxLength: 30, immutable: false },
     // "Email me a sign-in link" on the sign-in page (needs emails.send; template: `magic-link`). No migration.
     magicLink: { enabled: true, expiresIn: 300, disableSignUp: false },
-    // Bot protection on signing up (and asking for a sign-in link). The secret key is read from
+    // "Email me a code" on the sign-in page (needs emails.send; template: `email-code`). No migration.
+    emailOtp: { enabled: true, otpLength: 6, expiresIn: 300, allowedAttempts: 3, disableSignUp: false },
+    // Bot protection on signing up (and asking for a sign-in link or code). The secret key is read from
     // BETTER_AUTH_CAPTCHA_SECRET_KEY at runtime, never from nuxt.config.
     captcha: { provider: 'cloudflare-turnstile', siteKey: '0x4AAA…' }, // or 'hcaptcha', 'google-recaptcha' (v2)
     // Refuse passwords found in data breaches at sign-up, password changes and resets.
@@ -344,9 +347,17 @@ betterAuthUi: {
   expires in 5 minutes. The first link for a new email creates the account (unless `disableSignUp`), landing on the
   account page; an expired or used link comes back to the sign-in page with a message. Users with two-factor on are
   asked for their code after the link, like after a password.
+- **Codes by email:** "Email me a code" sends a 6-digit code to type in on the same page, for signing in on a device
+  that doesn't have the email (a TV, a console, a shared computer). Codes expire in 5 minutes and stop working after 3
+  wrong tries; a new email gets an account (unless `disableSignUp`), and two-factor users are asked for their
+  two-factor code next. As Better Auth documents, a code sign-in to an account whose email was never verified removes
+  that account's password and signs out its sessions: the code proved who owns the email, the password didn't. Better
+  Auth's other code endpoints (verifying an email, resetting a password) work too, and their emails are worded to
+  match, but the pages only use sign-in codes.
 - **Captcha:** a Cloudflare Turnstile, hCaptcha or reCAPTCHA v2 widget, loaded in the browser only, on the forms
   whose Better Auth paths `captcha.endpoints` lists. By default that's signing up (`/sign-up/email`) and, with magic
-  links, asking for one (`/sign-in/magic-link`), since that can create an account too. Add `/sign-in/email` or
+  links or email codes, asking for one (`/sign-in/magic-link`, `/email-otp/send-verification-otp`), since those can
+  create an account too. Add `/sign-in/email` or
   `/request-password-reset` to guard those forms as well. Better Auth checks the token on its server.
 - **Have I Been Pwned:** only the first 5 characters of the password's SHA-1 hash leave your server. The sign-up, reset
   and change-password forms say the password will be checked.
@@ -461,6 +472,7 @@ own templates, delivered by your own function (Resend, SMTP, …).
 | `delete-account`        | `user.deleteUser.sendDeleteAccountVerification` | `{ user, url, token }` |
 | `two-factor-code`       | Two-Factor `otpOptions.sendOTP` (added by the module with `twoFactor.otp`) | `{ user, otp }` |
 | `magic-link`            | Magic Link `sendMagicLink` (added by the module with `magicLink`) | `{ email, url, token }` (no `user`: there may be no account yet) |
+| `email-code`            | Email OTP `sendVerificationOTP` (added by the module with `emailOtp`) | `{ email, otp, type }` (`type`: `sign-in`, `email-verification`, `forget-password`, `change-email`) |
 | `new-sign-in`           | The module's `securityAlerts.newSignIn`     | `{ user, device, ipAddress, time, accountUrl }` |
 | `password-changed`      | The module's `securityAlerts.passwordChanged` | `{ user, time, accountUrl }` |
 | `two-factor-changed`    | The module's `securityAlerts.twoFactor`     | `{ user, enabled, time, accountUrl }` |

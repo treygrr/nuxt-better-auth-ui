@@ -20,6 +20,8 @@ export default defineNuxtConfig({
         // Usernames at sign-up and on the account page; sign-in links by email (to the outbox); "last used" on sign-in.
         username: { enabled: true },
         magicLink: { enabled: true },
+        // "Email me a code" on sign-in, to the outbox.
+        emailOtp: { enabled: true },
         lastLoginMethod: true,
         // Emails (to the outbox) about new-device sign-ins, password changes, two-factor and passkeys.
         securityAlerts: true,

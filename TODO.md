@@ -2,11 +2,9 @@
 
 ## Pinned
 
-1. **Sign in with an emailed code** (Better Auth's Email OTP plugin). A 6-digit code instead of a link: works when
-   someone signs in on another device than their email (a TV, a console, a shared computer). Email template, Spanish.
-2. **"Download my data", and gentler deletion.** A JSON export of the profile, sign-in methods, sessions and audit
+1. **"Download my data", and gentler deletion.** A JSON export of the profile, sign-in methods, sessions and audit
    history from the account page (GDPR's right of access); optionally a grace period to cancel a deletion.
-3. **Moderator notes on users.** A private notes thread on each user's admin page, in the module's own table (never
+2. **Moderator notes on users.** A private notes thread on each user's admin page, in the module's own table (never
    Better Auth's): "Warned for spam in chat". Moderation history beyond the ban reason. Audit-logged.
 
 ## Better Auth plugins: planned

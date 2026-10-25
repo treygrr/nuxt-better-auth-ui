@@ -35,6 +35,22 @@ export const defaultEmails: Record<'en' | 'es', Defaults> = {
             subject: 'Someone tried to sign up with your email',
             text: `Hi ${user.name},\n\nSomeone tried to create an account with your email address, but you already have one. If it was you, sign in instead, or reset your password if you've forgotten it.\n\nIf it wasn't you, you can ignore this email.`
         }),
+        'email-code': ({ otp, type }) => ({
+            subject: {
+                'sign-in': `Your sign-in code: ${otp}`,
+                'email-verification': `Your verification code: ${otp}`,
+                'forget-password': `Your password reset code: ${otp}`,
+                'change-email': `Your code to change your email: ${otp}`
+            }[type],
+            text: `Hi,\n\n${
+                {
+                    'sign-in': 'Your code to sign in is',
+                    'email-verification': 'Your code to verify your email is',
+                    'forget-password': 'Your code to reset your password is',
+                    'change-email': 'Your code to confirm your new email is'
+                }[type]
+            }:\n\n${otp}\n\nIt expires in a few minutes. If you didn't ask for it, you can ignore this email.`
+        }),
         'new-sign-in': ({ user, device, ipAddress, time, accountUrl }) => ({
             subject: `New sign-in from ${device}`,
             text: `Hi ${user.name},\n\nYour account was just signed in to from a device it hasn't used before:\n\n${device}${ipAddress ? `, from ${ipAddress}` : ''}\n${time}\n\nIf this was you, there's nothing to do. If it wasn't, change your password and sign that device out:\n\n${accountUrl}`
@@ -82,6 +98,22 @@ export const defaultEmails: Record<'en' | 'es', Defaults> = {
         'existing-user-sign-up': ({ user }) => ({
             subject: 'Alguien intentó registrarse con tu correo',
             text: `Hola, ${user.name}:\n\nAlguien intentó crear una cuenta con tu correo, pero ya tienes una. Si fuiste tú, mejor inicia sesión, o restablece tu contraseña si la olvidaste.\n\nSi no fuiste tú, puedes ignorar este correo.`
+        }),
+        'email-code': ({ otp, type }) => ({
+            subject: {
+                'sign-in': `Tu código para iniciar sesión: ${otp}`,
+                'email-verification': `Tu código de verificación: ${otp}`,
+                'forget-password': `Tu código para restablecer la contraseña: ${otp}`,
+                'change-email': `Tu código para cambiar tu correo: ${otp}`
+            }[type],
+            text: `Hola:\n\n${
+                {
+                    'sign-in': 'Tu código para iniciar sesión es',
+                    'email-verification': 'Tu código para verificar tu correo es',
+                    'forget-password': 'Tu código para restablecer tu contraseña es',
+                    'change-email': 'Tu código para confirmar tu nuevo correo es'
+                }[type]
+            }:\n\n${otp}\n\nCaduca en unos minutos. Si no lo pediste, puedes ignorar este correo.`
         }),
         'new-sign-in': ({ user, device, ipAddress, time, accountUrl }) => ({
             subject: `Nuevo inicio de sesión desde ${device}`,

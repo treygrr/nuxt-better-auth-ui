@@ -34,7 +34,8 @@ export const authEs = {
         methods: {
             password: 'tu contraseña',
             passkey: 'una llave de acceso',
-            magicLink: 'un enlace de inicio de sesión'
+            magicLink: 'un enlace de inicio de sesión',
+            emailCode: 'un código por correo'
         },
         verifyFirst: {
             title: 'Primero verifica tu correo',
@@ -51,6 +52,20 @@ export const authEs = {
             sentTitle: 'Revisa tu correo',
             sentDescription:
                 'Enviamos un enlace para iniciar sesión a {email}. Funciona una sola vez y caduca en unos minutos.'
+        },
+        emailCode: {
+            button: 'Envíame un código',
+            title: 'Iniciar sesión con un código',
+            description:
+                'Te enviaremos por correo un código para escribir aquí. Útil en un dispositivo donde no tienes tu correo.',
+            submit: 'Enviar código',
+            failed: 'No se pudo enviar el código',
+            enterTitle: 'Escribe tu código',
+            enterDescription: 'Enviamos un código a {email}. Caduca en unos minutos.',
+            codeLabel: 'Código',
+            wrongCode: 'No se pudo iniciar sesión con ese código',
+            resend: 'Enviar un código nuevo',
+            resent: 'Código nuevo enviado'
         }
     },
     signUp: {
@@ -322,6 +337,9 @@ export const authEs = {
         INVALID_BACKUP_CODE: 'Ese código de respaldo no es correcto o ya se usó.',
         OTP_HAS_EXPIRED: 'Ese código caducó. Pide uno nuevo.',
         TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: 'Demasiados intentos. Pide un código nuevo.',
+        INVALID_OTP: 'Ese código no es correcto.',
+        OTP_EXPIRED: 'Ese código caducó. Pide uno nuevo.',
+        TOO_MANY_ATTEMPTS: 'Demasiados intentos. Pide un código nuevo.',
         ACCOUNT_TEMPORARILY_LOCKED:
             'Demasiados códigos incorrectos. Tu cuenta está bloqueada por un rato; inténtalo más tarde.',
         MISSING_RESPONSE: 'Completa la verificación para demostrar que no eres un bot.',

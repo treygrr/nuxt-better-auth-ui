@@ -96,6 +96,12 @@ const sections = computed<Array<{ title: string; icon: string; rows: Row[] }>>((
                 { label: t('admin.configuration.rows.passkeys'), ...on(c.passkey) },
                 { label: t('admin.configuration.rows.magicLinks'), ...on(c.magicLink) },
                 {
+                    label: t('admin.configuration.rows.emailCodes'),
+                    ...(c.emailOtp
+                        ? on(true, t('admin.configuration.rows.digits', { count: c.emailOtp.otpLength }))
+                        : on(false))
+                },
+                {
                     label: t('admin.configuration.rows.usernames'),
                     ...(c.username
                         ? on(
@@ -282,6 +288,7 @@ const EMAIL_LABELS: Record<(typeof EMAIL_NAMES)[number], MessageKey> = {
     'delete-account': 'admin.configuration.emails.deleteAccount',
     'two-factor-code': 'admin.configuration.emails.twoFactorCode',
     'magic-link': 'admin.configuration.emails.magicLink',
+    'email-code': 'admin.configuration.emails.emailCode',
     'new-sign-in': 'admin.configuration.emails.newSignIn',
     'password-changed': 'admin.configuration.emails.passwordChanged',
     'two-factor-changed': 'admin.configuration.emails.twoFactorChanged',

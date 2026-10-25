@@ -26,6 +26,15 @@ export type BetterAuthEmails = {
     'two-factor-code': { user: EmailUser; otp: string };
     /** Magic Link plugin `sendMagicLink`, when `betterAuthUi.magicLink` is on. There may be no account yet. */
     'magic-link': { email: string; url: string; token: string };
+    /**
+     * Email OTP plugin `sendVerificationOTP`, when `betterAuthUi.emailOtp` is on. The pages ask for `sign-in` codes;
+     * Better Auth's endpoints can also send the other kinds. There may be no account yet.
+     */
+    'email-code': {
+        email: string;
+        otp: string;
+        type: 'sign-in' | 'email-verification' | 'forget-password' | 'change-email';
+    };
     // Security alerts (betterAuthUi.securityAlerts). `time` is formatted in the emails' language, in UTC; `accountUrl`
     // is the account page, where they can sign devices out and change their password.
     /** Someone signed in from a device the account hasn't used before. */
@@ -49,6 +58,7 @@ export const EMAIL_NAMES: BetterAuthEmailName[] = [
     'delete-account',
     'two-factor-code',
     'magic-link',
+    'email-code',
     'new-sign-in',
     'password-changed',
     'two-factor-changed',

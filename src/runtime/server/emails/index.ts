@@ -106,7 +106,10 @@ export const betterAuthEmails = {
     twoFactorCode: async (data: BetterAuthEmails['two-factor-code']) => sendInBackground('two-factor-code', data),
     /** Added by the module itself when `betterAuthUi.magicLink` is on. */
     magicLink: async ({ email, url, token }: BetterAuthEmails['magic-link']) =>
-        sendInBackground('magic-link', { email, url, token })
+        sendInBackground('magic-link', { email, url, token }),
+    /** Added by the module itself when `betterAuthUi.emailOtp` is on. */
+    emailCode: async ({ email, otp, type }: BetterAuthEmails['email-code']) =>
+        sendInBackground('email-code', { email, otp, type })
 };
 
 /** Sends any of the module's emails in the background: for the module's own plugins, such as the security alerts. */

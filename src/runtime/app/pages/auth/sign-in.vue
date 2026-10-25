@@ -47,6 +47,15 @@ const passkey = handle<{ autoFill?: boolean }>('passkey');
 const magicLink = handle<{ email: string; callbackURL: string; newUserCallbackURL: string; errorCallbackURL: string }>(
     'magicLink'
 );
+const emailOtp = handle<{ email: string; otp: string }>('emailOtp');
+type EmailOtpClient = {
+    emailOtp: {
+        sendVerificationOtp(
+            input: { email: string; type: 'sign-in' },
+            options?: { headers?: Record<string, string> }
+        ): Result;
+    };
+};
 
 // How they signed in last time, from the Last Login Method plugin's cookie (read on the server too).
 const lastMethod = useCookie<string | null>('better-auth.last_used_login_method', { readonly: true });
@@ -57,14 +66,16 @@ const lastUsedLabel = computed(() => {
     if (method === 'email') return t('signIn.methods.password');
     if (method === 'passkey') return t('signIn.methods.passkey');
     if (method === 'magic-link') return t('signIn.methods.magicLink');
+    if (method === 'email-otp') return t('signIn.methods.emailCode');
     return providerInfo(method).label;
 });
 
-// Signing in with a password, or (with magic links) asking for a link instead.
-const mode = ref<'password' | 'link' | 'linkSent'>('password');
+// Signing in with a password, or (with magic links or email codes) asking for a link or a code instead.
+const mode = ref<'password' | 'link' | 'linkSent' | 'code' | 'codeSent'>('password');
 const linkSentTo = ref('');
 const captcha = useCaptcha('/sign-in/email');
 const linkCaptcha = useCaptcha('/sign-in/magic-link');
+const codeCaptcha = useCaptcha('/email-otp/send-verification-otp');
 
 const fields = computed<AuthFormField[]>(() =>
     capabilities.value?.emailAndPassword
@@ -123,6 +134,18 @@ const providers = computed<ButtonProps[]>(() => [
                   ...highlight('magic-link'),
                   onClick: () => {
                       mode.value = 'link';
+                  }
+              }
+          ]
+        : []),
+    ...(capabilities.value?.emailOtp
+        ? [
+              {
+                  label: t('signIn.emailCode.button'),
+                  icon: 'i-lucide-mail',
+                  ...highlight('email-otp'),
+                  onClick: () => {
+                      mode.value = 'code';
                   }
               }
           ]
@@ -215,6 +238,46 @@ async function sendLink(event: FormSubmitEvent<{ email: string }>) {
     linkSentTo.value = event.data.email;
     mode.value = 'linkSent';
 }
+
+// A code by email: send it, then sign in with it. A new account, if there isn't one (unless the app turned that off).
+const codeSentTo = ref('');
+const sendingCode = ref(false);
+const sendCodeError = ref<{ message?: string; code?: string } | null>(null);
+const resent = ref(false);
+const pin = ref<Array<number | undefined>>([]);
+async function sendCode(to: string) {
+    captchaMissing.value = codeCaptcha.missing();
+    if (captchaMissing.value) return false;
+    sendingCode.value = true;
+    const client = useAuthClient() as unknown as EmailOtpClient;
+    const { error } = await client.emailOtp.sendVerificationOtp(
+        { email: to, type: 'sign-in' },
+        { headers: codeCaptcha.headers() }
+    );
+    sendingCode.value = false;
+    codeCaptcha.reset();
+    sendCodeError.value = error;
+    return !error;
+}
+async function askForCode(event: FormSubmitEvent<{ email: string }>) {
+    if (!(await sendCode(event.data.email))) return;
+    codeSentTo.value = event.data.email;
+    pin.value = [];
+    resent.value = false;
+    mode.value = 'codeSent';
+}
+async function resendCode() {
+    pin.value = [];
+    resent.value = await sendCode(codeSentTo.value);
+}
+async function signInWithCode() {
+    resent.value = false;
+    await emailOtp.execute(
+        { email: codeSentTo.value, otp: pin.value.join('') },
+        { onSuccess: afterPassword as (context: never) => Promise<void> }
+    );
+    if (emailOtp.error.value) pin.value = [];
+}
 </script>
 
 <template>
@@ -262,6 +325,95 @@ async function sendLink(event: FormSubmitEvent<{ email: string }>) {
                     />
                 </template>
             </UAuthForm>
+
+            <!-- Asking for a code by email. -->
+            <UAuthForm
+                v-else-if="mode === 'code'"
+                :fields="linkFields"
+                :title="t('signIn.emailCode.title')"
+                :description="t('signIn.emailCode.description')"
+                icon="i-lucide-mail"
+                :loading="sendingCode"
+                :submit="{ label: t('signIn.emailCode.submit') }"
+                @submit="askForCode"
+            >
+                <template #validation>
+                    <Captcha
+                        v-if="codeCaptcha.enabled"
+                        :ref="(el) => (codeCaptcha.widget.value = el as never)"
+                        v-model="codeCaptcha.token.value"
+                    />
+                    <UAlert
+                        v-if="captchaMissing || sendCodeError"
+                        color="error"
+                        icon="i-lucide-circle-alert"
+                        :title="t('signIn.emailCode.failed')"
+                        :description="captchaMissing ? t('captcha.required') : errorMessage(sendCodeError)"
+                    />
+                </template>
+                <template #footer>
+                    <UButton
+                        :label="t('signIn.magicLink.usePassword')"
+                        variant="link"
+                        color="neutral"
+                        @click="mode = 'password'"
+                    />
+                </template>
+            </UAuthForm>
+
+            <!-- Typing the code in. -->
+            <div v-else-if="mode === 'codeSent'" class="space-y-5 text-center">
+                <UIcon name="i-lucide-mail-check" class="size-10 text-primary mx-auto" />
+                <div class="space-y-1">
+                    <h1 class="text-xl font-semibold text-highlighted">{{ t('signIn.emailCode.enterTitle') }}</h1>
+                    <p class="text-muted">{{ t('signIn.emailCode.enterDescription', { email: codeSentTo }) }}</p>
+                </div>
+                <div class="flex justify-center">
+                    <UPinInput
+                        v-model="pin"
+                        :length="capabilities?.emailOtp?.otpLength ?? 6"
+                        type="number"
+                        otp
+                        autofocus
+                        size="xl"
+                        :disabled="emailOtp.status.value === 'pending'"
+                        :aria-label="t('signIn.emailCode.codeLabel')"
+                        @complete="signInWithCode"
+                    />
+                </div>
+                <Captcha
+                    v-if="codeCaptcha.enabled"
+                    :ref="(el) => (codeCaptcha.widget.value = el as never)"
+                    v-model="codeCaptcha.token.value"
+                />
+                <UAlert
+                    v-if="emailOtp.error.value || sendCodeError || captchaMissing"
+                    color="error"
+                    icon="i-lucide-circle-alert"
+                    :title="emailOtp.error.value ? t('signIn.emailCode.wrongCode') : t('signIn.emailCode.failed')"
+                    :description="
+                        captchaMissing ? t('captcha.required') : errorMessage(emailOtp.error.value ?? sendCodeError)
+                    "
+                    class="text-start"
+                />
+                <UAlert
+                    v-else-if="resent"
+                    color="success"
+                    icon="i-lucide-check"
+                    :title="t('signIn.emailCode.resent')"
+                    class="text-start"
+                />
+                <div class="flex flex-wrap justify-center gap-2">
+                    <UButton
+                        :label="t('signIn.emailCode.resend')"
+                        variant="subtle"
+                        color="neutral"
+                        :loading="sendingCode"
+                        @click="resendCode"
+                    />
+                    <UButton :label="t('common.back')" variant="ghost" color="neutral" @click="mode = 'password'" />
+                </div>
+            </div>
 
             <UAuthForm
                 v-else

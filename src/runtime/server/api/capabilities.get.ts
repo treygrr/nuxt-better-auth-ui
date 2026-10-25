@@ -32,6 +32,8 @@ export type AuthCapabilities = {
     username: { minLength: number; maxLength: number; immutable: boolean } | null;
     /** Better Auth's Magic Link plugin: signing in with a link by email. */
     magicLink: boolean;
+    /** Better Auth's Email OTP plugin: signing in with a code by email, this many digits long. */
+    emailOtp: { otpLength: number } | null;
     /** Better Auth's Have I Been Pwned plugin: breached passwords are refused. */
     haveIBeenPwned: boolean;
     /** Better Auth's Last Login Method plugin: the sign-in page marks the method used last. */
@@ -71,6 +73,7 @@ export default defineEventHandler((event): AuthCapabilities => {
     const twoFactorOptions = (twoFactor?.options ?? {}) as TwoFactorPluginOptions;
     const username = options.plugins?.find((plugin) => plugin.id === 'username');
     const usernameOptions = (username?.options ?? {}) as UsernamePluginOptions;
+    const emailOtp = options.plugins?.find((plugin) => plugin.id === 'email-otp');
     const has = (id: string) => !!options.plugins?.some((plugin) => plugin.id === id);
     return {
         appName: options.appName || 'Better Auth',
@@ -102,6 +105,8 @@ export default defineEventHandler((event): AuthCapabilities => {
               }
             : null,
         magicLink: has('magic-link'),
+        // Better Auth's default: 6 digits.
+        emailOtp: emailOtp ? { otpLength: (emailOtp.options?.otpLength as number | undefined) || 6 } : null,
         haveIBeenPwned: has('have-i-been-pwned'),
         lastLoginMethod: has('last-login-method'),
         plugins: (options.plugins ?? []).map((plugin) => plugin.id)

@@ -55,6 +55,23 @@ describe.skipIf(!hasBrowser)('sign-in pages (browser)', () => {
         await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
     });
 
+    it('signs in with a code by email', async () => {
+        await signUp('Cody', 'cody@browser.test');
+        const session = await browser.open();
+        await session.noPasskeyAutofill();
+        await session.go('/login?redirect=/account');
+        await session.page.getByRole('button', { name: 'Email me a code' }).click();
+        await session.page.getByLabel('Email', { exact: true }).fill('cody@browser.test');
+        await session.page.getByRole('button', { name: 'Send code' }).click();
+        await session.page.getByText('Enter your code').waitFor();
+
+        const email = await waitForEmail('cody@browser.test', 'email-code');
+        await session.page.locator('[aria-label="Code"] input').first().click();
+        await session.page.keyboard.type(email.subject.match(/\d{6}$/)![0]);
+        await session.page.waitForURL((url) => url.pathname === '/account', { timeout: 10_000 });
+        expect(session.problems).toEqual([]);
+    });
+
     it('asks for a new password from a reset link', async () => {
         await signUp('Reza', 'reza@browser.test');
         const session = await browser.open();

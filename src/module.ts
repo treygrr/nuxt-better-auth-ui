@@ -186,6 +186,24 @@ export type MagicLinkOptions = {
     disableSignUp?: boolean;
 };
 
+/** Sign-in codes by email, through Better Auth's Email OTP plugin (https://better-auth.com/docs/plugins/email-otp). */
+export type EmailOtpOptions = {
+    /**
+     * Adds the plugin: "Email me a code" on the sign-in page, sent through `emails.send` with the `email-code`
+     * template. Needs no migration.
+     * @default false
+     */
+    enabled: boolean;
+    /** Digits in a code. Better Auth's default: 6. */
+    otpLength?: number;
+    /** Seconds a code lasts. Better Auth's default: 300 (5 minutes). */
+    expiresIn?: number;
+    /** Wrong tries before a code stops working. Better Auth's default: 3. */
+    allowedAttempts?: number;
+    /** Codes only sign existing users in; they don't create accounts. Better Auth's default: false. */
+    disableSignUp?: boolean;
+};
+
 /** Bot protection, through Better Auth's Captcha plugin (https://better-auth.com/docs/plugins/captcha). */
 export type CaptchaOptions = {
     provider: 'cloudflare-turnstile' | 'hcaptcha' | 'google-recaptcha';
@@ -225,6 +243,8 @@ export type ModuleOptions = {
     username: UsernameOptions;
     /** Magic links, off by default. */
     magicLink: MagicLinkOptions;
+    /** Sign-in codes by email, off by default. */
+    emailOtp: EmailOtpOptions;
     /** Captcha on signing up, off by default (false). */
     captcha: CaptchaOptions | false;
     /**
@@ -261,9 +281,16 @@ export type ModuleOptions = {
     };
 };
 
-/** The Better Auth paths the captcha guards: signing up and asking for a magic link (which can sign up), by default. */
-const captchaEndpoints = ({ captcha, magicLink }: ModuleOptions) =>
-    (captcha && captcha.endpoints) || ['/sign-up/email', ...(magicLink.enabled ? ['/sign-in/magic-link'] : [])];
+/**
+ * The Better Auth paths the captcha guards, by default: signing up, and asking for a magic link or an email code
+ * (which can sign up, and send email to any address).
+ */
+const captchaEndpoints = ({ captcha, magicLink, emailOtp }: ModuleOptions) =>
+    (captcha && captcha.endpoints) || [
+        '/sign-up/email',
+        ...(magicLink.enabled ? ['/sign-in/magic-link'] : []),
+        ...(emailOtp.enabled ? ['/email-otp/send-verification-otp'] : [])
+    ];
 
 /** `securityAlerts: true` turns every alert on; an object turns on the ones it names. False when none are. */
 const resolveSecurityAlerts = (option: ModuleOptions['securityAlerts']): SecurityAlerts | false => {
@@ -313,6 +340,7 @@ export default defineNuxtModule<ModuleOptions>({
         passkey: { enabled: false },
         username: { enabled: false },
         magicLink: { enabled: false },
+        emailOtp: { enabled: false },
         captcha: false,
         haveIBeenPwned: false,
         lastLoginMethod: false,
@@ -585,7 +613,7 @@ export default defineNuxtModule<ModuleOptions>({
         };
         const emailsHelper = JSON.stringify(resolve('./runtime/server/emails/index'));
 
-        const { username, magicLink, captcha } = moduleOptions;
+        const { username, magicLink, emailOtp, captcha } = moduleOptions;
         if (username.enabled) {
             const usernameOptions = {
                 ...(username.minLength !== undefined && { minUsernameLength: username.minLength }),
@@ -615,6 +643,24 @@ export default defineNuxtModule<ModuleOptions>({
                     `export default magicLink({ ...${JSON.stringify(magicLinkOptions)}, sendMagicLink: betterAuthEmails.magicLink })`
                 ],
                 ["import { magicLinkClient } from 'better-auth/client/plugins'", 'export default magicLinkClient()']
+            );
+        }
+        if (emailOtp.enabled) {
+            if (!emails.send) throw new Error('[better-auth-ui] emailOtp sends codes by email: set emails.send too.');
+            const emailOtpOptions = {
+                ...(emailOtp.otpLength !== undefined && { otpLength: emailOtp.otpLength }),
+                ...(emailOtp.expiresIn !== undefined && { expiresIn: emailOtp.expiresIn }),
+                ...(emailOtp.allowedAttempts !== undefined && { allowedAttempts: emailOtp.allowedAttempts }),
+                ...(emailOtp.disableSignUp !== undefined && { disableSignUp: emailOtp.disableSignUp })
+            };
+            addAuthPlugin(
+                'email-otp',
+                [
+                    "import { emailOTP } from 'better-auth/plugins'",
+                    `import { betterAuthEmails } from ${emailsHelper}`,
+                    `export default emailOTP({ ...${JSON.stringify(emailOtpOptions)}, sendVerificationOTP: betterAuthEmails.emailCode })`
+                ],
+                ["import { emailOTPClient } from 'better-auth/client/plugins'", 'export default emailOTPClient()']
             );
         }
         if (captcha) {
