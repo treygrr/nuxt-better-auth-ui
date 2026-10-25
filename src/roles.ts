@@ -1,5 +1,5 @@
-// Build-time role handling: validates the module's `roles` option and writes the roles file the server plugin,
-// the client plugin and the admin pages all import, so a permission check means the same thing everywhere.
+// Build-time role handling: validates the module's `roles` option (the roles the dashboard starts with) and writes
+// the roles file the Admin plugin and its client are given.
 import { defaultStatements } from 'better-auth/plugins/admin/access';
 
 type Statements = typeof defaultStatements;
@@ -8,8 +8,6 @@ type Statements = typeof defaultStatements;
 export type AdminRolePermissions = { [Resource in keyof Statements]?: Array<Statements[Resource][number]> };
 
 export type ResolvedRoles = {
-    /** Every role, for the role pickers: `user`, the admin role, then the custom ones. */
-    names: string[];
     /** Roles that can open the admin pages: the admin role, and custom roles that can list users. */
     staff: string[];
     /** Custom roles that can't list users, so can't open the admin pages. */
@@ -45,7 +43,6 @@ export function resolveRoles(adminRole: string, custom: Record<string, AdminRole
     const names = Object.keys(custom);
     const canList = (name: string) => !!custom[name]?.user?.includes('list');
     return {
-        names: ['user', adminRole, ...names],
         staff: [adminRole, ...names.filter(canList)],
         withoutAccess: names.filter((name) => !canList(name))
     };
@@ -67,9 +64,3 @@ export function rolesFile(adminRole: string, custom: Record<string, AdminRolePer
         '}'
     ].join('\n');
 }
-
-export const rolesTypes = [
-    'type Role = { authorize(request: Record<string, string[]>): { success: boolean } }',
-    'export declare const ac: unknown',
-    'export declare const roles: Record<string, Role>'
-].join('\n');

@@ -1,6 +1,6 @@
 import type { NuxtPage } from '@nuxt/schema';
 
-import { resolveRoles, rolesFile, rolesTypes, type AdminRolePermissions } from './roles';
+import { resolveRoles, rolesFile, type AdminRolePermissions } from './roles';
 import type { BetterAuthAdminPublicConfig } from './runtime/app/utils/config';
 import { ADMIN_API, DEMO_API } from './runtime/constants';
 import {
@@ -8,6 +8,7 @@ import {
     addImports,
     addServerHandler,
     addLayout,
+    addRouteMiddleware,
     addTemplate,
     createResolver,
     defineNuxtModule,
@@ -30,8 +31,9 @@ export type ModuleOptions = {
      */
     role: string;
     /**
-     * More roles, with the Better Auth Admin permissions each grants. Roles that can list users open the admin
-     * pages, which show only the actions their role allows; Better Auth enforces the same permissions.
+     * Roles to start with, with the Better Auth Admin permissions each grants. They're copied into the
+     * `adminRole` table while it has no roles, then managed on the admin Roles page. Roles that can list users
+     * open the admin pages, which show only the actions their role allows; Better Auth enforces the same.
      * @example { moderator: { user: ['list', 'get', 'ban'], session: ['list', 'revoke'] } }
      * @default {}
      */
@@ -93,26 +95,21 @@ export default defineNuxtModule<ModuleOptions>({
         nuxt.options.runtimeConfig.public.betterAuthAdmin = {
             route,
             role: options.role,
-            roles: roles.names,
-            staffRoles: roles.staff,
             impersonation: options.impersonation,
             auditLog: options.auditLog,
             auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays))
         } satisfies BetterAuthAdminPublicConfig;
 
-        // The roles, built with Better Auth's access control. The server and client plugins and the admin pages
-        // (as #better-auth-admin/roles) all use this one file.
-        const rolesTemplate = addTemplate({
+        // The roles, built with Better Auth's access control (https://better-auth.com/docs/plugins/admin#access-control):
+        // the admin role, `user`, and the config roles until the roles table takes over.
+        addTemplate({
             filename: 'better-auth-admin/roles.mjs',
             write: true,
             getContents: () => rolesFile(options.role, options.roles)
         });
-        addTemplate({ filename: 'better-auth-admin/roles.d.mts', write: true, getContents: () => rolesTypes });
-        nuxt.options.alias['#better-auth-admin/roles'] = rolesTemplate.dst;
 
         // Better Auth's Admin plugin, added to the app's auth config through @nuxtjs/better-auth.
-        // It adds the role and ban columns to the user table and the /api/auth/admin/* endpoints. Staff roles
-        // count as admins, so impersonating them takes the impersonate-admins permission.
+        // It adds the role and ban columns to the user table and the /api/auth/admin/* endpoints.
         const serverPlugin = addTemplate({
             filename: 'better-auth-admin/server-plugin.mjs',
             write: true,
@@ -120,7 +117,18 @@ export default defineNuxtModule<ModuleOptions>({
                 [
                     "import { admin } from 'better-auth/plugins'",
                     "import { ac, roles } from './roles.mjs'",
-                    `export default admin({ ac, roles, adminRoles: ${JSON.stringify(roles.staff)} })`
+                    'export default admin({ ac, roles })'
+                ].join('\n')
+        });
+        // Roles managed on the admin Roles page, kept in step with the Admin plugin's roles.
+        const dynamicRoles = addTemplate({
+            filename: 'better-auth-admin/dynamic-roles.mjs',
+            write: true,
+            getContents: () =>
+                [
+                    `import { adminDynamicRoles } from ${JSON.stringify(resolve('./runtime/server/roles/plugin'))}`,
+                    "import { ac, roles } from './roles.mjs'",
+                    `export default adminDynamicRoles({ ac, roles, adminRole: ${JSON.stringify(options.role)}, seed: ${JSON.stringify(options.roles)} })`
                 ].join('\n')
         });
         // Better Auth lets any admin impersonate. With the option off, this refuses the endpoint, so hiding the
@@ -165,7 +173,7 @@ export default defineNuxtModule<ModuleOptions>({
         });
         // @nuxtjs/better-auth calls this at `modules:done`, after every module's setup.
         nuxt.hook('better-auth:plugins:extend', (sources) => {
-            (sources.server ??= []).push(serverPlugin.dst);
+            (sources.server ??= []).push(serverPlugin.dst, dynamicRoles.dst);
             if (!options.impersonation) sources.server.push(impersonationOff.dst);
             if (options.auditLog) sources.server.push(auditLog.dst);
             (sources.client ??= []).push(clientPlugin.dst);
@@ -178,8 +186,15 @@ export default defineNuxtModule<ModuleOptions>({
             { name: 'useAdminPath', from: resolve('./runtime/app/utils/config') },
             { name: 'useAdminDashboard', from: resolve('./runtime/app/composables/useDashboard') },
             { name: 'useAdminUsers', from: resolve('./runtime/app/composables/useAdminUsers') },
-            { name: 'useAdminCan', from: resolve('./runtime/app/composables/useAdminCan') }
+            { name: 'useAdminCan', from: resolve('./runtime/app/composables/useAdminCan') },
+            { name: 'useAdminRoles', from: resolve('./runtime/app/composables/useAdminRoles') }
         ]);
+        // Loads the signed-in user's permissions for the admin pages, and keeps out those who can't list users.
+        addRouteMiddleware({
+            name: 'better-auth-admin',
+            path: resolve('./runtime/app/middleware/permissions'),
+            global: true
+        });
         // Prefixed, so they can't clash with the app's own components: <AdminUserMenu>, <AdminHomeStats>, …
         addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
 
@@ -234,6 +249,7 @@ export default defineNuxtModule<ModuleOptions>({
                 // Better Auth user management
                 page('users', '/users', 'users/index.vue'),
                 page('user', '/users/:id', 'users/[id].vue'),
+                page('roles', '/roles', 'roles.vue'),
                 ...(options.auditLog ? [page('audit', '/audit', 'audit.vue')] : []),
                 // From the dashboard template, with its sample data
                 page('inbox', '/inbox', 'inbox.vue'),
@@ -250,13 +266,10 @@ export default defineNuxtModule<ModuleOptions>({
             );
         });
 
-        // Signed-in staff only (the admin role, and custom roles that can list users); everyone else is sent to the
-        // login page. Better Auth checks permissions again on every /api/auth/admin/* request.
+        // Signed-in users only; the permissions middleware then lets in roles that can list users (roles change at
+        // runtime, so route rules can't name them). Better Auth checks permissions again on every request.
         for (const path of [route, `${route}/**`]) {
-            extendRouteRules(path, {
-                appLayout: LAYOUT,
-                auth: { only: 'user', user: { role: roles.staff } }
-            });
+            extendRouteRules(path, { appLayout: LAYOUT, auth: { only: 'user' } });
         }
     }
 });

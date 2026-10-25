@@ -11,7 +11,6 @@ describe('roles option', () => {
                 auditor: { session: ['list'] }
             })
         ).toEqual({
-            names: ['user', 'admin', 'moderator', 'support', 'auditor'],
             staff: ['admin', 'moderator', 'support'],
             withoutAccess: ['auditor']
         });
