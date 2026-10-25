@@ -6,6 +6,8 @@ export type BetterAuthAdminPublicConfig = {
     role: string;
     impersonation: boolean;
     auditLog: boolean;
+    /** Days the audit log keeps entries; 0 keeps them forever. */
+    auditLogRetentionDays: number;
 };
 
 export const useBetterAuthAdminConfig = () => useRuntimeConfig().public.betterAuthAdmin as BetterAuthAdminPublicConfig;

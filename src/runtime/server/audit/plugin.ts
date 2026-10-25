@@ -17,7 +17,13 @@ export type AuditEntry = {
     userAgent?: string | null;
 };
 
-type Adapter = { create(input: { model: string; data: Record<string, unknown> }): Promise<unknown> };
+type Adapter = {
+    create(input: { model: string; data: Record<string, unknown> }): Promise<unknown>;
+    deleteMany(input: {
+        model: string;
+        where: Array<{ field: string; operator?: string; value: unknown }>;
+    }): Promise<unknown>;
+};
 type Logger = { error(message: string, ...args: unknown[]): void };
 type InternalAdapter = {
     findUserById(id: string): Promise<AuditPerson | null>;
@@ -27,11 +33,36 @@ type InternalAdapter = {
 const person = (user: AuditPerson | null | undefined): AuditPerson | null =>
     user ? { id: user.id, email: user.email, name: user.name } : null;
 
+/** The default retention: entries older than this many days are deleted. 0 keeps them forever. */
+export const DEFAULT_RETENTION_DAYS = 30;
+
+/** The oldest entry to keep, or null to keep everything. */
+export const retentionCutoff = (retentionDays: number) =>
+    retentionDays > 0 ? new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000) : null;
+
+async function prune(context: { adapter: Adapter; logger: Logger }, retentionDays: number) {
+    const cutoff = retentionCutoff(retentionDays);
+    if (!cutoff) return;
+    try {
+        await context.adapter.deleteMany({
+            model: AUDIT_MODEL,
+            where: [{ field: 'createdAt', operator: 'lt', value: cutoff }]
+        });
+    } catch (error) {
+        context.logger.error('[better-auth-admin] Could not prune the audit log.', error);
+    }
+}
+
 /**
- * Writes an entry. A failed write is logged, never thrown, so a missing table (migrations not run yet) can't
- * break the admin action it records.
+ * Writes an entry, then deletes entries older than `retentionDays`: admin actions are rare, and `createdAt` is
+ * indexed, so this is cheap. A failure is logged, never thrown, so a missing table (migrations not run yet)
+ * can't break the admin action it records.
  */
-export async function writeAuditEntry(context: { adapter: Adapter; logger: Logger }, entry: AuditEntry) {
+export async function writeAuditEntry(
+    context: { adapter: Adapter; logger: Logger },
+    entry: AuditEntry,
+    retentionDays = DEFAULT_RETENTION_DAYS
+) {
     try {
         await context.adapter.create({
             model: AUDIT_MODEL,
@@ -51,7 +82,9 @@ export async function writeAuditEntry(context: { adapter: Adapter; logger: Logge
         });
     } catch (error) {
         context.logger.error('[better-auth-admin] Could not write to the audit log. Have migrations run?', error);
+        return;
     }
+    await prune(context, retentionDays);
 }
 
 type Body = Record<string, unknown>;
@@ -81,10 +114,10 @@ type Pending = { actor: AuditPerson; target: AuditPerson | null };
 
 /**
  * Records the Admin plugin's successful actions in the `adminAuditLog` table: who, what, to whom, when and
- * from where. Reads the actor and target before the action (a deleted user, an ended impersonation), writes
- * after it, only when it succeeded.
+ * from where, for `retentionDays` (0 keeps them forever). Reads the actor and target before the action (a
+ * deleted user, an ended impersonation), writes after it, only when it succeeded.
  */
-export const adminAuditLog = () =>
+export const adminAuditLog = ({ retentionDays = DEFAULT_RETENTION_DAYS }: { retentionDays?: number } = {}) =>
     ({
         id: 'better-auth-admin-audit-log',
         schema: {
@@ -142,15 +175,19 @@ export const adminAuditLog = () =>
                         const body = (ctx.body ?? {}) as Body;
                         // A created user only exists afterwards.
                         const target = pending.target ?? person((returned as { user?: AuditPerson } | undefined)?.user);
-                        await writeAuditEntry(ctx.context as unknown as { adapter: Adapter; logger: Logger }, {
-                            action,
-                            actor: pending.actor,
-                            target,
-                            details: details?.(body) ?? null,
-                            // Better Auth's own IP lookup, which follows the app's advanced.ipAddress settings.
-                            ipAddress: ctx.headers ? getIP(ctx.headers, ctx.context.options) : null,
-                            userAgent: ctx.headers?.get('user-agent') ?? null
-                        });
+                        await writeAuditEntry(
+                            ctx.context as unknown as { adapter: Adapter; logger: Logger },
+                            {
+                                action,
+                                actor: pending.actor,
+                                target,
+                                details: details?.(body) ?? null,
+                                // Better Auth's own IP lookup, which follows the app's advanced.ipAddress settings.
+                                ipAddress: ctx.headers ? getIP(ctx.headers, ctx.context.options) : null,
+                                userAgent: ctx.headers?.get('user-agent') ?? null
+                            },
+                            retentionDays
+                        );
                     })
                 }
             ]

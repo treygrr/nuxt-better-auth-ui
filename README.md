@@ -34,7 +34,8 @@ settings pages and a notifications panel. Those pages still show the template's 
 - **Audit log** (on by default, `auditLog: false` to turn off): every successful admin action — creating, editing,
   banning and unbanning users, role and password changes, deletions, signing sessions out, impersonation and
   removing sign-in methods — with who did it, to whom (names and emails as they were, so deleted users stay
-  readable), details such as the ban reason, IP and browser. Its own **Audit log** page, filterable by action, and
+  readable), details such as the ban reason, IP and browser. Entries are kept for 30 days
+  (`auditLogRetentionDays`; `0` keeps them forever): older ones are hidden and deleted as new ones are written. Its own **Audit log** page, filterable by action, and
   an **Activity** card on each user's page. It's a small Better Auth plugin that adds one table, `adminAuditLog`,
   through Better Auth's migrations (run them, or `npx @better-auth/cli generate` for Prisma or Drizzle); Better
   Auth's own tables aren't changed. A failed write is logged and never blocks the action.
@@ -103,7 +104,9 @@ export default defineNuxtConfig({
         // Let admins sign in as a user (Better Auth's impersonation). Off, its endpoint is refused too.
         impersonation: false,
         // Record admin actions in an adminAuditLog table (added through Better Auth's migrations).
-        auditLog: true
+        auditLog: true,
+        // Days the audit log keeps entries; 0 keeps them forever.
+        auditLogRetentionDays: 30
     }
 });
 ```

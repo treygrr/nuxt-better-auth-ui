@@ -1,6 +1,6 @@
-import { defineEventHandler, getQuery } from '#imports';
+import { defineEventHandler, getQuery, useRuntimeConfig } from '#imports';
 
-import { AUDIT_MODEL } from '../audit/plugin';
+import { AUDIT_MODEL, retentionCutoff } from '../audit/plugin';
 import { requireAdminPermission, type Where } from '../utils/admin';
 
 const MAX_LIMIT = 100;
@@ -17,7 +17,10 @@ export default defineEventHandler(async (event) => {
     const limit = Math.min(Math.max(Number(query.limit) || 20, 1), MAX_LIMIT);
     const offset = Math.max(Number(query.offset) || 0, 0);
 
-    const where: Where[] = [];
+    // Entries past the retention period, which pruning may not have reached yet, are never shown.
+    const { auditLogRetentionDays } = useRuntimeConfig().public.betterAuthAdmin as { auditLogRetentionDays: number };
+    const cutoff = retentionCutoff(auditLogRetentionDays);
+    const where: Where[] = cutoff ? [{ field: 'createdAt', operator: 'gte', value: cutoff }] : [];
     if (typeof query.action === 'string' && query.action) where.push({ field: 'action', value: query.action });
     if (typeof query.userId === 'string' && query.userId) {
         where.push(

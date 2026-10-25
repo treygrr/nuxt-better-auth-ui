@@ -630,3 +630,50 @@ describe('audit log', () => {
         expect((await get('/api/_better-auth-admin/audit')).status).toBe(401);
     });
 });
+
+describe('audit log retention', () => {
+    it('hides entries older than 30 days, and deletes them on the next write', async () => {
+        const db = new Database(databasePath);
+        // Stored the way Better Auth stored the existing entries.
+        const sample = (db.prepare('select createdAt from adminAuditLog limit 1').get() as { createdAt: unknown })
+            .createdAt;
+        const at = (daysAgo: number) => {
+            const date = new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
+            return typeof sample === 'number' ? date.getTime() : date.toISOString();
+        };
+        const insert = db.prepare(
+            `insert into adminAuditLog (id, action, actorId, actorEmail, actorName, targetId, createdAt)
+             values (?, 'user.unban', 'someone', 'someone@retention.test', 'Someone', 'retention-target', ?)`
+        );
+        insert.run('retention-old', at(40));
+        insert.run('retention-recent', at(20));
+        const ids = async () =>
+            (
+                (await (await get('/api/_better-auth-admin/audit?userId=retention-target', adminCookie)).json()) as {
+                    entries: Array<{ id: string }>;
+                }
+            ).entries.map((entry) => entry.id);
+        const stored = () =>
+            (
+                db
+                    .prepare("select id from adminAuditLog where targetId = 'retention-target' order by id")
+                    .all() as Array<{
+                    id: string;
+                }>
+            ).map((row) => row.id);
+
+        expect(await ids()).toEqual(['retention-recent']);
+        expect(stored()).toEqual(['retention-old', 'retention-recent']);
+
+        // Any admin action writes an entry, which prunes.
+        const alice = (
+            await (await get('/api/auth/admin/list-users?searchValue=alice@&searchField=email', adminCookie)).json()
+        ).users[0].id;
+        await fetch(`${base}/api/auth/admin/unban-user`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', origin: base, cookie: adminCookie },
+            body: JSON.stringify({ userId: alice })
+        });
+        expect(stored()).toEqual(['retention-recent']);
+    });
+});

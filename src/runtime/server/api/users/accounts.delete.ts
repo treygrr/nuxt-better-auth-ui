@@ -29,15 +29,20 @@ export default defineEventHandler(async (event) => {
     }
 
     await context.internalAdapter.deleteAccount(account.id);
-    if ((useRuntimeConfig().public.betterAuthAdmin as { auditLog?: boolean }).auditLog) {
-        await writeAuditEntry(context as never, {
-            action: 'account.remove',
-            actor: admin as AuditPerson,
-            target: user as AuditPerson,
-            details: { providerId: account.providerId },
-            ipAddress: getRequestIP(event, { xForwardedFor: true }) ?? null,
-            userAgent: getRequestHeader(event, 'user-agent') ?? null
-        });
+    const config = useRuntimeConfig().public.betterAuthAdmin as { auditLog: boolean; auditLogRetentionDays: number };
+    if (config.auditLog) {
+        await writeAuditEntry(
+            context as never,
+            {
+                action: 'account.remove',
+                actor: admin as AuditPerson,
+                target: user as AuditPerson,
+                details: { providerId: account.providerId },
+                ipAddress: getRequestIP(event, { xForwardedFor: true }) ?? null,
+                userAgent: getRequestHeader(event, 'user-agent') ?? null
+            },
+            config.auditLogRetentionDays
+        );
     }
     return { removed: account.id };
 });

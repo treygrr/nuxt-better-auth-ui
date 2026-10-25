@@ -37,6 +37,11 @@ export type ModuleOptions = {
      * @default true
      */
     auditLog: boolean;
+    /**
+     * How many days the audit log keeps entries; older ones are deleted. 0 keeps them forever.
+     * @default 30
+     */
+    auditLogRetentionDays: number;
 };
 
 /** The layout the admin pages use: a Nuxt UI dashboard, separate from the app's own layouts. */
@@ -52,7 +57,8 @@ export default defineNuxtModule<ModuleOptions>({
         route: '/admin',
         role: 'admin',
         impersonation: false,
-        auditLog: true
+        auditLog: true,
+        auditLogRetentionDays: 30
     },
     // Installed before this module, in order, and checked against these versions.
     moduleDependencies: {
@@ -69,7 +75,8 @@ export default defineNuxtModule<ModuleOptions>({
             route,
             role: options.role,
             impersonation: options.impersonation,
-            auditLog: options.auditLog
+            auditLog: options.auditLog,
+            auditLogRetentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays))
         } satisfies BetterAuthAdminPublicConfig;
 
         // Better Auth's Admin plugin, added to the app's auth config through @nuxtjs/better-auth.
@@ -110,7 +117,7 @@ export default defineNuxtModule<ModuleOptions>({
             getContents: () =>
                 [
                     `import { adminAuditLog } from ${JSON.stringify(resolve('./runtime/server/audit/plugin'))}`,
-                    'export default adminAuditLog()'
+                    `export default adminAuditLog(${JSON.stringify({ retentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)) })})`
                 ].join('\n')
         });
         const clientPlugin = addTemplate({
