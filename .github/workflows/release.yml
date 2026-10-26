@@ -31,7 +31,9 @@ jobs:
             - run: pnpm typecheck
             - run: pnpm test
 
-            - run: pnpm publish --access public --provenance --no-git-checks
+            # npm's own CLI for trusted publishing (pnpm's was refused by npm); 11.5.1 or later has it.
+            - run: npm install -g npm@latest
+            - run: npm publish --access public --provenance
 
             - run: gh release create "$GITHUB_REF_NAME" --generate-notes
               env:
