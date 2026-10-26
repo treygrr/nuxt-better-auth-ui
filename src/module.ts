@@ -14,7 +14,6 @@ import {
     addComponentsDir,
     addImports,
     addServerHandler,
-    addLayout,
     addRouteMiddleware,
     addTemplate,
     createResolver,
@@ -1844,7 +1843,13 @@ export default defineNuxtModule<ModuleOptions>({
             });
         }
 
-        addLayout({ src: resolve('./runtime/app/layouts/admin.vue') }, LAYOUT);
+        // Not @nuxt/kit's addLayout: since Nuxt 4.6, dev keeps the app's layouts between regenerations while nothing in
+        // the app changed, so addLayout finds its own layout from the last one and warns that it's a duplicate
+        // (NUXT_B4014) on every rebuild. An app's own `better-auth-ui` layout still wins.
+        const layout = addTemplate({ src: resolve('./runtime/app/layouts/admin.vue') });
+        nuxt.hook('app:templates', (app) => {
+            app.layouts[LAYOUT] ??= { name: LAYOUT, file: `#build/${layout.filename}` };
+        });
 
         const page = (name: string, path: string, file: string, children?: NuxtPage[]): NuxtPage => ({
             name: `better-auth-ui${name && `-${name}`}`,
