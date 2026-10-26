@@ -18,7 +18,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/treygrr/nuxt-better-auth-ui"
+        "url": "git+https://github.com/treygrr/nuxt-better-auth-ui.git"
     },
     "license": "MIT",
     "type": "module",
