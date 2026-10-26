@@ -1,7 +1,11 @@
-import { defineEventHandler, getRouterParam } from '#imports';
+import { defineEventHandler } from '#imports';
+import * as z from 'zod';
 
 import type { AuditPerson } from '../../audit/plugin';
 import { recordAdminAction, requireAdminPermission } from '../../utils/admin';
+import { readParams, routeId } from '../../utils/input';
+
+const Params = z.object({ id: routeId(), teamId: routeId() });
 
 type TeamAuth = {
     api: { removeTeam(input: { body: { teamId: string; organizationId: string } }): Promise<unknown> };
@@ -14,8 +18,7 @@ type TeamAuth = {
  */
 export default defineEventHandler(async (event) => {
     const { user: admin, context, auth } = await requireAdminPermission(event, { user: ['update'] });
-    const organizationId = getRouterParam(event, 'id')!;
-    const teamId = getRouterParam(event, 'teamId')!;
+    const { id: organizationId, teamId } = readParams(event, Params);
     const [team] = await context.adapter.findMany<{ name: string }>({
         model: 'team',
         where: [{ field: 'id', value: teamId }],

@@ -10,6 +10,7 @@ declare module '#imports' {
     export const createError: H3['createError'];
     export const defineEventHandler: H3['defineEventHandler'];
     export const getRouterParam: H3['getRouterParam'];
+    export const getRouterParams: H3['getRouterParams'];
     export const getQuery: H3['getQuery'];
     export const readBody: H3['readBody'];
     export const getRequestIP: H3['getRequestIP'];

@@ -1,9 +1,9 @@
-import { createError, defineEventHandler, getRouterParam } from '#imports';
+import { createError, defineEventHandler } from '#imports';
 import * as z from 'zod';
 
 import type { AuditPerson } from '../../audit/plugin';
 import { recordAdminAction, requireAdminPermission } from '../../utils/admin';
-import { readJsonBody, text } from '../../utils/input';
+import { readJsonBody, readParams, routeId, text } from '../../utils/input';
 
 type MemberAuth = {
     api: {
@@ -13,6 +13,7 @@ type MemberAuth = {
     };
 };
 
+const Params = z.object({ id: routeId() });
 const Body = z.object({
     email: text().transform((email) => email.toLowerCase()),
     roles: z.array(z.string().min(1)).min(1),
@@ -25,7 +26,7 @@ const Body = z.object({
  */
 export default defineEventHandler(async (event) => {
     const { user: admin, context, auth } = await requireAdminPermission(event, { user: ['update'] });
-    const organizationId = getRouterParam(event, 'id')!;
+    const { id: organizationId } = readParams(event, Params);
     const { email, roles, teamId } = await readJsonBody(event, Body, {
         roles: { code: 'ROLE_REQUIRED', message: 'Choose a role' }
     });

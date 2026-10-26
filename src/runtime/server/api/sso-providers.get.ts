@@ -1,6 +1,6 @@
 import { defineEventHandler } from '#imports';
 
-import { requireAdminPermission } from '../utils/admin';
+import { findAll, findUsersById, requireAdminPermission } from '../utils/admin';
 
 /** An SSO provider, as the admin lists it: never its client secret, keys or certificates. */
 export type AdminSsoProvider = {
@@ -21,7 +21,7 @@ export type AdminSsoProvider = {
 export default defineEventHandler(async (event): Promise<AdminSsoProvider[]> => {
     const { context } = await requireAdminPermission(event, { user: ['list'] });
     if (!context.getPlugin('sso')) return [];
-    const rows = await context.adapter.findMany<{
+    const rows = await findAll<{
         providerId: string;
         issuer: string;
         domain: string;
@@ -29,38 +29,37 @@ export default defineEventHandler(async (event): Promise<AdminSsoProvider[]> => 
         organizationId?: string | null;
         userId?: string | null;
         samlConfig?: string | null;
-    }>({ model: 'ssoProvider', limit: 1000 });
+    }>(context, { model: 'ssoProvider' });
 
-    const organizations = new Map<string, AdminSsoProvider['organization']>();
-    const people = new Map<string, AdminSsoProvider['owner']>();
-    return Promise.all(
-        rows.map(async (row) => {
-            if (row.organizationId && !organizations.has(row.organizationId)) {
-                const [organization] = await context.adapter
-                    .findMany<{ id: string; name: string }>({
-                        model: 'organization',
-                        where: [{ field: 'id', value: row.organizationId }],
-                        limit: 1
-                    })
-                    .catch(() => []);
-                organizations.set(
-                    row.organizationId,
-                    organization ? { id: organization.id, name: organization.name } : null
-                );
-            }
-            if (row.userId && !people.has(row.userId)) {
-                const user = await context.internalAdapter.findUserById(row.userId);
-                people.set(row.userId, user ? { id: user.id, name: user.name, email: user.email } : null);
-            }
-            return {
-                providerId: row.providerId,
-                type: row.samlConfig ? 'saml' : 'oidc',
-                issuer: row.issuer,
-                domain: row.domain,
-                domainVerified: row.domainVerified ?? null,
-                organization: row.organizationId ? (organizations.get(row.organizationId) ?? null) : null,
-                owner: row.userId ? (people.get(row.userId) ?? null) : null
-            } satisfies AdminSsoProvider;
-        })
+    // Each organization and owner once, in a query each.
+    const organizationIds = [...new Set(rows.flatMap((row) => (row.organizationId ? [row.organizationId] : [])))];
+    const organizations = new Map(
+        (organizationIds.length
+            ? await context.adapter
+                  .findMany<{ id: string; name: string }>({
+                      model: 'organization',
+                      where: [{ field: 'id', operator: 'in', value: organizationIds }],
+                      limit: organizationIds.length
+                  })
+                  // No Organization plugin: providers without organizations.
+                  .catch(() => [])
+            : []
+        ).map((organization) => [organization.id, { id: organization.id, name: organization.name }])
     );
+    const people = await findUsersById(
+        context,
+        rows.flatMap((row) => (row.userId ? [row.userId] : []))
+    );
+    return rows.map((row) => {
+        const owner = row.userId ? people.get(row.userId) : undefined;
+        return {
+            providerId: row.providerId,
+            type: row.samlConfig ? 'saml' : 'oidc',
+            issuer: row.issuer,
+            domain: row.domain,
+            domainVerified: row.domainVerified ?? null,
+            organization: row.organizationId ? (organizations.get(row.organizationId) ?? null) : null,
+            owner: owner ? { id: owner.id, name: owner.name, email: owner.email } : null
+        } satisfies AdminSsoProvider;
+    });
 });

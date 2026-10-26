@@ -1,11 +1,9 @@
-import {
-    createError,
-    defineEventHandler,
-    getRequestHeaders,
-    getRouterParam,
-    requireUserSession,
-    serverAuth
-} from '#imports';
+import { defineEventHandler, getRequestHeaders, requireUserSession, serverAuth } from '#imports';
+import * as z from 'zod';
+
+import { readParams, routeId } from '../../utils/input';
+
+const Params = z.object({ id: routeId() });
 
 type OrganizationAuth = {
     api: {
@@ -32,8 +30,7 @@ const DEFAULT_STATEMENTS: Record<string, readonly string[]> = {
  */
 export default defineEventHandler(async (event): Promise<Record<string, boolean>> => {
     await requireUserSession(event);
-    const organizationId = getRouterParam(event, 'id');
-    if (!organizationId) throw createError({ statusCode: 400, statusMessage: 'No organization' });
+    const { id: organizationId } = readParams(event, Params);
     const auth = serverAuth(event) as unknown as OrganizationAuth;
     const plugin = auth.options.plugins?.find((item) => item.id === 'organization');
     const statements = plugin?.options?.ac?.statements ?? DEFAULT_STATEMENTS;

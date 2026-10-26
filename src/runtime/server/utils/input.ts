@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3';
-import { createError, getQuery, readBody } from '#imports';
+import { createError, getQuery, getRouterParams, readBody } from '#imports';
 import * as z from 'zod';
 
 /** What a request that doesn't fit gets: a code, translated on the pages (errors.<code>), and the English fallback. */
@@ -20,8 +20,7 @@ export function parseInput<Schema extends z.ZodType>(
     const result = schema.safeParse(input);
     if (result.success) return result.data;
     const issue = result.error.issues[0];
-    const error =
-        errors[issue?.message ?? ''] ?? errors[String(issue?.path[0] ?? '')] ?? errors.default ?? INVALID;
+    const error = errors[issue?.message ?? ''] ?? errors[String(issue?.path[0] ?? '')] ?? errors.default ?? INVALID;
     throw createError({
         statusCode: 400,
         statusMessage: error.message,
@@ -35,6 +34,16 @@ export const readQuery = <Schema extends z.ZodType>(
     schema: Schema,
     errors?: Partial<Record<string, InputError>>
 ) => parseInput(schema, getQuery(event), errors);
+
+/** The route's params (`:id`, …), read with a schema. */
+export const readParams = <Schema extends z.ZodType>(
+    event: H3Event,
+    schema: Schema,
+    errors?: Partial<Record<string, InputError>>
+) => parseInput(schema, getRouterParams(event, { decode: true }), errors);
+
+/** A route param: an id, never empty. */
+export const routeId = () => z.string().min(1);
 
 /** The request's JSON body, read with a schema. An empty body reads as `{}`. */
 export const readJsonBody = async <Schema extends z.ZodType>(

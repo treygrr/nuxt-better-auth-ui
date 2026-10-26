@@ -1,6 +1,10 @@
-import { createError, defineEventHandler, getRouterParam, requireUserSession, serverAuth } from '#imports';
+import { createError, defineEventHandler, requireUserSession, serverAuth } from '#imports';
+import * as z from 'zod';
 
-import type { AdminContext } from '../../utils/admin';
+import { findAll, findUsersById, type AdminContext } from '../../utils/admin';
+import { readParams, routeId } from '../../utils/input';
+
+const Params = z.object({ id: routeId() });
 
 /** A team, with its members, as the organization's page shows it. */
 export type OrganizationTeam = {
@@ -18,7 +22,7 @@ export type OrganizationTeam = {
  */
 export default defineEventHandler(async (event): Promise<OrganizationTeam[]> => {
     const { user } = await requireUserSession(event);
-    const organizationId = getRouterParam(event, 'id');
+    const { id: organizationId } = readParams(event, Params);
     const context = await (serverAuth(event) as unknown as { $context: Promise<AdminContext> }).$context;
     const plugin = context.getPlugin('organization') as { options?: { teams?: { enabled?: boolean } } } | undefined;
     if (!plugin?.options?.teams?.enabled) return [];
@@ -42,34 +46,22 @@ export default defineEventHandler(async (event): Promise<OrganizationTeam[]> => 
         sortBy: { field: 'createdAt', direction: 'asc' },
         limit: 500
     });
-    const people = new Map<string, OrganizationTeam['members'][number] | null>();
-    return Promise.all(
-        teams.map(async (team) => {
-            const rows = await context.adapter.findMany<{ userId: string }>({
-                model: 'teamMember',
-                where: [{ field: 'teamId', value: team.id }],
-                limit: 500
-            });
-            const members = await Promise.all(
-                rows.map(async ({ userId }) => {
-                    if (!people.has(userId)) {
-                        const found = await context.internalAdapter.findUserById(userId);
-                        people.set(
-                            userId,
-                            found
-                                ? {
-                                      userId,
-                                      name: found.name,
-                                      email: found.email,
-                                      image: (found as { image?: string | null }).image ?? null
-                                  }
-                                : null
-                        );
-                    }
-                    return people.get(userId);
-                })
-            );
-            return { ...team, members: members.filter((member) => !!member) } as OrganizationTeam;
-        })
+    if (!teams.length) return [];
+
+    // Every team's members in one query, and each person once.
+    const memberships = await findAll<{ teamId: string; userId: string }>(context, {
+        model: 'teamMember',
+        where: [{ field: 'teamId', operator: 'in', value: teams.map((team) => team.id) }]
+    });
+    const people = await findUsersById(
+        context,
+        memberships.map((membership) => membership.userId)
     );
+    return teams.map((team) => ({
+        ...team,
+        members: memberships.flatMap(({ teamId, userId }) => {
+            const person = teamId === team.id ? people.get(userId) : undefined;
+            return person ? [{ userId, name: person.name, email: person.email, image: person.image ?? null }] : [];
+        })
+    }));
 });

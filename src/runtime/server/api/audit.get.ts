@@ -1,7 +1,7 @@
 import { defineEventHandler, useRuntimeConfig } from '#imports';
 import * as z from 'zod';
 
-import { AUDIT_MODEL, retentionCutoff } from '../audit/plugin';
+import { AUDIT_MODEL, parseDetails, retentionCutoff } from '../audit/plugin';
 import { requireAdminPermission, type Where } from '../utils/admin';
 import { readQuery, text, wholeNumber } from '../utils/input';
 
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
         context.adapter.count({ model: AUDIT_MODEL, where })
     ]);
     return {
-        entries: rows.map((row) => ({ ...row, details: row.details ? JSON.parse(row.details) : null })),
+        entries: rows.map((row) => ({ ...row, details: parseDetails(row.details) })),
         total: Number(total)
     };
 });

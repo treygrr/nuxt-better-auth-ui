@@ -1,6 +1,6 @@
 import { defineEventHandler, getRouterParam } from '#imports';
 
-import { requireAdminPermission, requireUser } from '../../utils/admin';
+import { findAll, requireAdminPermission, requireUser } from '../../utils/admin';
 
 /** A user's passkey, without its key material. */
 export type AdminPasskey = {
@@ -19,7 +19,8 @@ export default defineEventHandler(async (event): Promise<AdminPasskey[]> => {
     const { context } = await requireAdminPermission(event, { user: ['get'] });
     const user = await requireUser(context, getRouterParam(event, 'id'));
     if (!context.getPlugin('passkey')) return [];
-    const rows = await context.adapter.findMany<AdminPasskey & Record<string, unknown>>({
+    // Every one: the adapters stop at 100 rows when no limit is given.
+    const rows = await findAll<AdminPasskey & Record<string, unknown>>(context, {
         model: 'passkey',
         where: [{ field: 'userId', value: user.id }],
         select: ['id', 'name', 'deviceType', 'backedUp', 'createdAt']

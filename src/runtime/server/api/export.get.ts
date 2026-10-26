@@ -1,7 +1,7 @@
 import { defineEventHandler, requireUserSession, serverAuth, setResponseHeader } from '#imports';
 
 import { ACTIVITY_MODEL } from '../activity/plugin';
-import { AUDIT_MODEL } from '../audit/plugin';
+import { AUDIT_MODEL, parseDetails } from '../audit/plugin';
 import { findAll, type AdminContext } from '../utils/admin';
 
 type Row = Record<string, unknown>;
@@ -23,16 +23,6 @@ async function optional<T>(read: () => Promise<T[]>) {
         return await read();
     } catch {
         return [];
-    }
-}
-
-/** An audit entry's details, stored as JSON text. */
-function parseDetails(details: unknown) {
-    if (typeof details !== 'string') return details ?? null;
-    try {
-        return JSON.parse(details);
-    } catch {
-        return details;
     }
 }
 

@@ -110,6 +110,24 @@ export async function findAll<T>(context: AdminContext, query: Omit<FindMany, 'l
     }
 }
 
+/** Users by id, each looked up once, in one query per 100 ids: by id, those that exist. */
+export async function findUsersById<T = { id: string; name: string; email: string; image?: string | null }>(
+    context: AdminContext,
+    ids: Iterable<string>
+) {
+    const unique = [...new Set(ids)];
+    const users = new Map<string, T>();
+    for (let start = 0; start < unique.length; start += 100) {
+        const rows = await context.adapter.findMany<T & { id: string }>({
+            model: 'user',
+            where: [{ field: 'id', operator: 'in', value: unique.slice(start, start + 100) }],
+            limit: 100
+        });
+        for (const row of rows) users.set(row.id, row);
+    }
+    return users;
+}
+
 /** Records an admin action in the audit log, when it's on. Like the log's other writes, a failure never throws. */
 export async function recordAdminAction(
     event: H3Event,

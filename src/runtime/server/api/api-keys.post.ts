@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
     if ((user as { isAnonymous?: boolean | null }).isAnonymous) {
         throw createError({
             statusCode: 403,
-            statusMessage: 'Guest accounts can’t have API keys',
+            statusMessage: "Guest accounts can't have API keys",
             data: { code: 'GUEST_NO_API_KEYS' }
         });
     }
@@ -61,8 +61,8 @@ export default defineEventHandler(async (event) => {
         if (!resource || !action || !allowed[resource]?.includes(action)) {
             throw createError({
                 statusCode: 400,
-                statusMessage: `Unknown permission: ${scope}`,
-                data: { code: 'API_KEY_PERMISSION_UNKNOWN' }
+                statusMessage: 'Unknown permission',
+                data: { code: 'API_KEY_PERMISSION_UNKNOWN', scope }
             });
         }
         (permissions[resource] ??= []).push(action);

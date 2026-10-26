@@ -40,6 +40,16 @@ export const DEFAULT_RETENTION_DAYS = 30;
 export const retentionCutoff = (retentionDays: number) =>
     retentionDays > 0 ? new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000) : null;
 
+/** An audit entry's details, stored as JSON text: parsed, or the text itself when it isn't JSON. */
+export function parseDetails(details: unknown) {
+    if (typeof details !== 'string') return details ?? null;
+    try {
+        return JSON.parse(details);
+    } catch {
+        return details;
+    }
+}
+
 async function prune(context: { adapter: Adapter; logger: Logger }, retentionDays: number) {
     const cutoff = retentionCutoff(retentionDays);
     if (!cutoff) return;

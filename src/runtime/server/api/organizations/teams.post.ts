@@ -1,9 +1,9 @@
-import { defineEventHandler, getRouterParam } from '#imports';
+import { defineEventHandler } from '#imports';
 import * as z from 'zod';
 
 import type { AuditPerson } from '../../audit/plugin';
 import { recordAdminAction, requireAdminPermission } from '../../utils/admin';
-import { readJsonBody } from '../../utils/input';
+import { readJsonBody, readParams, routeId } from '../../utils/input';
 
 type TeamAuth = {
     api: {
@@ -11,6 +11,7 @@ type TeamAuth = {
     };
 };
 
+const Params = z.object({ id: routeId() });
 const Body = z.object({ name: z.string().trim().min(1) });
 
 /**
@@ -20,7 +21,7 @@ const Body = z.object({ name: z.string().trim().min(1) });
  */
 export default defineEventHandler(async (event) => {
     const { user: admin, context, auth } = await requireAdminPermission(event, { user: ['update'] });
-    const organizationId = getRouterParam(event, 'id')!;
+    const { id: organizationId } = readParams(event, Params);
     const { name } = await readJsonBody(event, Body, {
         name: { code: 'TEAM_NAME_REQUIRED', message: 'Name the team' }
     });

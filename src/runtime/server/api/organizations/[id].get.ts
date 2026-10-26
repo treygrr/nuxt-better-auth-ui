@@ -1,6 +1,10 @@
-import { createError, defineEventHandler, getRouterParam } from '#imports';
+import { createError, defineEventHandler } from '#imports';
+import * as z from 'zod';
 
-import { requireAdminPermission } from '../../utils/admin';
+import { findUsersById, requireAdminPermission } from '../../utils/admin';
+import { readParams, routeId } from '../../utils/input';
+
+const Params = z.object({ id: routeId() });
 
 type Person = { id: string; name: string; email: string; image?: string | null };
 export type AdminOrganizationMember = { id: string; role: string; createdAt: Date; user: Person | null };
@@ -41,7 +45,7 @@ async function optional<T>(read: () => Promise<T[]>) {
  */
 export default defineEventHandler(async (event): Promise<AdminOrganizationDetail> => {
     const { context } = await requireAdminPermission(event, { user: ['list'] });
-    const id = getRouterParam(event, 'id');
+    const { id } = readParams(event, Params);
     const [organization] = context.getPlugin('organization')
         ? await context.adapter.findMany<Omit<AdminOrganizationDetail, 'members' | 'invitations' | 'teams' | 'roles'>>({
               model: 'organization',
@@ -115,16 +119,15 @@ export default defineEventHandler(async (event): Promise<AdminOrganizationDetail
     };
 
     // Each person once: members, and whoever sent the invitations.
-    const ids = [...new Set([...members.map((member) => member.userId), ...invitations.map((item) => item.inviterId)])];
     const people = new Map(
-        (
-            await Promise.all(
-                ids.map(async (userId) => [userId, await context.internalAdapter.findUserById(userId)] as const)
-            )
-        ).map(([userId, user]) => [
-            userId,
-            user ? { id: user.id, name: user.name, email: user.email, image: (user as Person).image ?? null } : null
-        ])
+        [
+            ...(
+                await findUsersById<Person>(context, [
+                    ...members.map((member) => member.userId),
+                    ...invitations.map((item) => item.inviterId)
+                ])
+            ).values()
+        ].map((user) => [user.id, { id: user.id, name: user.name, email: user.email, image: user.image ?? null }])
     );
     return {
         id: organization.id,
