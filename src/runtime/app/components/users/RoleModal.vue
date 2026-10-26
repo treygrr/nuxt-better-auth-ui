@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, useAdminUsers, useAuthI18n, useBetterAuthAdminConfig, useToast, watch } from '#imports';
+import {
+    computed,
+    ref,
+    useBetterAuthAdminUsers,
+    useAuthI18n,
+    useBetterAuthAdminConfig,
+    useToast,
+    watch
+} from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -15,7 +23,7 @@ watch(open, (isOpen) => {
     if (isOpen) role.value = props.user.role ?? 'user';
 });
 
-const users = useAdminUsers();
+const users = useBetterAuthAdminUsers();
 const toast = useToast();
 const { t } = useAuthI18n();
 

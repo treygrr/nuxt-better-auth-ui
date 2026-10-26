@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui';
-import { computed, h, ref, resolveComponent, useAdminPath, useAuthCapabilities, useAuthI18n, useFetch } from '#imports';
+import {
+    computed,
+    h,
+    ref,
+    resolveComponent,
+    useBetterAuthAdminPath,
+    useAuthCapabilities,
+    useAuthI18n,
+    useFetch
+} from '#imports';
 
 import { ADMIN_API } from '../../constants';
 import type { AdminSsoProvider } from '../../server/api/sso-providers.get';
@@ -12,7 +21,7 @@ import type { AdminSsoProvider } from '../../server/api/sso-providers.get';
 const UBadge = resolveComponent('UBadge');
 const ULink = resolveComponent('ULink');
 
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { t } = useAuthI18n();
 const { capabilities } = useAuthCapabilities();
 

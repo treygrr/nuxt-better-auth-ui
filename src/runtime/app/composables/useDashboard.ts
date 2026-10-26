@@ -1,4 +1,10 @@
-import { defineShortcuts, useAdminCan, useAdminPath, useBetterAuthAdminConfig, useRouter } from '#imports';
+import {
+    defineShortcuts,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminPath,
+    useBetterAuthAdminConfig,
+    useRouter
+} from '#imports';
 import { createSharedComposable } from '@vueuse/core';
 
 /**
@@ -7,9 +13,9 @@ import { createSharedComposable } from '@vueuse/core';
  */
 const _useDashboard = () => {
     const router = useRouter();
-    const adminPath = useAdminPath();
+    const adminPath = useBetterAuthAdminPath();
     const { auditLog } = useBetterAuthAdminConfig();
-    const can = useAdminCan();
+    const can = useBetterAuthAdminCan();
     const go = (path: string) => () => router.push(adminPath(path));
 
     defineShortcuts({
@@ -21,4 +27,4 @@ const _useDashboard = () => {
     });
 };
 
-export const useAdminDashboard = createSharedComposable(_useDashboard);
+export const useBetterAuthAdminDashboard = createSharedComposable(_useDashboard);

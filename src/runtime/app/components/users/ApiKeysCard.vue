@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { $fetch, computed, ref, useAdminCan, useAuthI18n, useFetch, useToast } from '#imports';
+import { $fetch, computed, ref, useBetterAuthAdminCan, useAuthI18n, useFetch, useToast } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
 import type { AdminApiKey } from '../../../server/api/users/api-keys.get';
@@ -10,7 +10,7 @@ import { serverError } from '../../utils/server-error';
 const props = defineProps<{ user: AdminUser }>();
 const emit = defineEmits<{ changed: [] }>();
 
-const canUpdate = useAdminCan()({ user: ['update'] });
+const canUpdate = useBetterAuthAdminCan()({ user: ['update'] });
 const toast = useToast();
 const { t, errorMessage } = useAuthI18n();
 

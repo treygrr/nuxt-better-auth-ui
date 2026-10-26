@@ -43,7 +43,7 @@ type AdminClient = {
  * Better Auth's admin actions on users, returning data or throwing an Error with a readable message. Pages read
  * their data with useFetch instead, so it's fetched during server rendering.
  */
-export const useAdminUsers = () => {
+export const useBetterAuthAdminUsers = () => {
     const { t, errorMessage } = useAuthI18n();
     const unwrap = async <T>(request: Promise<Result<T>>): Promise<T> => {
         const { data, error } = await request;

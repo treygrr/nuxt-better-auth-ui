@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useAdminUsers, useAuthI18n, useToast } from '#imports';
+import { computed, useBetterAuthAdminUsers, useAuthI18n, useToast } from '#imports';
 
 import type { AdminAccount, AdminUser } from '../../types';
 
@@ -14,7 +14,7 @@ const description = computed(() =>
         : t('admin.modals.removeAccount.other', { name: props.user.name, provider: props.label })
 );
 
-const admin = useAdminUsers();
+const admin = useBetterAuthAdminUsers();
 const toast = useToast();
 
 async function onSubmit() {

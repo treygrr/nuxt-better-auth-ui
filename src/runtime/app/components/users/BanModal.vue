@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useAdminUsers, useAuthI18n, useToast, watch } from '#imports';
+import { computed, ref, useBetterAuthAdminUsers, useAuthI18n, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -32,7 +32,7 @@ const title = computed(() =>
         : t('admin.modals.ban.titleMany', { count: props.users.length })
 );
 
-const admin = useAdminUsers();
+const admin = useBetterAuthAdminUsers();
 const toast = useToast();
 
 async function onSubmit() {

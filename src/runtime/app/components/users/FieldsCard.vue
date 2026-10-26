@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { computed, reactive, ref, useAdminCan, useAdminUsers, useAuthI18n, useFetch, useToast } from '#imports';
+import {
+    computed,
+    reactive,
+    ref,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminUsers,
+    useAuthI18n,
+    useFetch,
+    useToast
+} from '#imports';
 import { upperFirst } from 'scule';
 
 import { ADMIN_API } from '../../../constants';
@@ -15,8 +24,8 @@ const emit = defineEmits<{ updated: [] }>();
 
 const { t } = useAuthI18n();
 const toast = useToast();
-const users = useAdminUsers();
-const canUpdate = useAdminCan()({ user: ['update'] });
+const users = useBetterAuthAdminUsers();
+const canUpdate = useBetterAuthAdminCan()({ user: ['update'] });
 
 const { data: fields } = useFetch<AdminUserField[]>(`${ADMIN_API}/user-fields`, {
     key: 'better-auth-ui-admin-user-fields',

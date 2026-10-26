@@ -6,9 +6,9 @@ import {
     navigateTo,
     reactive,
     ref,
-    useAdminCan,
-    useAdminPath,
-    useAdminUsers,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminPath,
+    useBetterAuthAdminUsers,
     useAuthCapabilities,
     useAuthI18n,
     useBetterAuthAdminConfig,
@@ -29,11 +29,11 @@ import { serverError } from '../../utils/server-error';
  * without a member's session (addMember, createTeam, removeTeam). For the rest, Better Auth needs a member: with
  * impersonation on, staff make those changes as the owner, on the organization's own page.
  */
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { t, errorMessage } = useAuthI18n();
 const toast = useToast();
 const { capabilities } = useAuthCapabilities();
-const can = useAdminCan();
+const can = useBetterAuthAdminCan();
 const canAdd = can({ user: ['update'] });
 const id = useRoute().params.id as string;
 
@@ -126,7 +126,7 @@ async function removeTeam(team: { id: string; name: string }) {
 const { impersonation } = useBetterAuthAdminConfig();
 const { organizationPage } = useRuntimeConfig().public.betterAuthUi as { organizationPage: string | false };
 const session = useUserSession();
-const users = useAdminUsers();
+const users = useBetterAuthAdminUsers();
 const owner = computed(() =>
     organization.value?.members.find((member) => member.role.split(',').some((role) => role.trim() === 'owner'))
 );

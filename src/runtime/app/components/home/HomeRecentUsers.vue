@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, resolveComponent, useAdminPath, useAuthI18n, useFetch } from '#imports';
+import { computed, h, resolveComponent, useBetterAuthAdminPath, useAuthI18n, useFetch } from '#imports';
 import type { TableColumn } from '@nuxt/ui';
 
 import type { AdminUser } from '../../types';
@@ -9,7 +9,7 @@ const UBadge = resolveComponent('UBadge');
 const ULink = resolveComponent('ULink');
 const NuxtTime = resolveComponent('NuxtTime');
 
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { t } = useAuthI18n();
 
 // The newest users, from Better Auth's own list-users.

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, useAdminPath, useAuthI18n } from '#imports';
+import { computed, useBetterAuthAdminPath, useAuthI18n } from '#imports';
 
 import type { AdminStats, Stat } from '../../types';
 
 const props = defineProps<{ stats: AdminStats | null | undefined }>();
 
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { t, locale } = useAuthI18n();
 // In the page's language ("1,234" in English, "1234" in Spanish).
 const number = (value: number) => new Intl.NumberFormat(locale.value).format(value);

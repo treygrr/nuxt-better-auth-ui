@@ -1,6 +1,13 @@
 import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { navigateTo, useAdminCan, useAdminUsers, useAuthI18n, useBetterAuthAdminConfig, useToast } from '#imports';
+import {
+    navigateTo,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminUsers,
+    useAuthI18n,
+    useBetterAuthAdminConfig,
+    useToast
+} from '#imports';
 
 import type { AdminUser } from '../types';
 
@@ -11,9 +18,9 @@ import type { AdminUser } from '../types';
  */
 export const useImpersonateItem = () => {
     const { impersonation } = useBetterAuthAdminConfig();
-    const can = useAdminCan();
+    const can = useBetterAuthAdminCan();
     const session = useUserSession();
-    const admin = useAdminUsers();
+    const admin = useBetterAuthAdminUsers();
     const toast = useToast();
     const { t } = useAuthI18n();
 

@@ -5,9 +5,9 @@ import {
     computed,
     navigateTo,
     ref,
-    useAdminCan,
-    useAdminPath,
-    useAdminUsers,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminPath,
+    useBetterAuthAdminUsers,
     useAuthCapabilities,
     useAuthI18n,
     useBetterAuthAdminConfig,
@@ -27,13 +27,13 @@ import { shownItems } from '../../utils/menu';
 import { providerInfo } from '../../utils/providers';
 import { serverError } from '../../utils/server-error';
 
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { role: adminRole, auditLog, notes, organizations } = useBetterAuthAdminConfig();
 const userId = useRoute().params.id as string;
 const session = useUserSession();
-const admin = useAdminUsers();
+const admin = useBetterAuthAdminUsers();
 const toast = useToast();
-const can = useAdminCan();
+const can = useBetterAuthAdminCan();
 const { t, errorMessage } = useAuthI18n();
 
 // Fetched during server rendering, with the admin's cookies, and handed to the browser in the payload.
@@ -475,21 +475,21 @@ const thisSession = computed(() => session.session.value?.id);
                     </ul>
                 </UPageCard>
 
-                <AdminUsersSecurityCard
+                <BetterAuthUiUsersSecurityCard
                     v-if="capabilities?.twoFactor || capabilities?.passkey"
                     :user="user"
                     @changed="refresh"
                 />
 
-                <AdminUsersFieldsCard :user="user" @updated="refresh" />
+                <BetterAuthUiUsersFieldsCard :user="user" @updated="refresh" />
 
-                <AdminUsersOrganizationsCard v-if="organizations" :user="user" />
+                <BetterAuthUiUsersOrganizationsCard v-if="organizations" :user="user" />
 
-                <AdminUsersSubscriptionCard v-if="capabilities?.stripe" :user="user" />
+                <BetterAuthUiUsersSubscriptionCard v-if="capabilities?.stripe" :user="user" />
 
-                <AdminUsersApiKeysCard v-if="capabilities?.apiKey" :user="user" @changed="refresh" />
+                <BetterAuthUiUsersApiKeysCard v-if="capabilities?.apiKey" :user="user" @changed="refresh" />
 
-                <AdminUsersNotesCard v-if="notes" :user="user" @changed="refresh" />
+                <BetterAuthUiUsersNotesCard v-if="notes" :user="user" @changed="refresh" />
 
                 <UPageCard
                     v-if="can({ session: ['list'] })"
@@ -575,14 +575,14 @@ const thisSession = computed(() => session.session.value?.id);
                             trailing-icon="i-lucide-arrow-right"
                         />
                     </template>
-                    <AdminAuditLogTable :entries="activity?.entries ?? []" :user-id="user.id" />
+                    <BetterAuthUiAuditLogTable :entries="activity?.entries ?? []" :user-id="user.id" />
                 </UPageCard>
 
-                <AdminUsersRoleModal v-model:open="roleOpen" :user="user" @updated="refresh" />
-                <AdminUsersEditModal v-model:open="editOpen" :user="user" @updated="refresh" />
-                <AdminUsersPasswordModal v-model:open="passwordOpen" :user="user" />
-                <AdminUsersBanModal v-model:open="banOpen" :users="[user]" @banned="refresh" />
-                <AdminUsersRemoveAccountModal
+                <BetterAuthUiUsersRoleModal v-model:open="roleOpen" :user="user" @updated="refresh" />
+                <BetterAuthUiUsersEditModal v-model:open="editOpen" :user="user" @updated="refresh" />
+                <BetterAuthUiUsersPasswordModal v-model:open="passwordOpen" :user="user" />
+                <BetterAuthUiUsersBanModal v-model:open="banOpen" :users="[user]" @banned="refresh" />
+                <BetterAuthUiUsersRemoveAccountModal
                     v-if="removing"
                     v-model:open="removeOpen"
                     :user="user"
@@ -590,7 +590,7 @@ const thisSession = computed(() => session.session.value?.id);
                     :label="provider(removing).label"
                     @removed="refresh"
                 />
-                <AdminUsersDeleteModal
+                <BetterAuthUiUsersDeleteModal
                     v-model:open="deleteOpen"
                     :users="[user]"
                     @deleted="navigateTo(adminPath('/users'))"

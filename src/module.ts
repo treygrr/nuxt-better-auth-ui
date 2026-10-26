@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 import type { NuxtPage } from '@nuxt/schema';
 
@@ -14,6 +15,7 @@ import {
     addComponentsDir,
     addImports,
     addServerHandler,
+    addServerTemplate,
     addRouteMiddleware,
     addTemplate,
     createResolver,
@@ -715,7 +717,7 @@ export default defineNuxtModule<ModuleOptions>({
     // Installed before this module, in order, and checked against these versions.
     moduleDependencies: {
         '@nuxt/ui': { version: '>=4.12.0' },
-        '@nuxtjs/better-auth': { version: '>=0.3.12' },
+        '@nuxtjs/better-auth': { version: '>=0.3.13' },
         // useBreakpoints and friends, used by the dashboard template's pages.
         '@vueuse/nuxt': { version: '>=14.0.0' }
     },
@@ -725,6 +727,9 @@ export default defineNuxtModule<ModuleOptions>({
         // The generated plugin files import the module's server code by its full path, extension included: in dev,
         // Nitro leaves imports into node_modules to Node, which doesn't guess extensions. `.js` once built, `.ts` when
         // the playground runs the sources.
+        // Whether an optional peer dependency is installed, from the app's node_modules.
+        const modulesDirs = nuxt.options.modulesDir.map((dir) => pathToFileURL(dir.endsWith('/') ? dir : `${dir}/`));
+        const installed = (name: string) => tryResolveModule(name, modulesDirs);
         const runtimeFile = (path: string) => {
             const base = resolve(path);
             const file = ['.js', '.mjs', '.ts'].map((extension) => base + extension).find((file) => existsSync(file));
@@ -760,16 +765,16 @@ export default defineNuxtModule<ModuleOptions>({
                 )
             )
         };
-        nuxt.hook('nitro:config', (nitroConfig) => {
-            nitroConfig.virtual ??= {};
-            nitroConfig.virtual['#better-auth-ui/email-config'] = () =>
+        addServerTemplate({
+            filename: '#better-auth-ui/email-config',
+            getContents: () =>
                 [
                     emailFiles.send ? `import send from ${JSON.stringify(emailFiles.send)}` : 'const send = undefined',
                     ...emailFiles.templates.map(([, file], i) => `import template${i} from ${JSON.stringify(file)}`),
                     `export const emailConfig = { send, locale: ${JSON.stringify(moduleOptions.locale)}, templates: { ${emailFiles.templates
                         .map(([name], i) => `${JSON.stringify(name)}: template${i}`)
                         .join(', ')} } }`
-                ].join('\n');
+                ].join('\n')
         });
 
         // Sign-in pages, in the app's own layout.
@@ -1056,7 +1061,7 @@ export default defineNuxtModule<ModuleOptions>({
         // Better Auth's Passkey plugin, from its own package, which the app installs.
         const { passkey } = moduleOptions;
         if (passkey.enabled) {
-            if (!(await tryResolveModule('@better-auth/passkey', nuxt.options.modulesDir))) {
+            if (!(await installed('@better-auth/passkey'))) {
                 throw new Error('[better-auth-ui] passkey.enabled needs the @better-auth/passkey package: install it.');
             }
             const passkeyOptions = Object.fromEntries(
@@ -1176,9 +1181,9 @@ export default defineNuxtModule<ModuleOptions>({
             const linkFile =
                 anonymous.onLinkAccount && (await emailFile('anonymous.onLinkAccount', anonymous.onLinkAccount));
             if (linkFile) {
-                nuxt.hook('nitro:config', (nitroConfig) => {
-                    (nitroConfig.virtual ??= {})['#better-auth-ui/anonymous-link'] = () =>
-                        `export { default } from ${JSON.stringify(linkFile)}`;
+                addServerTemplate({
+                    filename: '#better-auth-ui/anonymous-link',
+                    getContents: () => `export { default } from ${JSON.stringify(linkFile)}`
                 });
             }
             addAuthPlugin(
@@ -1225,7 +1230,7 @@ export default defineNuxtModule<ModuleOptions>({
         }
         const { apiKey } = moduleOptions;
         if (apiKey.enabled) {
-            if (!(await tryResolveModule('@better-auth/api-key', nuxt.options.modulesDir))) {
+            if (!(await installed('@better-auth/api-key'))) {
                 throw new Error('[better-auth-ui] apiKey.enabled needs the @better-auth/api-key package: install it.');
             }
             const apiKeyOptions = {
@@ -1253,12 +1258,13 @@ export default defineNuxtModule<ModuleOptions>({
                 throw new Error('[better-auth-ui] phoneNumber sends codes by text: set sms.send too.');
             }
             const smsSend = await emailFile('sms.send', moduleOptions.sms.send);
-            nuxt.hook('nitro:config', (nitroConfig) => {
-                (nitroConfig.virtual ??= {})['#better-auth-ui/sms-config'] = () =>
+            addServerTemplate({
+                filename: '#better-auth-ui/sms-config',
+                getContents: () =>
                     [
                         `import send from ${JSON.stringify(smsSend)}`,
                         `export const smsConfig = { send, locale: ${JSON.stringify(moduleOptions.locale)} }`
-                    ].join('\n');
+                    ].join('\n')
             });
             const phoneOptions = {
                 ...(phoneNumber.otpLength !== undefined && { otpLength: phoneNumber.otpLength }),
@@ -1360,7 +1366,7 @@ export default defineNuxtModule<ModuleOptions>({
         }
         const ssoOptions = moduleOptions.sso;
         if (ssoOptions.enabled) {
-            if (!(await tryResolveModule('@better-auth/sso', nuxt.options.modulesDir))) {
+            if (!(await installed('@better-auth/sso'))) {
                 throw new Error('[better-auth-ui] sso.enabled needs the @better-auth/sso package: install it.');
             }
             const domainVerification = ssoOptions.domainVerification
@@ -1412,7 +1418,7 @@ export default defineNuxtModule<ModuleOptions>({
         const stripeOptions = moduleOptions.stripe;
         if (stripeOptions.enabled) {
             for (const name of ['@better-auth/stripe', 'stripe']) {
-                if (!(await tryResolveModule(name, nuxt.options.modulesDir))) {
+                if (!(await installed(name))) {
                     throw new Error(`[better-auth-ui] stripe.enabled needs the ${name} package: install it.`);
                 }
             }
@@ -1681,13 +1687,22 @@ export default defineNuxtModule<ModuleOptions>({
         // from #imports explicitly; registering them is what makes that work.
         addImports([
             { name: 'useBetterAuthAdminConfig', from: resolve('./runtime/app/utils/config') },
-            { name: 'useAdminPath', from: resolve('./runtime/app/utils/config') },
-            { name: 'useAdminDashboard', from: resolve('./runtime/app/composables/useDashboard') },
-            { name: 'useAdminUsers', from: resolve('./runtime/app/composables/useAdminUsers') },
-            { name: 'useAdminCan', from: resolve('./runtime/app/composables/useAdminCan') }
+            { name: 'useBetterAuthAdminPath', from: resolve('./runtime/app/utils/config') },
+            { name: 'useBetterAuthAdminDashboard', from: resolve('./runtime/app/composables/useDashboard') },
+            { name: 'useBetterAuthAdminUsers', from: resolve('./runtime/app/composables/useBetterAuthAdminUsers') },
+            { name: 'useBetterAuthAdminCan', from: resolve('./runtime/app/composables/useBetterAuthAdminCan') }
         ]);
-        // Prefixed, so they can't clash with the app's own components: <AdminUserMenu>, <AdminHomeStats>, …
-        addComponentsDir({ path: resolve('./runtime/app/components'), prefix: 'Admin' });
+        // The pages' own components, prefixed with the module's name so they can't clash with the app's:
+        // <BetterAuthUiUserMenu>, <BetterAuthUiHomeStats>, … The banner is for apps, under its documented name.
+        addComponentsDir({
+            path: resolve('./runtime/app/components'),
+            prefix: 'BetterAuthUi',
+            ignore: ['ImpersonationBanner.vue']
+        });
+        addComponent({
+            name: 'AdminImpersonationBanner',
+            filePath: resolve('./runtime/app/components/ImpersonationBanner.vue')
+        });
 
         // A user's linked sign-in methods, which Better Auth's Admin plugin has no endpoints for.
         if (options.activityTracking.enabled) {

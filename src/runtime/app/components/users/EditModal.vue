@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { reactive, useAdminCan, useAdminUsers, useAuthI18n, useToast, watch } from '#imports';
+import { reactive, useBetterAuthAdminCan, useBetterAuthAdminUsers, useAuthI18n, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -34,9 +34,9 @@ watch(
     { immediate: true }
 );
 
-const users = useAdminUsers();
+const users = useBetterAuthAdminUsers();
 // Better Auth requires set-email for the email and its verification.
-const canSetEmail = useAdminCan()({ user: ['set-email'] });
+const canSetEmail = useBetterAuthAdminCan()({ user: ['set-email'] });
 const toast = useToast();
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {

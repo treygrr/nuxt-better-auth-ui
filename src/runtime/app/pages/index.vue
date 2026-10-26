@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, useAdminCan, useAdminPath, useAuthI18n, useLazyFetch } from '#imports';
+import {
+    computed,
+    ref,
+    shallowRef,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminPath,
+    useAuthI18n,
+    useLazyFetch
+} from '#imports';
 import { addDays, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, max, startOfDay, sub } from 'date-fns';
 import { ADMIN_API } from '../../constants';
 import type { AdminStats, Period, Range } from '../types';
 
-const adminPath = useAdminPath();
-const canCreate = useAdminCan()({ user: ['create'] });
+const adminPath = useBetterAuthAdminPath();
+const canCreate = useBetterAuthAdminCan()({ user: ['create'] });
 const { t } = useAuthI18n();
 
 const range = shallowRef<Range>({
@@ -64,17 +72,17 @@ const { data: stats } = useLazyFetch<AdminStats>(`${ADMIN_API}/stats`, {
             <UDashboardToolbar>
                 <template #left>
                     <!-- NOTE: The `-ms-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
-                    <AdminHomeDateRangePicker v-model="range" class="-ms-1" />
+                    <BetterAuthUiHomeDateRangePicker v-model="range" class="-ms-1" />
 
-                    <AdminHomePeriodSelect v-model="period" :range="range" />
+                    <BetterAuthUiHomePeriodSelect v-model="period" :range="range" />
                 </template>
             </UDashboardToolbar>
         </template>
 
         <template #body>
-            <AdminHomeStats :stats="stats" />
-            <AdminHomeChart :period="period" :stats="stats" />
-            <AdminHomeRecentUsers />
+            <BetterAuthUiHomeStats :stats="stats" />
+            <BetterAuthUiHomeChart :period="period" :stats="stats" />
+            <BetterAuthUiHomeRecentUsers />
         </template>
     </UDashboardPanel>
 </template>

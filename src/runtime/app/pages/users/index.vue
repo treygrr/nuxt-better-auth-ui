@@ -11,9 +11,9 @@ import {
     navigateTo,
     ref,
     resolveComponent,
-    useAdminCan,
-    useAdminPath,
-    useAdminUsers,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminPath,
+    useBetterAuthAdminUsers,
     useAuthCapabilities,
     useAuthI18n,
     useBetterAuthAdminConfig,
@@ -39,11 +39,11 @@ const UIcon = resolveComponent('UIcon');
 const NuxtTime = resolveComponent('NuxtTime');
 const UTooltip = resolveComponent('UTooltip');
 
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { role: adminRole, staffRoles } = useBetterAuthAdminConfig();
-const can = useAdminCan();
+const can = useBetterAuthAdminCan();
 const session = useUserSession();
-const admin = useAdminUsers();
+const admin = useBetterAuthAdminUsers();
 const toast = useToast();
 const { t } = useAuthI18n();
 const table = useTemplateRef('table');
@@ -499,8 +499,8 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
                         external
                         download
                     />
-                    <AdminUsersImportModal v-if="can({ user: ['create'] })" @imported="refresh" />
-                    <AdminUsersCreateModal v-if="can({ user: ['create'] })" @created="refresh" />
+                    <BetterAuthUiUsersImportModal v-if="can({ user: ['create'] })" @imported="refresh" />
+                    <BetterAuthUiUsersCreateModal v-if="can({ user: ['create'] })" @created="refresh" />
                 </template>
             </UDashboardNavbar>
         </template>
@@ -635,11 +635,11 @@ const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)
             </div>
 
             <template v-if="targets.length">
-                <AdminUsersRoleModal v-model:open="roleOpen" :user="targets[0]!" @updated="afterChange" />
-                <AdminUsersEditModal v-model:open="editOpen" :user="targets[0]!" @updated="afterChange" />
-                <AdminUsersPasswordModal v-model:open="passwordOpen" :user="targets[0]!" />
-                <AdminUsersBanModal v-model:open="banOpen" :users="targets" @banned="afterChange" />
-                <AdminUsersDeleteModal v-model:open="deleteOpen" :users="targets" @deleted="afterChange" />
+                <BetterAuthUiUsersRoleModal v-model:open="roleOpen" :user="targets[0]!" @updated="afterChange" />
+                <BetterAuthUiUsersEditModal v-model:open="editOpen" :user="targets[0]!" @updated="afterChange" />
+                <BetterAuthUiUsersPasswordModal v-model:open="passwordOpen" :user="targets[0]!" />
+                <BetterAuthUiUsersBanModal v-model:open="banOpen" :users="targets" @banned="afterChange" />
+                <BetterAuthUiUsersDeleteModal v-model:open="deleteOpen" :users="targets" @deleted="afterChange" />
             </template>
         </template>
     </UDashboardPanel>

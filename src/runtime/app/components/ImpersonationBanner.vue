@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, navigateTo, useAdminPath, useAdminUsers, useAuthI18n, useToast } from '#imports';
+import { computed, navigateTo, useBetterAuthAdminPath, useBetterAuthAdminUsers, useAuthI18n, useToast } from '#imports';
 
 /**
  * Shown while an admin is signed in as someone else, with a way back. Place it in the app's layout:
  * `<AdminImpersonationBanner />`. Renders nothing otherwise.
  */
 const session = useUserSession();
-const admin = useAdminUsers();
-const adminPath = useAdminPath();
+const admin = useBetterAuthAdminUsers();
+const adminPath = useBetterAuthAdminPath();
 const toast = useToast();
 const { t } = useAuthI18n();
 

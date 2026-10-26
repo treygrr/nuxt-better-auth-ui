@@ -3,7 +3,7 @@ import {
     $fetch,
     computed,
     ref,
-    useAdminCan,
+    useBetterAuthAdminCan,
     useAuthI18n,
     useBetterAuthAdminConfig,
     useFetch,
@@ -21,7 +21,7 @@ const props = defineProps<{ user: AdminUser }>();
 const emit = defineEmits<{ changed: [] }>();
 
 const { auditLog } = useBetterAuthAdminConfig();
-const can = useAdminCan();
+const can = useBetterAuthAdminCan();
 const canAdd = can({ user: ['update'] });
 const canDeleteAny = can({ user: ['delete'] });
 const session = useUserSession();

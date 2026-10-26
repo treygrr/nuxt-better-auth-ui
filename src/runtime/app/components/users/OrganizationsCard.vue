@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAdminPath, useAuthI18n, useFetch } from '#imports';
+import { useBetterAuthAdminPath, useAuthI18n, useFetch } from '#imports';
 import { upperFirst } from 'scule';
 
 import { ADMIN_API } from '../../../constants';
@@ -8,7 +8,7 @@ import type { AdminUser } from '../../types';
 
 /** The organizations a user belongs to, and their role in each (Organization plugin). */
 const props = defineProps<{ user: AdminUser }>();
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { t } = useAuthI18n();
 
 const { data: organizations } = useFetch<AdminUserOrganization[]>(

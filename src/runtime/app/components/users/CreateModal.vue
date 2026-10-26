@@ -6,8 +6,8 @@ import {
     onMounted,
     reactive,
     ref,
-    useAdminPath,
-    useAdminUsers,
+    useBetterAuthAdminPath,
+    useBetterAuthAdminUsers,
     useAuthI18n,
     useBetterAuthAdminConfig,
     useRoute,
@@ -16,7 +16,7 @@ import {
 } from '#imports';
 
 const emit = defineEmits<{ created: [] }>();
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const route = useRoute();
 const router = useRouter();
 const { t } = useAuthI18n();
@@ -37,7 +37,7 @@ type Schema = z.output<typeof schema>;
 const open = ref(false);
 const state = reactive<Schema>({ name: '', email: '', password: '', role: 'user' });
 
-const users = useAdminUsers();
+const users = useBetterAuthAdminUsers();
 const toast = useToast();
 
 // Opened by a link, eg the home page's "New user": ?create=1. In the browser, once the page is up.

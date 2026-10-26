@@ -8,7 +8,7 @@ export type AdminPermissions = { user?: string[]; session?: string[] };
  * `can({ user: ['ban'] })`. It checks the same roles file Better Auth uses on the server, so the pages show
  * exactly what the server would allow, and render the same on the server and in the browser.
  */
-export const useAdminCan = () => {
+export const useBetterAuthAdminCan = () => {
     const session = useUserSession();
     return (permissions: AdminPermissions) => {
         const role = (session.user.value as { role?: string | null } | null)?.role || 'user';

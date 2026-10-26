@@ -3,7 +3,7 @@ import {
     $fetch,
     computed,
     ref,
-    useAdminCan,
+    useBetterAuthAdminCan,
     useAuthCapabilities,
     useAuthI18n,
     useFetch,
@@ -25,7 +25,7 @@ const props = defineProps<{ user: AdminUser }>();
 const emit = defineEmits<{ changed: [] }>();
 
 const { capabilities } = useAuthCapabilities();
-const canUpdate = useAdminCan()({ user: ['update'] });
+const canUpdate = useBetterAuthAdminCan()({ user: ['update'] });
 const toast = useToast();
 const { t, errorMessage } = useAuthI18n();
 const { twoFactorRequired } = useRuntimeConfig().public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };

@@ -2,7 +2,7 @@
 import {
     computed,
     ref,
-    useAdminPath,
+    useBetterAuthAdminPath,
     useAuthI18n,
     useBetterAuthAdminConfig,
     useFetch,
@@ -15,7 +15,7 @@ import type { AdminAuditEntry } from '../types';
 import { AUDIT_ACTIONS } from '../utils/audit';
 
 const PAGE_SIZE = 25;
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { auditLogRetentionDays } = useBetterAuthAdminConfig();
 const { t } = useAuthI18n();
 const kept = computed(() =>
@@ -86,7 +86,7 @@ const total = computed(() => data.value?.total ?? 0);
                     (error.data as { message?: string } | undefined)?.message || error.statusMessage || error.message
                 "
             />
-            <AdminAuditLogTable v-else :entries="data?.entries ?? []" :loading="status === 'pending'" />
+            <BetterAuthUiAuditLogTable v-else :entries="data?.entries ?? []" :loading="status === 'pending'" />
 
             <div class="flex items-center justify-between gap-3 border-t border-default pt-4 mt-auto">
                 <div class="text-sm text-muted">

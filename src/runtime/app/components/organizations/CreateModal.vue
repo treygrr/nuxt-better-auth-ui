@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { $fetch, navigateTo, reactive, ref, useAdminPath, useAuthI18n, useToast, watch } from '#imports';
+import { $fetch, navigateTo, reactive, ref, useBetterAuthAdminPath, useAuthI18n, useToast, watch } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
 import { serverError } from '../../utils/server-error';
@@ -10,7 +10,7 @@ import { serverError } from '../../utils/server-error';
  */
 const { t, errorMessage } = useAuthI18n();
 const toast = useToast();
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 
 const open = ref(false);
 const form = reactive({ name: '', slug: '', ownerEmail: '' });

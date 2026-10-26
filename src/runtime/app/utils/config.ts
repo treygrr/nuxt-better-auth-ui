@@ -32,7 +32,7 @@ export const useBetterAuthAdminConfig = () =>
     (useRuntimeConfig().public.betterAuthUi as { admin: BetterAuthAdminPublicConfig }).admin;
 
 /** Turns an admin-relative path (`/`, `/users`) into a URL under the configured admin route. */
-export const useAdminPath = () => {
+export const useBetterAuthAdminPath = () => {
     const { route } = useBetterAuthAdminConfig();
     return (path: string) => (path === '/' ? route : `${route}${path}`);
 };

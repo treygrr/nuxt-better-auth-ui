@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, resolveComponent, useAdminPath, useAuthI18n } from '#imports';
+import { computed, h, resolveComponent, useBetterAuthAdminPath, useAuthI18n } from '#imports';
 import type { TableColumn } from '@nuxt/ui';
 
 import type { AdminAuditEntry } from '../types';
@@ -19,7 +19,7 @@ const columnVisibility = computed(() => ({
 const UBadge = resolveComponent('UBadge');
 const ULink = resolveComponent('ULink');
 const NuxtTime = resolveComponent('NuxtTime');
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { t } = useAuthI18n();
 
 /** A person as recorded, linking to their page; their account may since have been deleted. */

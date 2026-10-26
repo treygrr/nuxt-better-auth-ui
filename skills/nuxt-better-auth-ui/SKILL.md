@@ -12,7 +12,7 @@ Nuxt UI on top of `@nuxtjs/better-auth`. Full docs: https://treygrr.github.io/nu
 
 - Everything is configured under `betterAuthUi` in `nuxt.config.ts`. Sign-in, account and admin pages are on by
   default; every other feature is off until turned on: `{ enabled: true, ... }` for plugins with options, `true`
-  for the simple switches (`bearer`, `oauthPopup`, `haveIBeenPwned`, `lastLoginMethod`, `securityAlerts`).
+  for the simple switches (`bearer`, `jwt`, `oauthPopup`, `haveIBeenPwned`, `lastLoginMethod`, `securityAlerts`).
 - Turning a feature on **adds Better Auth's plugin for you**, on the server and the client, through
   `@nuxtjs/better-auth`'s `better-auth:plugins:extend` hook. Don't also add the same plugin to `server/auth.config.ts`
   or `app/auth.config.ts`. To use a plugin option the module doesn't pass through, leave the module's option off and
@@ -27,7 +27,7 @@ Nuxt UI on top of `@nuxtjs/better-auth`. Full docs: https://treygrr.github.io/nu
 
 | Option | Feature | Extra package |
 | --- | --- | --- |
-| `twoFactor` | Authenticator app, email codes (`otp`), backup codes; `required` for everyone | |
+| `twoFactor` | Authenticator app, email codes (`otp`), backup codes; `required` for everyone or some roles | |
 | `passkey` | Passkeys | `@better-auth/passkey` |
 | `username`, `magicLink`, `emailOtp`, `anonymous` | Sign-in methods | |
 | `multiSession` | Several accounts per browser | |
@@ -45,10 +45,14 @@ Per-option details: [references/options.md](references/options.md).
 
 ## In the app
 
-- `<AuthOrganizationSwitcher />` and `useAuthActiveOrganization()`: the active organization, server-rendered.
-- `<AuthAccountSwitcher />` and `useAuthDeviceAccounts()`: the accounts signed in on this browser (multi-session).
-- `<AdminImpersonationBanner />`: "You're signed in as …" while staff impersonate.
-- Components are prefixed `Auth*` / `Admin*`; composables `useAuth*`. They render nothing when their feature is off.
+- `<AuthOrganizationSwitcher />` and `useAuthActiveOrganization()`: the active organization, server-rendered. Only
+  registered with `organization` on (and its pages): guard their use in the app with the same option.
+- `<AuthAccountSwitcher />` and `useAuthDeviceAccounts()`: the accounts signed in on this browser. Always registered;
+  they show nothing without multi-session.
+- `<AdminImpersonationBanner />`: "You're signed in as …" while staff impersonate. Only registered with the admin
+  dashboard on (`admin.enabled`, the default); it renders nothing otherwise.
+- The module's own pages use components prefixed `BetterAuthUi*` and composables `useBetterAuthAdmin*`: internal,
+  not for the app.
 
 ## Rules
 
@@ -62,6 +66,6 @@ Per-option details: [references/options.md](references/options.md).
   `@treygrr/nuxt-better-auth-ui/emails` gives ready-made Better Auth email callbacks.
 - **Tailwind** must scan the module: `@source "../../../node_modules/@treygrr/nuxt-better-auth-ui/dist/runtime";` in
   the main CSS file.
-- **Serverless hosts:** set Better Auth's `advanced.backgroundTasks.handler` (for example Vercel's `waitUntil`) so the
-  audit log's writes finish after the response.
+- **Serverless hosts:** set Better Auth's `advanced.backgroundTasks.handler` (for example Vercel's `waitUntil`) so
+  emails, texts and the audit log's writes finish after the response.
 - The first admin is set in the database (`role = 'admin'`); after that, from the dashboard.

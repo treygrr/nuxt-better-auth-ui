@@ -6,9 +6,9 @@ import {
     $fetch,
     computed,
     ref,
-    useAdminCan,
-    useAdminDashboard,
-    useAdminPath,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminDashboard,
+    useBetterAuthAdminPath,
     useAuthI18n,
     useAuthPages,
     useBetterAuthAdminConfig,
@@ -18,12 +18,12 @@ import {
 // Layouts are copied into .nuxt when built, so this one can't import the module's files by relative path.
 type FoundUser = { id: string; name: string; email: string; image?: string | null };
 
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const pages = useAuthPages();
 const { auditLog, organizations, sso } = useBetterAuthAdminConfig();
-const can = useAdminCan();
+const can = useBetterAuthAdminCan();
 const { t } = useAuthI18n();
-useAdminDashboard();
+useBetterAuthAdminDashboard();
 
 const open = ref(false);
 const close = () => {
@@ -180,7 +180,7 @@ const groups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
             :ui="{ footer: 'lg:border-t lg:border-default' }"
         >
             <template #header="{ collapsed }">
-                <AdminBrand :collapsed="collapsed" />
+                <BetterAuthUiBrand :collapsed="collapsed" />
             </template>
 
             <template #default="{ collapsed }">
@@ -198,7 +198,7 @@ const groups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => [
             </template>
 
             <template #footer="{ collapsed }">
-                <AdminUserMenu :collapsed="collapsed" />
+                <BetterAuthUiUserMenu :collapsed="collapsed" />
             </template>
         </UDashboardSidebar>
 

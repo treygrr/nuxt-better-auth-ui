@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { reactive, useAdminCan, useAdminUsers, useAuthI18n, useToast, watch } from '#imports';
+import { reactive, useBetterAuthAdminCan, useBetterAuthAdminUsers, useAuthI18n, useToast, watch } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -17,8 +17,8 @@ watch(open, (isOpen) => {
     if (isOpen) state.password = '';
 });
 
-const users = useAdminUsers();
-const canSetPassword = useAdminCan()({ user: ['set-password'] });
+const users = useBetterAuthAdminUsers();
+const canSetPassword = useBetterAuthAdminCan()({ user: ['set-password'] });
 const toast = useToast();
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {

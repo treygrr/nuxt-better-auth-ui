@@ -6,9 +6,9 @@ import {
     h,
     ref,
     resolveComponent,
-    useAdminCan,
-    useAdminPath,
-    useAdminUsers,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminPath,
+    useBetterAuthAdminUsers,
     useAuthI18n,
     useFetch,
     useToast
@@ -35,10 +35,10 @@ const UButton = resolveComponent('UButton');
 const ULink = resolveComponent('ULink');
 const NuxtTime = resolveComponent('NuxtTime');
 
-const adminPath = useAdminPath();
-const can = useAdminCan();
+const adminPath = useBetterAuthAdminPath();
+const can = useBetterAuthAdminCan();
 const session = useUserSession();
-const admin = useAdminUsers();
+const admin = useBetterAuthAdminUsers();
 const toast = useToast();
 const { t } = useAuthI18n();
 

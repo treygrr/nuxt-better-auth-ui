@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, useAdminPath, useAuthCapabilities, useAuthI18n } from '#imports';
+import { computed, useBetterAuthAdminPath, useAuthCapabilities, useAuthI18n } from '#imports';
 
 /** The sidebar's header: the app's name (Better Auth's `appName`) over "Admin", leading to the admin home. */
 defineProps<{ collapsed?: boolean }>();
 
-const adminPath = useAdminPath();
+const adminPath = useBetterAuthAdminPath();
 const { capabilities } = useAuthCapabilities();
 const { t } = useAuthI18n();
 const name = computed(() => capabilities.value?.appName ?? t('admin.brand.admin'));

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useAdminUsers, useAuthI18n, useToast } from '#imports';
+import { computed, useBetterAuthAdminUsers, useAuthI18n, useToast } from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -14,7 +14,7 @@ const title = computed(() =>
         : t('admin.modals.delete.titleMany', { count: props.users.length })
 );
 
-const admin = useAdminUsers();
+const admin = useBetterAuthAdminUsers();
 const toast = useToast();
 
 async function onSubmit() {
