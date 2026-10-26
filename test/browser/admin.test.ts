@@ -24,7 +24,9 @@ describe.skipIf(!hasBrowser)('admin dashboard (browser)', () => {
             '/admin/organizations',
             '/admin/sessions',
             '/admin/audit',
-            '/admin/configuration'
+            '/admin/configuration',
+            // The playground's own page.
+            '/admin/roles'
         ]) {
             await session.go(path);
             expect(session.path(), path).toBe(path);

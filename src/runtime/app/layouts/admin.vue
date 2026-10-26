@@ -12,18 +12,28 @@ import {
     useAuthI18n,
     useAuthPages,
     useBetterAuthAdminConfig,
-    useLazyAsyncData
+    useLazyAsyncData,
+    useRouter
 } from '#imports';
 
 // Layouts are copied into .nuxt when built, so this one can't import the module's files by relative path.
 type FoundUser = { id: string; name: string; email: string; image?: string | null };
+type PageMeta = { label?: string; icon?: string; permissions?: Parameters<typeof can>[0]; order?: number };
 
 const adminPath = useBetterAuthAdminPath();
 const pages = useAuthPages();
-const { auditLog, organizations, sso } = useBetterAuthAdminConfig();
+const { auditLog, organizations, sso, route } = useBetterAuthAdminConfig();
 const can = useBetterAuthAdminCan();
 const { t } = useAuthI18n();
 useBetterAuthAdminDashboard();
+
+// The app's own admin pages labelled in their page meta (`betterAuthAdmin`), by order, then path.
+const appPages = useRouter()
+    .getRoutes()
+    .filter((record) => record.path.startsWith(`${route}/`) && !record.path.includes(':'))
+    .map((record) => ({ path: record.path, meta: record.meta.betterAuthAdmin as PageMeta | undefined }))
+    .filter((page): page is { path: string; meta: PageMeta & { label: string } } => !!page.meta?.label)
+    .sort((a, b) => (a.meta.order ?? 0) - (b.meta.order ?? 0) || a.path.localeCompare(b.path));
 
 const open = ref(false);
 const close = () => {
@@ -87,6 +97,16 @@ const links = computed(
                           }
                       ]
                     : []),
+                // Checked as the menu renders, so it follows a role change.
+                ...appPages
+                    .filter((page) => !page.meta.permissions || can(page.meta.permissions))
+                    .map((page) => ({
+                        // A translation key, or the words themselves (`t` gives back what it doesn't know).
+                        label: t(page.meta.label as never),
+                        icon: page.meta.icon,
+                        to: page.path,
+                        onSelect: close
+                    })),
                 {
                     label: t('admin.nav.configuration'),
                     icon: 'i-lucide-sliders-horizontal',

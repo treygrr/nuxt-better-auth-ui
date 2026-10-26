@@ -51,13 +51,22 @@ Per-option details: [references/options.md](references/options.md).
   they show nothing without multi-session.
 - `<AdminImpersonationBanner />`: "You're signed in as …" while staff impersonate. Only registered with the admin
   dashboard on (`admin.enabled`, the default); it renders nothing otherwise.
-- The module's own pages use components prefixed `BetterAuthUi*` and composables `useBetterAuthAdmin*`: internal,
+- **The app's own admin pages:** any page under the admin route (`/admin/…`) gets the dashboard's layout and is
+  staff-only. `definePageMeta({ betterAuthAdmin: { label, icon, permissions, order } })` adds it to the sidebar and
+  search, and gives staff without `permissions` a 403. Wrap it in `<UDashboardPanel>` with a `<UDashboardNavbar>`. A
+  page at the same path as one of the module's replaces it.
+- In those pages, `useBetterAuthAdminCan()` (`can({ user: ['ban'] })`) and `useBetterAuthAdminPath()`
+  (`adminPath('/users')`). In their API routes, `requireBetterAuthAdmin(event, permissions)` (401/403, returns
+  `{ user, context }`) and `recordBetterAuthAdminAction(event, context, { action, actor, target, details })` for the
+  audit log. Page meta only hides pages: API routes must check permissions too.
+- The module's components prefixed `BetterAuthUi*`, and its other `useBetterAuthAdmin*` composables, are internal,
   not for the app.
 
 ## Rules
 
-- **Better Auth does the checking.** For your own server routes, check permissions with Better Auth's API
-  (`serverAuth(event).api.hasPermission`, `userHasPermission`), not by reading roles yourself.
+- **Better Auth does the checking.** For your own server routes, check permissions with
+  `requireBetterAuthAdmin` or Better Auth's API (`serverAuth(event).api.hasPermission`, `userHasPermission`), not
+  by reading roles yourself.
 - **Never write Better Auth's tables directly**, and don't replace its endpoints. The module only adds its own tables
   (audit log, activity, staff notes) through Better Auth's migrations.
 - **Words** are changed with `messages` (per locale and key), not by overriding pages. Error codes from Better Auth

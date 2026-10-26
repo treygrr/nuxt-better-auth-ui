@@ -18,7 +18,7 @@ pages. Base URL: https://treygrr.github.io/nuxt-better-auth-ui
 | `organization` | /organizations |
 | `organization.statements`, `roles`, `dynamicRoles` | /organizations/roles |
 | `sso` | /organizations/sso |
-| `admin` | /admin, /admin/users, /admin/roles, /admin/audit-log |
+| `admin` | /admin, /admin/users, /admin/roles, /admin/audit-log, /admin/extending |
 | `stripe` | /integrations/stripe |
 | `apiKey` | /integrations/api-keys |
 | `bearer`, `jwt` | /integrations/tokens |

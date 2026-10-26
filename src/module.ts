@@ -15,9 +15,11 @@ import {
     addComponentsDir,
     addImports,
     addServerHandler,
+    addServerImports,
     addServerTemplate,
     addRouteMiddleware,
     addTemplate,
+    addTypeTemplate,
     createResolver,
     defineNuxtModule,
     extendPages,
@@ -1692,6 +1694,40 @@ export default defineNuxtModule<ModuleOptions>({
             { name: 'useBetterAuthAdminUsers', from: resolve('./runtime/app/composables/useBetterAuthAdminUsers') },
             { name: 'useBetterAuthAdminCan', from: resolve('./runtime/app/composables/useBetterAuthAdminCan') }
         ]);
+
+        // The app's own admin pages: `definePageMeta({ betterAuthAdmin: { label, icon, permissions } })` puts them
+        // in the sidebar and search, and limits them to the roles with those permissions.
+        addTypeTemplate({
+            filename: 'types/better-auth-ui-admin.d.ts',
+            getContents: () =>
+                [
+                    `import type { BetterAuthAdminPageMeta } from ${JSON.stringify(resolve('./runtime/app/utils/config'))}`,
+                    "declare module '#app' {",
+                    '    interface PageMeta {',
+                    '        betterAuthAdmin?: BetterAuthAdminPageMeta',
+                    '    }',
+                    '}',
+                    'export {}'
+                ].join('\n')
+        });
+        addRouteMiddleware({
+            name: 'better-auth-ui-admin-permissions',
+            path: resolve('./runtime/app/middleware/admin-permissions'),
+            global: true
+        });
+        // For the app's own admin API routes: the same permission check and audit log as the module's.
+        addServerImports([
+            {
+                name: 'requireAdminPermission',
+                as: 'requireBetterAuthAdmin',
+                from: resolve('./runtime/server/utils/admin')
+            },
+            {
+                name: 'recordAdminAction',
+                as: 'recordBetterAuthAdminAction',
+                from: resolve('./runtime/server/utils/admin')
+            }
+        ]);
         // The pages' own components, prefixed with the module's name so they can't clash with the app's:
         // <BetterAuthUiUserMenu>, <BetterAuthUiHomeStats>, … The banner is for apps, under its documented name.
         addComponentsDir({
@@ -1889,7 +1925,7 @@ export default defineNuxtModule<ModuleOptions>({
             children
         });
         extendPages((pages) => {
-            pages.push(
+            const own = [
                 page('', '', 'index.vue'),
                 // Better Auth user management
                 page('users', '/users', 'users/index.vue'),
@@ -1905,7 +1941,16 @@ export default defineNuxtModule<ModuleOptions>({
                 ...(options.auditLog ? [page('audit', '/audit', 'audit.vue')] : []),
                 // What the app's set-up allows, and who can do what (read-only).
                 page('configuration', '/configuration', 'configuration.vue')
-            );
+            ];
+            for (const adminPage of own) {
+                // The app's own page at this path wins, as with the sign-in pages.
+                // Nuxt writes `[id]` as `:id()`.
+                if (pages.some((existing) => existing.path.replaceAll('()', '') === adminPage.path)) {
+                    useLogger('better-auth-ui').info(`Using the app's own ${adminPage.path} instead of the module's.`);
+                    continue;
+                }
+                pages.push(adminPage);
+            }
         });
 
         // Signed-in staff only (the admin role, and custom roles that can list users); everyone else is sent to the

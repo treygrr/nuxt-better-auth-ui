@@ -1,5 +1,7 @@
 import { useRuntimeConfig } from '#imports';
 
+import type { AdminPermissions } from '../composables/useBetterAuthAdminCan';
+
 /** The module options the admin pages need at runtime. */
 export type BetterAuthAdminPublicConfig = {
     route: string;
@@ -35,4 +37,20 @@ export const useBetterAuthAdminConfig = () =>
 export const useBetterAuthAdminPath = () => {
     const { route } = useBetterAuthAdminConfig();
     return (path: string) => (path === '/' ? route : `${route}${path}`);
+};
+
+/**
+ * An app page's place in the admin, from its page meta: `definePageMeta({ betterAuthAdmin: { label: 'Reports',
+ * icon: 'i-lucide-chart-bar' } })`. Pages under the admin route get its layout and its staff-only access anyway; this
+ * adds them to the sidebar and search, and limits them to the roles with these permissions.
+ */
+export type BetterAuthAdminPageMeta = {
+    /** The sidebar and search entry: a translation key (`betterAuthUi.messages`) or the words themselves. None, no entry. */
+    label?: string;
+    /** An icon name, eg `i-lucide-chart-bar`. */
+    icon?: string;
+    /** The Better Auth Admin permissions the page needs, eg `{ user: ['list'] }`; others get a 403. */
+    permissions?: AdminPermissions;
+    /** Where it goes among the app's own entries, lowest first; then by path. @default 0 */
+    order?: number;
 };
