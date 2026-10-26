@@ -11,7 +11,9 @@
         "better-auth": "1.7.12",
         "better-sqlite3": "13.0.3",
         "nuxt": "4.6.2",
-        "samlify": "2.15.1",
         "tailwindcss": "4.3.3"
+    },
+    "devDependencies": {
+        "samlify": "2.15.1"
     }
 }
