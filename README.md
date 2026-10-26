@@ -1,5 +1,7 @@
 # @treygrr/nuxt-better-auth-ui
 
+[![npm version](https://img.shields.io/npm/v/@treygrr/nuxt-better-auth-ui)](https://www.npmjs.com/package/@treygrr/nuxt-better-auth-ui)
+
 Auth UI for [Better Auth](https://better-auth.com) in Nuxt, built with [Nuxt UI](https://ui.nuxt.com).
 
 **[Documentation](https://treygrr.github.io/nuxt-better-auth-ui/)**
