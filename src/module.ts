@@ -722,6 +722,15 @@ export default defineNuxtModule<ModuleOptions>({
     async setup(moduleOptions, nuxt) {
         const { resolve } = createResolver(import.meta.url);
         const { admin: options, emails } = moduleOptions;
+        // The generated plugin files import the module's server code by its full path, extension included: in dev,
+        // Nitro leaves imports into node_modules to Node, which doesn't guess extensions. `.js` once built, `.ts` when
+        // the playground runs the sources.
+        const runtimeFile = (path: string) => {
+            const base = resolve(path);
+            const file = ['.js', '.mjs', '.ts'].map((extension) => base + extension).find((file) => existsSync(file));
+            if (!file) throw new Error(`[better-auth-ui] Missing runtime file ${base}`);
+            return JSON.stringify(file);
+        };
 
         // The app's email sender and templates, for `betterAuthEmails`. A virtual module, so Nitro bundles the
         // app's files; the helper only imports it when it sends, since the auth config also loads at build time.
@@ -981,7 +990,7 @@ export default defineNuxtModule<ModuleOptions>({
                         "import { twoFactor } from 'better-auth/plugins'",
                         ...(twoFactor.otp
                             ? [
-                                  `import { betterAuthEmails } from ${JSON.stringify(resolve('./runtime/server/emails/index'))}`,
+                                  `import { betterAuthEmails } from ${runtimeFile('./runtime/server/emails/index')}`,
                                   `export default twoFactor({ ...${JSON.stringify(twoFactorOptions)}, otpOptions: { sendOTP: betterAuthEmails.twoFactorCode } })`
                               ]
                             : [`export default twoFactor(${JSON.stringify(twoFactorOptions)})`])
@@ -1010,7 +1019,7 @@ export default defineNuxtModule<ModuleOptions>({
                         redirectQueryKey: auth?.redirectQueryKey ?? 'redirect'
                     };
                     return [
-                        `import { twoFactorEnforcement } from ${JSON.stringify(resolve('./runtime/server/two-factor/plugin'))}`,
+                        `import { twoFactorEnforcement } from ${runtimeFile('./runtime/server/two-factor/plugin')}`,
                         `export default twoFactorEnforcement(${JSON.stringify(enforcementOptions)})`
                     ].join('\n');
                 }
@@ -1098,7 +1107,7 @@ export default defineNuxtModule<ModuleOptions>({
                 if (clientFile) (sources.client ??= []).push(clientFile.dst);
             });
         };
-        const emailsHelper = JSON.stringify(resolve('./runtime/server/emails/index'));
+        const emailsHelper = runtimeFile('./runtime/server/emails/index');
 
         const { username, magicLink, emailOtp, anonymous, captcha } = moduleOptions;
         if (username.enabled) {
@@ -1255,7 +1264,7 @@ export default defineNuxtModule<ModuleOptions>({
                 'phone-number',
                 [
                     "import { phoneNumber } from 'better-auth/plugins'",
-                    `import { betterAuthSms } from ${JSON.stringify(resolve('./runtime/server/sms/index'))}`,
+                    `import { betterAuthSms } from ${runtimeFile('./runtime/server/sms/index')}`,
                     `const sms = betterAuthSms(${phoneNumber.expiresIn ?? 300})`,
                     `export default phoneNumber({ ...${JSON.stringify(phoneOptions)}, sendOTP: sms.phoneCode, sendPasswordResetOTP: sms.resetCode${
                         phoneNumber.signUp
@@ -1515,7 +1524,7 @@ export default defineNuxtModule<ModuleOptions>({
         if (securityAlerts) {
             if (!emails.send) throw new Error('[better-auth-ui] securityAlerts are emails: set emails.send too.');
             addAuthPlugin('security-alerts', [
-                `import { securityAlerts } from ${JSON.stringify(resolve('./runtime/server/alerts/plugin'))}`,
+                `import { securityAlerts } from ${runtimeFile('./runtime/server/alerts/plugin')}`,
                 `export default securityAlerts(${JSON.stringify({ ...securityAlerts, accountPath: pagePaths.account })})`
             ]);
         }
@@ -1619,7 +1628,7 @@ export default defineNuxtModule<ModuleOptions>({
             write: true,
             getContents: () =>
                 [
-                    `import { adminAuditLog } from ${JSON.stringify(resolve('./runtime/server/audit/plugin'))}`,
+                    `import { adminAuditLog } from ${runtimeFile('./runtime/server/audit/plugin')}`,
                     `export default adminAuditLog(${JSON.stringify({ retentionDays: Math.max(0, Math.floor(options.auditLogRetentionDays)), userEvents: options.auditUserEvents })})`
                 ].join('\n')
         });
@@ -1628,7 +1637,7 @@ export default defineNuxtModule<ModuleOptions>({
             write: true,
             getContents: () =>
                 [
-                    `import { adminActivityTracking } from ${JSON.stringify(resolve('./runtime/server/activity/plugin'))}`,
+                    `import { adminActivityTracking } from ${runtimeFile('./runtime/server/activity/plugin')}`,
                     `export default adminActivityTracking(${JSON.stringify({ updateInterval: options.activityTracking.updateInterval ?? 300_000 })})`
                 ].join('\n')
         });
@@ -1637,7 +1646,7 @@ export default defineNuxtModule<ModuleOptions>({
             write: true,
             getContents: () =>
                 [
-                    `import { adminUserNotes } from ${JSON.stringify(resolve('./runtime/server/notes/plugin'))}`,
+                    `import { adminUserNotes } from ${runtimeFile('./runtime/server/notes/plugin')}`,
                     'export default adminUserNotes()'
                 ].join('\n')
         });

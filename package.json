@@ -1,6 +1,6 @@
 {
     "name": "@treygrr/nuxt-better-auth-ui",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "private": false,
     "description": "Admin pages for Better Auth in Nuxt, built with Nuxt UI: manage users, roles, bans and sessions.",
     "keywords": [
