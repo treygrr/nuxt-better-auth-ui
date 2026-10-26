@@ -43,7 +43,7 @@ export default defineEventHandler(async (event) => {
         target: user as AuditPerson
     });
     // With security alerts, they hear about it: it happened without them.
-    const config = useRuntimeConfig().public.betterAuthUi as {
+    const config = useRuntimeConfig(event).public.betterAuthUi as {
         securityAlerts: { twoFactor: boolean } | false;
         pages: { account: string | false };
     };

@@ -1,9 +1,18 @@
-import { defineEventHandler, getQuery, useRuntimeConfig } from '#imports';
+import { defineEventHandler, useRuntimeConfig } from '#imports';
+import * as z from 'zod';
 
 import { AUDIT_MODEL, retentionCutoff } from '../audit/plugin';
 import { requireAdminPermission, type Where } from '../utils/admin';
+import { readQuery, text, wholeNumber } from '../utils/input';
 
 const MAX_LIMIT = 100;
+
+const Query = z.object({
+    limit: wholeNumber(20, { min: 1, max: MAX_LIMIT }),
+    offset: wholeNumber(0),
+    action: text(),
+    userId: text()
+});
 
 type Row = Record<string, unknown> & { details: string | null };
 
@@ -13,21 +22,19 @@ type Row = Record<string, unknown> & { details: string | null };
  */
 export default defineEventHandler(async (event) => {
     const { context } = await requireAdminPermission(event, { user: ['list'] });
-    const query = getQuery(event);
-    const limit = Math.min(Math.max(Number(query.limit) || 20, 1), MAX_LIMIT);
-    const offset = Math.max(Number(query.offset) || 0, 0);
+    const { limit, offset, action, userId } = readQuery(event, Query);
 
     // Entries past the retention period, which pruning may not have reached yet, are never shown.
     const { auditLogRetentionDays } = (
-        useRuntimeConfig().public.betterAuthUi as { admin: { auditLogRetentionDays: number } }
+        useRuntimeConfig(event).public.betterAuthUi as { admin: { auditLogRetentionDays: number } }
     ).admin;
     const cutoff = retentionCutoff(auditLogRetentionDays);
     const where: Where[] = cutoff ? [{ field: 'createdAt', operator: 'gte', value: cutoff }] : [];
-    if (typeof query.action === 'string' && query.action) where.push({ field: 'action', value: query.action });
-    if (typeof query.userId === 'string' && query.userId) {
+    if (action) where.push({ field: 'action', value: action });
+    if (userId) {
         where.push(
-            { field: 'targetId', value: query.userId, connector: 'OR' },
-            { field: 'actorId', value: query.userId, connector: 'OR' }
+            { field: 'targetId', value: userId, connector: 'OR' },
+            { field: 'actorId', value: userId, connector: 'OR' }
         );
     }
 

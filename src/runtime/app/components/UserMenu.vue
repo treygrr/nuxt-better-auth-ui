@@ -4,7 +4,7 @@ import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 
 import { useSignOutTarget } from '../composables/useAuthPages';
-import { useDeviceAccounts } from '../composables/useDeviceAccounts';
+import { useAuthDeviceAccounts } from '../composables/useAuthDeviceAccounts';
 
 /** The signed-in admin, at the foot of the sidebar: their account, the colour mode, back to the site, sign out. */
 defineProps<{
@@ -18,7 +18,7 @@ const signOutTarget = useSignOutTarget();
 const { t } = useAuthI18n();
 // With multi-session: the other accounts signed in here, to switch to, and adding one.
 const { capabilities } = useAuthCapabilities();
-const { accounts, switchTo, addAccountLink } = useDeviceAccounts();
+const { accounts, switchTo, addAccountLink } = useAuthDeviceAccounts();
 const switchAccount = computed<DropdownMenuItem[]>(() =>
     capabilities.value?.multiSession
         ? [

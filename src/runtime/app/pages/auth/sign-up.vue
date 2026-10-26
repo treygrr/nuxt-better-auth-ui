@@ -8,7 +8,7 @@ import {
     useAuthCapabilities,
     useAuthI18n,
     useAuthPages,
-    useRedirectTarget,
+    useAuthRedirectTarget,
     useRoute,
     useSeoMeta
 } from '#imports';
@@ -24,7 +24,7 @@ useSeoMeta({ title: () => t('signUp.title') });
 
 const pages = useAuthPages();
 const { capabilities } = useAuthCapabilities();
-const redirectTo = useRedirectTarget();
+const redirectTo = useAuthRedirectTarget();
 const route = useRoute();
 // A failed provider sign-in comes back with Better Auth's ?error= code.
 const oauthError = computed(() =>

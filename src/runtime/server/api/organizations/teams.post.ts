@@ -1,13 +1,17 @@
-import { createError, defineEventHandler, getRouterParam, readBody } from '#imports';
+import { defineEventHandler, getRouterParam } from '#imports';
+import * as z from 'zod';
 
 import type { AuditPerson } from '../../audit/plugin';
 import { recordAdminAction, requireAdminPermission } from '../../utils/admin';
+import { readJsonBody } from '../../utils/input';
 
 type TeamAuth = {
     api: {
         createTeam(input: { body: { name: string; organizationId: string } }): Promise<{ id: string; name: string }>;
     };
 };
+
+const Body = z.object({ name: z.string().trim().min(1) });
 
 /**
  * Staff create a team in an organization: Better Auth's createTeam, called on the server without session headers, as
@@ -17,11 +21,9 @@ type TeamAuth = {
 export default defineEventHandler(async (event) => {
     const { user: admin, context, auth } = await requireAdminPermission(event, { user: ['update'] });
     const organizationId = getRouterParam(event, 'id')!;
-    const body = (await readBody<{ name?: unknown }>(event)) ?? {};
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
-    if (!name) {
-        throw createError({ statusCode: 400, statusMessage: 'Name the team', data: { code: 'TEAM_NAME_REQUIRED' } });
-    }
+    const { name } = await readJsonBody(event, Body, {
+        name: { code: 'TEAM_NAME_REQUIRED', message: 'Name the team' }
+    });
     const team = await (auth as unknown as TeamAuth).api.createTeam({ body: { name, organizationId } });
     await recordAdminAction(event, context, {
         action: 'organization.team-create',

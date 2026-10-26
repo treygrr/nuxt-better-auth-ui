@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { AuthFormField, FormSubmitEvent } from '@nuxt/ui';
 import { useAuthClientAction, useUserSession } from '@nuxtjs/better-auth/composables';
-import { computed, navigateTo, ref, useAuthI18n, useRedirectTarget, useSeoMeta } from '#imports';
+import { computed, navigateTo, ref, useAuthI18n, useAuthRedirectTarget, useSeoMeta } from '#imports';
 
 import { useSignOutTarget } from '../../composables/useAuthPages';
 import { isPlaceholderEmail } from '../../../server/providers/index';
@@ -14,7 +14,7 @@ const { t, errorMessage } = useAuthI18n();
 useSeoMeta({ title: () => t('finishAccount.title') });
 
 const { user, signOut } = useUserSession();
-const redirectTo = useRedirectTarget();
+const redirectTo = useAuthRedirectTarget();
 const signOutTarget = useSignOutTarget();
 const done = computed(() => !isPlaceholderEmail((user.value as { email?: string } | null)?.email));
 

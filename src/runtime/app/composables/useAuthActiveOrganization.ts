@@ -23,7 +23,7 @@ export type ActiveOrganization = {
  * organizations (here, on the account page or with `<AuthOrganizationSwitcher>`) updates it; `activeTeamId` is the
  * active team, with teams on.
  */
-export const useActiveOrganization = (): {
+export const useAuthActiveOrganization = (): {
     organization: ComputedRef<ActiveOrganization | null>;
     activeTeamId: ComputedRef<string | null>;
     refresh: () => Promise<void>;

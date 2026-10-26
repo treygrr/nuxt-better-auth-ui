@@ -1,9 +1,13 @@
-import { createError, defineEventHandler, getQuery } from '#imports';
+import { defineEventHandler } from '#imports';
+import * as z from 'zod';
 
 import { AUDIT_MODEL } from '../audit/plugin';
 import { requireAdminPermission } from '../utils/admin';
+import { idList, readQuery } from '../utils/input';
 
 const MAX_USERS = 100;
+
+const Query = z.object({ userIds: idList(MAX_USERS) });
 
 /**
  * When each user last signed in, as `{ [userId]: date | null }`, from the audit log's sign-in events: no extra
@@ -11,16 +15,9 @@ const MAX_USERS = 100;
  */
 export default defineEventHandler(async (event) => {
     const { context } = await requireAdminPermission(event, { user: ['list'] });
-    const ids = [
-        ...new Set(
-            String(getQuery(event).userIds ?? '')
-                .split(',')
-                .filter(Boolean)
-        )
-    ];
-    if (ids.length > MAX_USERS) {
-        throw createError({ statusCode: 400, statusMessage: `Ask about at most ${MAX_USERS} users at a time` });
-    }
+    const { userIds: ids } = readQuery(event, Query, {
+        default: { code: 'TOO_MANY_USERS', message: `Ask about at most ${MAX_USERS} users at a time` }
+    });
     const latest = await Promise.all(
         ids.map(async (id) => {
             const [entry] = await context.adapter.findMany<{ createdAt: Date }>({

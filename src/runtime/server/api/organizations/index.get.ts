@@ -1,6 +1,8 @@
-import { defineEventHandler, getQuery } from '#imports';
+import { defineEventHandler } from '#imports';
+import * as z from 'zod';
 
 import { requireAdminPermission, type Where } from '../../utils/admin';
+import { readQuery, text, wholeNumber } from '../../utils/input';
 
 /** An organization, as the admin's list shows it. */
 export type AdminOrganization = {
@@ -14,6 +16,8 @@ export type AdminOrganization = {
 
 const PAGE_SIZE = 20;
 
+const Query = z.object({ page: wholeNumber(1, { min: 1 }), search: text() });
+
 /**
  * Every organization (Better Auth's Organization plugin), newest first, a page at a time, with how many members each
  * has, for staff (`user: list`). The plugin only lists the signed-in user's own, so this reads its tables with Better
@@ -22,9 +26,7 @@ const PAGE_SIZE = 20;
 export default defineEventHandler(async (event) => {
     const { context } = await requireAdminPermission(event, { user: ['list'] });
     if (!context.getPlugin('organization')) return { organizations: [] as AdminOrganization[], total: 0 };
-    const query = getQuery(event);
-    const page = Math.max(1, Number(query.page) || 1);
-    const search = typeof query.search === 'string' ? query.search.trim() : '';
+    const { page, search } = readQuery(event, Query);
     const where: Where[] = search ? [{ field: 'name', operator: 'contains', value: search }] : [];
 
     const [rows, total] = await Promise.all([

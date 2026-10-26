@@ -853,7 +853,10 @@ export default defineNuxtModule<ModuleOptions>({
         if (invitationPage && organizationPage) {
             // For apps: the active organization, and a switcher for their header or sidebar.
             addImports([
-                { name: 'useActiveOrganization', from: resolve('./runtime/app/composables/useActiveOrganization') }
+                {
+                    name: 'useAuthActiveOrganization',
+                    from: resolve('./runtime/app/composables/useAuthActiveOrganization')
+                }
             ]);
             addComponent({
                 name: 'AuthOrganizationSwitcher',
@@ -917,7 +920,7 @@ export default defineNuxtModule<ModuleOptions>({
         addImports([
             { name: 'useAuthCapabilities', from: resolve('./runtime/app/composables/useAuthCapabilities') },
             { name: 'useAuthPages', from: resolve('./runtime/app/composables/useAuthPages') },
-            { name: 'useRedirectTarget', from: resolve('./runtime/app/composables/useAuthPages') },
+            { name: 'useAuthRedirectTarget', from: resolve('./runtime/app/composables/useAuthPages') },
             { name: 'useAuthI18n', from: resolve('./runtime/app/i18n/index') }
         ]);
 
@@ -1489,7 +1492,9 @@ export default defineNuxtModule<ModuleOptions>({
             );
         }
         // For apps: the accounts signed in on this browser, and a switcher. They show nothing without the plugin.
-        addImports([{ name: 'useDeviceAccounts', from: resolve('./runtime/app/composables/useDeviceAccounts') }]);
+        addImports([
+            { name: 'useAuthDeviceAccounts', from: resolve('./runtime/app/composables/useAuthDeviceAccounts') }
+        ]);
         addComponent({
             name: 'AuthAccountSwitcher',
             filePath: resolve('./runtime/app/account-switcher/AccountSwitcher.vue')

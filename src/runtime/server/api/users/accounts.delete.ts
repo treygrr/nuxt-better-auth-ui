@@ -1,14 +1,7 @@
-import {
-    createError,
-    defineEventHandler,
-    getRequestHeader,
-    getRequestIP,
-    getRouterParam,
-    useRuntimeConfig
-} from '#imports';
+import { createError, defineEventHandler, getRouterParam } from '#imports';
 
-import { writeAuditEntry, type AuditPerson } from '../../audit/plugin';
-import { requireAdminPermission, requireUser } from '../../utils/admin';
+import type { AuditPerson } from '../../audit/plugin';
+import { recordAdminAction, requireAdminPermission, requireUser } from '../../utils/admin';
 
 /**
  * Removes one of a user's sign-in methods. Like Better Auth's own unlink-account endpoint, it refuses to remove
@@ -37,22 +30,11 @@ export default defineEventHandler(async (event) => {
     }
 
     await context.internalAdapter.deleteAccount(account.id);
-    const config = (
-        useRuntimeConfig().public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }
-    ).admin;
-    if (config.auditLog) {
-        await writeAuditEntry(
-            context as never,
-            {
-                action: 'account.remove',
-                actor: admin as AuditPerson,
-                target: user as AuditPerson,
-                details: { providerId: account.providerId },
-                ipAddress: getRequestIP(event, { xForwardedFor: true }) ?? null,
-                userAgent: getRequestHeader(event, 'user-agent') ?? null
-            },
-            config.auditLogRetentionDays
-        );
-    }
+    await recordAdminAction(event, context, {
+        action: 'account.remove',
+        actor: admin as AuditPerson,
+        target: user as AuditPerson,
+        details: { providerId: account.providerId }
+    });
     return { removed: account.id };
 });

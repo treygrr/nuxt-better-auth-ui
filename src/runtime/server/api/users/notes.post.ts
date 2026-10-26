@@ -1,26 +1,24 @@
-import { createError, defineEventHandler, getRouterParam, readBody } from '#imports';
+import { defineEventHandler, getRouterParam } from '#imports';
+import * as z from 'zod';
 
 import type { AuditPerson } from '../../audit/plugin';
 import { NOTES_MODEL, type UserNote } from '../../notes/plugin';
 import { recordAdminAction, requireAdminPermission, requireUser } from '../../utils/admin';
+import { readJsonBody } from '../../utils/input';
 
 const MAX_NOTE_LENGTH = 2000;
+
+const Body = z.object({ body: z.string().trim().min(1).max(MAX_NOTE_LENGTH, { error: 'tooLong' }) });
 
 /** Adds a staff note to a user, for anyone who can update the user. */
 export default defineEventHandler(async (event): Promise<UserNote> => {
     const { user: author, context } = await requireAdminPermission(event, { user: ['update'] });
     const user = await requireUser(context, getRouterParam(event, 'id'));
-    const body = (await readBody<{ body?: unknown }>(event))?.body;
-    const text = typeof body === 'string' ? body.trim() : '';
-    if (!text)
-        throw createError({ statusCode: 400, statusMessage: 'Write a note first', data: { code: 'NOTE_EMPTY' } });
-    if (text.length > MAX_NOTE_LENGTH) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: `Notes are at most ${MAX_NOTE_LENGTH} characters`,
-            data: { code: 'NOTE_TOO_LONG' }
-        });
-    }
+    // Each error's code is translated on the page (errors.<code>); the message is the English fallback.
+    const { body: text } = await readJsonBody(event, Body, {
+        body: { code: 'NOTE_EMPTY', message: 'Write a note first' },
+        tooLong: { code: 'NOTE_TOO_LONG', message: `Notes are at most ${MAX_NOTE_LENGTH} characters` }
+    });
 
     const note = await context.adapter.create<UserNote>({
         model: NOTES_MODEL,

@@ -1,11 +1,26 @@
-import { createError, defineEventHandler, getQuery, useRuntimeConfig } from '#imports';
+import { defineEventHandler, useRuntimeConfig } from '#imports';
+import * as z from 'zod';
 
 import { ACTIVITY_MODEL } from '../activity/plugin';
-
 import { requireAdminPermission, type AdminContext, type Where } from '../utils/admin';
+import { readQuery } from '../utils/input';
 
 /** Two years by week, or ten by month. Matches the home page. */
 const MAX_BOUNDARIES = 120;
+
+const Query = z.object({
+    buckets: z
+        .string()
+        .transform((value) => value.split(',').filter(Boolean))
+        .pipe(z.array(z.iso.datetime({ offset: true }).transform((date) => new Date(date))))
+        .pipe(
+            z
+                .array(z.date())
+                .min(2)
+                .max(MAX_BOUNDARIES)
+                .refine((dates) => dates.every((date, i) => i === 0 || date > dates[i - 1]!))
+        )
+});
 
 /**
  * Numbers for the admin home page, all from count queries on Better Auth's tables, so they stay fast as they
@@ -15,20 +30,9 @@ const MAX_BOUNDARIES = 120;
 export default defineEventHandler(async (event) => {
     const { context } = await requireAdminPermission(event, { user: ['list'] });
 
-    const boundaries = String(getQuery(event).buckets ?? '')
-        .split(',')
-        .filter(Boolean)
-        .map((value) => new Date(value));
-    if (
-        boundaries.length < 2 ||
-        boundaries.length > MAX_BOUNDARIES ||
-        boundaries.some((date, i) => Number.isNaN(date.getTime()) || (i > 0 && date <= boundaries[i - 1]!))
-    ) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: `buckets must be 2 to ${MAX_BOUNDARIES} increasing dates`
-        });
-    }
+    const { buckets: boundaries } = readQuery(event, Query, {
+        default: { code: 'INVALID_BUCKETS', message: `buckets must be 2 to ${MAX_BOUNDARIES} increasing dates` }
+    });
     const start = boundaries[0]!;
     const end = boundaries.at(-1)!;
     const previousStart = new Date(start.getTime() - (end.getTime() - start.getTime()));
@@ -55,7 +59,7 @@ export default defineEventHandler(async (event) => {
     ]);
     // With activity tracking: users active within the last update interval.
     const config = (
-        useRuntimeConfig().public.betterAuthUi as {
+        useRuntimeConfig(event).public.betterAuthUi as {
             admin: {
                 activityTracking: boolean;
                 activityInterval: number;

@@ -19,7 +19,7 @@ export const useAuthPages = () => (useRuntimeConfig().public.betterAuthUi as { p
  * Where to go after signing in or up, as @nuxtjs/better-auth decides it: its `?redirect=` (when it sent someone
  * to sign in), else its `redirects.authenticated`, else `/`.
  */
-export const useRedirectTarget = () => {
+export const useAuthRedirectTarget = () => {
     const auth = useRuntimeConfig().public.auth as
         { redirectQueryKey?: string; redirects?: { authenticated?: string } } | undefined;
     const fromQuery = useRoute().query[auth?.redirectQueryKey ?? 'redirect'];

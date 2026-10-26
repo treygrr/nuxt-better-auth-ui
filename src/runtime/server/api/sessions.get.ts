@@ -1,8 +1,12 @@
-import { defineEventHandler, getQuery } from '#imports';
+import { defineEventHandler } from '#imports';
+import * as z from 'zod';
 
 import { requireAdminPermission, type Where } from '../utils/admin';
+import { readQuery, wholeNumber } from '../utils/input';
 
 const MAX_LIMIT = 100;
+
+const Query = z.object({ limit: wholeNumber(25, { min: 1, max: MAX_LIMIT }), offset: wholeNumber(0) });
 
 type Session = {
     id: string;
@@ -30,9 +34,7 @@ export default defineEventHandler(async (event) => {
         return { sessions: [], total: 0, available: false };
     }
 
-    const query = getQuery(event);
-    const limit = Math.min(Math.max(Number(query.limit) || 25, 1), MAX_LIMIT);
-    const offset = Math.max(Number(query.offset) || 0, 0);
+    const { limit, offset } = readQuery(event, Query);
     const where: Where[] = [{ field: 'expiresAt', operator: 'gt', value: new Date() }];
 
     const [sessions, total] = await Promise.all([

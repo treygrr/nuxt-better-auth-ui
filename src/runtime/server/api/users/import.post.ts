@@ -1,6 +1,8 @@
-import { createError, defineEventHandler, getRequestHeaders, readBody, useRuntimeConfig } from '#imports';
+import { defineEventHandler, getRequestHeaders, useRuntimeConfig } from '#imports';
+import * as z from 'zod';
 
 import { requireAdminPermission } from '../../utils/admin';
+import { readJsonBody } from '../../utils/input';
 
 /** At most this many rows per import. */
 const MAX_ROWS = 1000;
@@ -28,6 +30,27 @@ type ImportAuth = {
 /** A row's outcome: created, skipped (already there) or failed (with why). */
 type Outcome = { row: number; email: string; code?: string; message?: string };
 
+const Body = z.object({
+    rows: z
+        .array(
+            z.object({
+                // The CSV's line number, for the results.
+                row: z.number().int().optional(),
+                // Each column's text. Fields are checked row by row, so one bad row doesn't stop the rest.
+                values: z.record(
+                    z.string(),
+                    z
+                        .union([z.string(), z.number(), z.boolean(), z.null()])
+                        .transform((value) => (value === null ? '' : String(value)))
+                )
+            })
+        )
+        .min(1)
+        .max(MAX_ROWS),
+    sendPasswordLinks: z.boolean().default(false)
+});
+type Row = z.output<typeof Body>['rows'][number];
+
 const truthy = (value: string) => /^(true|1|yes|y)$/i.test(value.trim());
 const failure = (code: string, message: string) => ({ code, message });
 
@@ -41,16 +64,10 @@ const failure = (code: string, message: string) => ({ code, message });
  */
 export default defineEventHandler(async (event) => {
     const { context, auth } = await requireAdminPermission(event, { user: ['create'] });
-    const body =
-        (await readBody<{ rows?: unknown; sendPasswordLinks?: unknown }>(event)) ?? ({} as Record<string, unknown>);
-    const rows = Array.isArray(body.rows) ? (body.rows as Array<{ row?: unknown; values?: unknown }>) : [];
-    if (!rows.length || rows.length > MAX_ROWS) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: `Import between 1 and ${MAX_ROWS} users at a time`,
-            data: { code: 'IMPORT_ROWS_INVALID' }
-        });
-    }
+    const body = await readJsonBody(event, Body, {
+        default: { code: 'IMPORT_ROWS_INVALID', message: `Import between 1 and ${MAX_ROWS} users at a time` }
+    });
+    const { rows } = body;
 
     const options = context.options as {
         user?: { additionalFields?: Record<string, AdditionalField> };
@@ -64,10 +81,10 @@ export default defineEventHandler(async (event) => {
     const fields = Object.entries(options.user?.additionalFields ?? {}).filter(
         ([, field]) => field.input !== false && field.returned !== false
     );
-    const config = useRuntimeConfig().public.betterAuthUi as { pages: { resetPassword: string | false } };
+    const config = useRuntimeConfig(event).public.betterAuthUi as { pages: { resetPassword: string | false } };
     const canSendLinks =
         typeof options.emailAndPassword?.sendResetPassword === 'function' && !!config.pages.resetPassword;
-    const sendLinks = body.sendPasswordLinks === true && canSendLinks;
+    const sendLinks = body.sendPasswordLinks && canSendLinks;
     const headers = new Headers(getRequestHeaders(event) as Record<string, string>);
 
     /** A row's values as createUser's input, or why it can't be. */
@@ -151,14 +168,9 @@ export default defineEventHandler(async (event) => {
     const seenUsernames = new Set<string>();
     let linksSent = 0;
 
-    async function importRow(item: { row?: unknown; values?: unknown }, index: number) {
-        const row = typeof item.row === 'number' ? item.row : index + 2;
-        const values = Object.fromEntries(
-            Object.entries(item.values && typeof item.values === 'object' ? item.values : {}).map(([key, entry]) => [
-                key,
-                String(entry ?? '')
-            ])
-        );
+    async function importRow(item: Row, index: number) {
+        const row = item.row ?? index + 2;
+        const { values } = item;
         const email = (values.email ?? '').trim().toLowerCase();
         const username = (values.username ?? '').trim().toLowerCase();
         if (email && seenEmails.has(email)) {

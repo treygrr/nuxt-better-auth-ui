@@ -714,6 +714,7 @@ export const authEn = {
     // Better Auth's error codes, in the visitor's words; codes not listed show Better Auth's own message.
     errors: {
         generic: 'Something went wrong. Try again.',
+        INVALID_INPUT: "Something in the form isn't right. Check it and try again.",
         INVALID_EMAIL_OR_PASSWORD: 'Wrong email or password.',
         INVALID_USERNAME_OR_PASSWORD: 'Wrong username or password.',
         INVALID_PASSWORD: 'Wrong password.',

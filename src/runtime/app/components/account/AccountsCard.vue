@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { useAuthCapabilities, useAuthI18n } from '#imports';
 
-import { useDeviceAccounts } from '../../composables/useDeviceAccounts';
+import { useAuthDeviceAccounts } from '../../composables/useAuthDeviceAccounts';
 import CardTitle from './CardTitle.vue';
 
 /** The accounts signed in on this browser (Multi Session plugin): switch to one, sign one out, add another. */
 const { t } = useAuthI18n();
 const { capabilities } = useAuthCapabilities();
-const { accounts, switchTo, signOutOf, addAccountLink } = useDeviceAccounts();
+const { accounts, switchTo, signOutOf, addAccountLink } = useAuthDeviceAccounts();
 </script>
 
 <template>

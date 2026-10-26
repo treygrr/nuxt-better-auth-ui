@@ -718,6 +718,7 @@ export const authEs = {
     },
     errors: {
         generic: 'Algo salió mal. Inténtalo de nuevo.',
+        INVALID_INPUT: 'Algo del formulario no está bien. Revísalo e inténtalo de nuevo.',
         INVALID_EMAIL_OR_PASSWORD: 'Correo o contraseña incorrectos.',
         INVALID_USERNAME_OR_PASSWORD: 'Nombre de usuario o contraseña incorrectos.',
         INVALID_PASSWORD: 'Contraseña incorrecta.',

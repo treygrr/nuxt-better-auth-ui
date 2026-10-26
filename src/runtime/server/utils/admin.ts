@@ -118,7 +118,7 @@ export async function recordAdminAction(
     entry: { action: string; actor: AuditPerson; target: AuditPerson | null; details?: Record<string, unknown> }
 ) {
     const config = (
-        useRuntimeConfig().public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }
+        useRuntimeConfig(event).public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }
     ).admin;
     if (!config.auditLog) return;
     await writeAuditEntry(

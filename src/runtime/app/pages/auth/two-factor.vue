@@ -6,7 +6,7 @@ import {
     ref,
     useAuthI18n,
     useAuthPages,
-    useRedirectTarget,
+    useAuthRedirectTarget,
     useRoute,
     useSeoMeta
 } from '#imports';
@@ -21,7 +21,7 @@ const { t, errorMessage } = useAuthI18n();
 useSeoMeta({ title: () => t('twoFactorPage.title') });
 
 const pages = useAuthPages();
-const redirectTo = useRedirectTarget();
+const redirectTo = useAuthRedirectTarget();
 const route = useRoute();
 const { fetchSession } = useUserSession();
 

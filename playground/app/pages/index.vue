@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const { user, loggedIn, signOut } = useUserSession();
 // The active organization (Better Auth's Organization plugin), from the module.
-const { organization } = useActiveOrganization();
+const { organization } = useAuthActiveOrganization();
 </script>
 
 <template>

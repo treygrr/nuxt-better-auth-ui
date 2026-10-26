@@ -1,14 +1,7 @@
-import {
-    createError,
-    defineEventHandler,
-    getRequestHeader,
-    getRequestIP,
-    getRouterParam,
-    useRuntimeConfig
-} from '#imports';
+import { createError, defineEventHandler, getRouterParam } from '#imports';
 
-import { writeAuditEntry, type AuditPerson } from '../../audit/plugin';
-import { requireAdminPermission, requireUser } from '../../utils/admin';
+import type { AuditPerson } from '../../audit/plugin';
+import { recordAdminAction, requireAdminPermission, requireUser } from '../../utils/admin';
 
 type AuthWithVerification = { api: { sendVerificationEmail(input: { body: { email: string } }): Promise<unknown> } };
 
@@ -29,22 +22,10 @@ export default defineEventHandler(async (event) => {
     }
 
     await (auth as unknown as AuthWithVerification).api.sendVerificationEmail({ body: { email: user.email } });
-
-    const config = (
-        useRuntimeConfig().public.betterAuthUi as { admin: { auditLog: boolean; auditLogRetentionDays: number } }
-    ).admin;
-    if (config.auditLog) {
-        await writeAuditEntry(
-            context as never,
-            {
-                action: 'user.send-verification',
-                actor: admin as AuditPerson,
-                target: user,
-                ipAddress: getRequestIP(event, { xForwardedFor: true }) ?? null,
-                userAgent: getRequestHeader(event, 'user-agent') ?? null
-            },
-            config.auditLogRetentionDays
-        );
-    }
+    await recordAdminAction(event, context, {
+        action: 'user.send-verification',
+        actor: admin as AuditPerson,
+        target: user
+    });
     return { sent: true };
 });

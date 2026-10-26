@@ -1,6 +1,9 @@
 export default defineNuxtConfig({
-    // Installs @nuxt/ui and @nuxtjs/better-auth itself, through its module dependencies.
-    modules: ['@treygrr/nuxt-better-auth-ui'],
+    // Installs @nuxt/ui and @nuxtjs/better-auth itself, through its module dependencies. nuxt-skill-hub writes Nuxt's
+    // best-practice guides for coding agents (.claude/skills/, git-ignored) on `nuxt prepare`; nothing at runtime.
+    modules: ['@treygrr/nuxt-better-auth-ui', 'nuxt-skill-hub'],
+    // This repository is a Nuxt module: include the module authoring guide.
+    skillHub: { skillName: 'nuxt-better-auth-ui', moduleAuthoring: true, targets: ['claude-code'] },
     betterAuthUi: {
         admin: {
             // Sign in as a user from their page; the banner in app.vue offers the way back.

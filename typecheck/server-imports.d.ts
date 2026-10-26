@@ -16,7 +16,7 @@ declare module '#imports' {
     export const getRequestHeader: H3['getRequestHeader'];
     export const getRequestHeaders: H3['getRequestHeaders'];
     export const setResponseHeader: H3['setResponseHeader'];
-    export const useRuntimeConfig: () => { public: Record<string, unknown> };
+    export const useRuntimeConfig: (event?: import('h3').H3Event) => { public: Record<string, unknown> };
 }
 
 export {};

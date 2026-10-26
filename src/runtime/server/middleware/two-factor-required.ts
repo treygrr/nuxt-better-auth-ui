@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
     const path = event.path.split('?')[0]!;
     if (!path.startsWith('/api/') || path.startsWith('/api/auth/') || ALLOWED.includes(path)) return;
     if (!getHeader(event, 'cookie')) return;
-    const { twoFactorRequired } = useRuntimeConfig().public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };
+    const { twoFactorRequired } = useRuntimeConfig(event).public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };
     const session = (await getUserSession(event)) as Session | null;
     if (!session) return;
     const { internalAdapter } = await (

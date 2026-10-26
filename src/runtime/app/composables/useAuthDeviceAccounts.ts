@@ -34,7 +34,7 @@ type MultiSessionClient = {
  * one out, or add another through the sign-in page. Switching reloads the app, so every page's data is the new
  * account's. Empty without the plugin.
  */
-export function useDeviceAccounts(): {
+export function useAuthDeviceAccounts(): {
     accounts: ComputedRef<DeviceAccount[]>;
     switchTo: (account: DeviceAccount) => Promise<void>;
     signOutOf: (account: DeviceAccount) => Promise<void>;

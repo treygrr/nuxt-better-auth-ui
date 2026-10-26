@@ -1,7 +1,9 @@
-import { createError, defineEventHandler, readBody, requireUserSession, serverAuth, useRuntimeConfig } from '#imports';
+import { createError, defineEventHandler, requireUserSession, serverAuth, useRuntimeConfig } from '#imports';
+import * as z from 'zod';
 
 import type { AuditPerson } from '../audit/plugin';
 import { recordAdminAction, type AdminContext } from '../utils/admin';
+import { readJsonBody } from '../utils/input';
 
 type ApiKeyAuth = {
     api: {
@@ -14,6 +16,16 @@ type ApiKeyAuth = {
 
 /** Expiry choices, in days, as Better Auth allows from 1 to 365; null never expires. */
 const EXPIRES_IN_DAYS = [30, 90, 365];
+
+const Body = z.object({
+    name: z.string().trim().min(1).max(64),
+    expiresInDays: z
+        .literal(EXPIRES_IN_DAYS)
+        .nullish()
+        .transform((days) => days ?? null),
+    // "resource:action" strings, checked against the module's scopes below.
+    scopes: z.array(z.string()).default([])
+});
 
 /**
  * Creates an API key for the signed-in user. Better Auth only takes a key's permissions from server calls, so this
@@ -30,34 +42,26 @@ export default defineEventHandler(async (event) => {
         });
     }
     // Each error's code is translated on the page (errors.<code>); the message is the English fallback.
-    const body = (await readBody<{ name?: unknown; expiresInDays?: unknown; scopes?: unknown }>(event)) ?? {};
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
-    if (!name || name.length > 64) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: 'Name the key (64 characters at most)',
-            data: { code: 'API_KEY_NAME_INVALID' }
-        });
-    }
-    const days = body.expiresInDays ?? null;
-    if (days !== null && !EXPIRES_IN_DAYS.includes(days as number)) {
-        throw createError({
-            statusCode: 400,
-            statusMessage: 'Choose when the key expires',
-            data: { code: 'API_KEY_EXPIRY_INVALID' }
-        });
-    }
+    const {
+        name,
+        expiresInDays: days,
+        scopes
+    } = await readJsonBody(event, Body, {
+        name: { code: 'API_KEY_NAME_INVALID', message: 'Name the key (64 characters at most)' },
+        expiresInDays: { code: 'API_KEY_EXPIRY_INVALID', message: 'Choose when the key expires' },
+        scopes: { code: 'API_KEY_PERMISSION_UNKNOWN', message: 'Unknown permission' }
+    });
 
-    // "resource:action" strings, each one the module allows.
-    const allowed = (useRuntimeConfig().public.betterAuthUi as { apiKeyScopes: Record<string, string[]> }).apiKeyScopes;
-    const scopes = Array.isArray(body.scopes) ? body.scopes : [];
+    // Each one the module allows.
+    const allowed = (useRuntimeConfig(event).public.betterAuthUi as { apiKeyScopes: Record<string, string[]> })
+        .apiKeyScopes;
     const permissions: Record<string, string[]> = {};
     for (const scope of scopes) {
-        const [resource, action] = typeof scope === 'string' ? scope.split(':') : [];
+        const [resource, action] = scope.split(':');
         if (!resource || !action || !allowed[resource]?.includes(action)) {
             throw createError({
                 statusCode: 400,
-                statusMessage: `Unknown permission: ${String(scope)}`,
+                statusMessage: `Unknown permission: ${scope}`,
                 data: { code: 'API_KEY_PERMISSION_UNKNOWN' }
             });
         }
@@ -69,7 +73,7 @@ export default defineEventHandler(async (event) => {
         body: {
             userId: user.id,
             name,
-            ...(days !== null && { expiresIn: (days as number) * 86_400 }),
+            ...(days !== null && { expiresIn: days * 86_400 }),
             ...(Object.keys(permissions).length && { permissions })
         }
     });

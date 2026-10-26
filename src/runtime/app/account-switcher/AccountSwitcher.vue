@@ -4,7 +4,7 @@ import { useUserSession } from '@nuxtjs/better-auth/composables';
 import { computed, navigateTo, useAuthCapabilities, useAuthI18n } from '#imports';
 
 import { useSignOutTarget } from '../composables/useAuthPages';
-import { useDeviceAccounts } from '../composables/useDeviceAccounts';
+import { useAuthDeviceAccounts } from '../composables/useAuthDeviceAccounts';
 
 /**
  * `<AuthAccountSwitcher>`: the signed-in account, for an app's header or sidebar. Opens to switch to another account
@@ -17,7 +17,7 @@ const { t } = useAuthI18n();
 const { capabilities } = useAuthCapabilities();
 const { loggedIn, user, signOut } = useUserSession();
 const signOutTarget = useSignOutTarget();
-const { accounts, switchTo, addAccountLink } = useDeviceAccounts();
+const { accounts, switchTo, addAccountLink } = useAuthDeviceAccounts();
 
 const items = computed<DropdownMenuItem[][]>(() => [
     [

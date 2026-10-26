@@ -42,8 +42,17 @@
     },
     "main": "./dist/module.mjs",
     "files": [
-        "dist"
+        "dist",
+        "skills"
     ],
+    "agents": {
+        "skills": [
+            {
+                "name": "nuxt-better-auth-ui",
+                "path": "./skills/nuxt-better-auth-ui"
+            }
+        ]
+    },
     "packageManager": "pnpm@12.14.0",
     "scripts": {
         "build": "nuxt-module-build prepare && nuxt-module-build build",

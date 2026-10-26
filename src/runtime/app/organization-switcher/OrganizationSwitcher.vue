@@ -3,7 +3,7 @@ import type { DropdownMenuItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 import { computed, useAuthCapabilities, useAuthI18n, useAuthPages, useFetch, useRuntimeConfig } from '#imports';
 
-import { useActiveOrganization } from '../composables/useActiveOrganization';
+import { useAuthActiveOrganization } from '../composables/useAuthActiveOrganization';
 import { useOrganizationActions } from '../utils/organization';
 
 /**
@@ -18,7 +18,7 @@ const pages = useAuthPages();
 const { capabilities } = useAuthCapabilities();
 const { loggedIn, fetchSession } = useUserSession();
 const { organizationPage } = useRuntimeConfig().public.betterAuthUi as { organizationPage: string | false };
-const { organization, activeTeamId, refresh } = useActiveOrganization();
+const { organization, activeTeamId, refresh } = useAuthActiveOrganization();
 const { run } = useOrganizationActions();
 
 type Organization = { id: string; name: string; logo?: string | null };
