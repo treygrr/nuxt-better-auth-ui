@@ -761,6 +761,7 @@ export const authEn = {
         ACCOUNT_NOT_FOUND: "That sign-in method doesn't exist (any more).",
         LAST_SIGN_IN_METHOD: "It's their only sign-in method: removing it would lock them out.",
         EMAIL_ALREADY_VERIFIED: 'Their email is already verified.',
+        TWO_FACTOR_SETUP_REQUIRED: 'Set up two-factor authentication on your account first.',
         TWO_FACTOR_NOT_USED: "This app doesn't use two-factor.",
         PASSKEYS_NOT_USED: "This app doesn't use passkeys.",
         PASSKEY_NOT_FOUND: "That passkey doesn't exist (any more).",

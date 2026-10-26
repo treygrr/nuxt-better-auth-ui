@@ -84,7 +84,8 @@ export const twoFactorEnforcement = ({ required, page, redirectQueryKey }: TwoFa
                         type Session = Parameters<typeof mustSetUpTwoFactor>[1];
                         if (session && (await mustSetUpTwoFactor(verifications(ctx), session as Session, required))) {
                             throw new APIError('FORBIDDEN', {
-                                message: 'Set up two-factor authentication on your account first.'
+                                message: 'Set up two-factor authentication on your account first.',
+                                code: 'TWO_FACTOR_SETUP_REQUIRED'
                             });
                         }
                     })

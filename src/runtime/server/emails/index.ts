@@ -1,6 +1,7 @@
 /// <reference path="./virtual.d.ts" />
 // Public entry, `@treygrr/nuxt-better-auth-ui/emails`, for the app's auth config and email templates.
 // No Nuxt or Nitro imports: Better Auth's Nuxt module also loads the auth config at build time.
+import { runInBackground } from '../background';
 import { defaultEmails } from './defaults';
 import type {
     BetterAuthEmailName,
@@ -78,10 +79,12 @@ async function deliver<Name extends BetterAuthEmailName>(name: Name, data: Bette
 
 /**
  * Sends an email without waiting for it, as Better Auth's docs advise (waiting would reveal through timing
- * which emails have accounts). Failures are logged.
+ * which emails have accounts), through the app's background task handler if it has one. Failures are logged.
  */
 function sendInBackground<Name extends BetterAuthEmailName>(name: Name, data: BetterAuthEmails[Name]) {
-    deliver(name, data).catch((error) => console.error(`[better-auth-ui] Couldn't send the "${name}" email`, error));
+    runInBackground(
+        deliver(name, data).catch((error) => console.error(`[better-auth-ui] Couldn't send the "${name}" email`, error))
+    );
 }
 
 /**
@@ -114,10 +117,11 @@ export const betterAuthEmails = {
         sendInBackground('email-code', { email, otp, type }),
     /**
      * Added by the module itself when `betterAuthUi.organization` is on: Better Auth's `sendInvitationEmail` data, and
-     * the invitation page to link to (on the request's site).
+     * the invitation page to link to, on the app's site URL (`NUXT_PUBLIC_SITE_URL`, `runtimeConfig.public.siteUrl` or
+     * `BETTER_AUTH_URL`). Without one, on the request's site, as Better Auth's own links are then.
      */
     organizationInvitation:
-        (invitationPage: string) =>
+        (invitationPage: string, siteUrl?: string) =>
         async (
             data: {
                 id: string;
@@ -128,7 +132,8 @@ export const betterAuthEmails = {
             },
             request?: Request
         ) => {
-            const origin = request ? new URL(request.url).origin : '';
+            const site = process.env.NUXT_PUBLIC_SITE_URL || siteUrl || process.env.BETTER_AUTH_URL;
+            const origin = site ? new URL(site).origin : request ? new URL(request.url).origin : '';
             sendInBackground('organization-invitation', {
                 email: data.email,
                 organization: data.organization.name,

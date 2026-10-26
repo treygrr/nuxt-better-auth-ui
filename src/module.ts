@@ -1108,6 +1108,11 @@ export default defineNuxtModule<ModuleOptions>({
             });
         };
         const emailsHelper = runtimeFile('./runtime/server/emails/index');
+        // So emails and texts sent after the response go through the app's background task handler (waitUntil).
+        addAuthPlugin('background-tasks', [
+            `import { backgroundTasks } from ${runtimeFile('./runtime/server/background')}`,
+            'export default backgroundTasks()'
+        ]);
 
         const { username, magicLink, emailOtp, anonymous, captcha } = moduleOptions;
         if (username.enabled) {
@@ -1321,6 +1326,8 @@ export default defineNuxtModule<ModuleOptions>({
                 ...(dynamicOptions && { dynamicAccessControl: { enabled: true } }),
                 ...(organizationOptions.schema && { schema: organizationOptions.schema })
             };
+            // Invitation links go to the app's site URL, never the request's Host header (the sender sets it).
+            const siteUrl = (nuxt.options.runtimeConfig.public as { siteUrl?: unknown }).siteUrl;
             addAuthPlugin(
                 'organization',
                 [
@@ -1337,7 +1344,7 @@ export default defineNuxtModule<ModuleOptions>({
                     '    ac,',
                     '    roles,',
                     emails.send
-                        ? `    sendInvitationEmail: betterAuthEmails.organizationInvitation(${JSON.stringify(invitationPage)}),`
+                        ? `    sendInvitationEmail: betterAuthEmails.organizationInvitation(${JSON.stringify(invitationPage)}${typeof siteUrl === 'string' && siteUrl ? `, ${JSON.stringify(siteUrl)}` : ''}),`
                         : '',
                     '    ...appOptions,',
                     '    ...(options.teams || appOptions.teams ? { teams: { ...options.teams, ...appOptions.teams } } : {}),',

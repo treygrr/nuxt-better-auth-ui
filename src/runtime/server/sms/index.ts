@@ -1,6 +1,7 @@
 /// <reference path="./virtual.d.ts" />
 // Public entry, `@treygrr/nuxt-better-auth-ui/sms`, for the app's SMS sender.
 // No Nuxt or Nitro imports: Better Auth's Nuxt module also loads the auth config at build time.
+import { runInBackground } from '../background';
 
 /** The texts the module sends: a code to sign in or verify a phone number, and one to reset a password. */
 export type SmsName = 'phone-code' | 'phone-reset';
@@ -54,8 +55,10 @@ async function deliver(sms: SmsName, to: string, code: string, words: Omit<Words
 export const betterAuthSms = (expiresIn = 300) => {
     const send = (sms: SmsName) => (data: { phoneNumber: string; code: string }, ctx?: Context) => {
         const words = { app: ctx?.context?.appName || 'Better Auth', minutes: Math.max(1, Math.round(expiresIn / 60)) };
-        deliver(sms, data.phoneNumber, data.code, words).catch((error) =>
-            console.error(`[better-auth-ui] Couldn't send the "${sms}" text`, error)
+        runInBackground(
+            deliver(sms, data.phoneNumber, data.code, words).catch((error) =>
+                console.error(`[better-auth-ui] Couldn't send the "${sms}" text`, error)
+            )
         );
     };
     return { phoneCode: send('phone-code'), resetCode: send('phone-reset') };

@@ -764,6 +764,7 @@ export const authEs = {
         ACCOUNT_NOT_FOUND: 'Ese método de inicio de sesión no existe (o ya no existe).',
         LAST_SIGN_IN_METHOD: 'Es su único método de inicio de sesión: quitarlo le dejaría sin acceso.',
         EMAIL_ALREADY_VERIFIED: 'Su correo ya está verificado.',
+        TWO_FACTOR_SETUP_REQUIRED: 'Primero activa la verificación en dos pasos en tu cuenta.',
         TWO_FACTOR_NOT_USED: 'Esta aplicación no usa la verificación en dos pasos.',
         PASSKEYS_NOT_USED: 'Esta aplicación no usa llaves de acceso.',
         PASSKEY_NOT_FOUND: 'Esa llave de acceso no existe (o ya no existe).',

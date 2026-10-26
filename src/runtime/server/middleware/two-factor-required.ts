@@ -13,14 +13,17 @@ type Session = Parameters<typeof mustSetUpTwoFactor>[1];
 /**
  * Users who must have two-factor on can't use the app's API routes (or the admin's) until they've set it up, unless
  * they signed in with a passkey. Better Auth's own routes stay open: setting it up goes through them, and the module's
- * Better Auth plugin guards its admin endpoints. Only requests with cookies are looked at; the session lookup is the
- * one the request's own handlers reuse.
+ * Better Auth plugin guards its admin endpoints. Only requests that can carry a session are looked at: a cookie, a
+ * bearer token (the Bearer plugin) or an API key (with `enableSessionForAPIKeys`). The session lookup is the one the
+ * request's own handlers reuse.
  */
 export default defineEventHandler(async (event) => {
     const path = event.path.split('?')[0]!;
     if (!path.startsWith('/api/') || path.startsWith('/api/auth/') || ALLOWED.includes(path)) return;
-    if (!getHeader(event, 'cookie')) return;
-    const { twoFactorRequired } = useRuntimeConfig(event).public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };
+    if (!['cookie', 'authorization', 'x-api-key'].some((name) => getHeader(event, name))) return;
+    const { twoFactorRequired } = useRuntimeConfig(event).public.betterAuthUi as {
+        twoFactorRequired: TwoFactorRequired;
+    };
     const session = (await getUserSession(event)) as Session | null;
     if (!session) return;
     const { internalAdapter } = await (
@@ -29,7 +32,8 @@ export default defineEventHandler(async (event) => {
     if (await mustSetUpTwoFactor(internalAdapter, session, twoFactorRequired)) {
         throw createError({
             statusCode: 403,
-            statusMessage: 'Set up two-factor authentication on your account first.'
+            statusMessage: 'Set up two-factor authentication on your account first.',
+            data: { code: 'TWO_FACTOR_SETUP_REQUIRED' }
         });
     }
 });
