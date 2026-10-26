@@ -5,7 +5,7 @@ import { computed, reactive, ref, useAuthCapabilities, useAuthI18n, useFetch, us
 import { upperFirst } from 'scule';
 
 import { fieldValues } from '../../utils/fields';
-import { useOrganizationActions } from '../../utils/organization';
+import { slugFollowsName, useOrganizationActions } from '../../utils/organization';
 import FieldInputs from '../organization/FieldInputs.vue';
 import CardTitle from './CardTitle.vue';
 
@@ -35,10 +35,12 @@ const { data: invitations, refresh: refreshInvitations } = useFetch('/api/auth/o
     default: () => [] as Invitation[]
 });
 // Their teams across their organizations (with teams on).
+const listsTeams = () => !!capabilities.value?.organization?.teams;
 const { data: teams } = useFetch<Team[]>('/api/auth/organization/list-user-teams', {
     key: 'better-auth-ui-account-teams',
     default: () => [],
-    immediate: !!capabilities.value?.organization?.teams
+    enabled: listsTeams,
+    watch: [listsTeams]
 });
 const teamsOf = (organizationId: string) => teams.value.filter((team) => team.organizationId === organizationId);
 const activeId = computed(
@@ -62,26 +64,18 @@ const creating = ref(false);
 const form = reactive({ name: '', slug: '' });
 const extra = ref<Record<string, string | boolean>>({});
 const slugEdited = ref(false);
-const slugify = (text: string) =>
-    text
-        .toLowerCase()
-        .normalize('NFKD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-watch(
-    () => form.name,
-    (name) => {
-        if (!slugEdited.value) form.slug = slugify(name);
-    }
-);
+slugFollowsName(form, slugEdited);
 const slug = refDebounced(
     computed(() => form.slug),
     400
 );
 const slugTaken = ref(false);
-watch(slug, async (value) => {
-    slugTaken.value = !!value && !!(await client().checkSlug({ slug: value })).error;
+watch(slug, async (value, _, onCleanup) => {
+    // A newer slug's answer wins, whichever arrives first.
+    let stale = false;
+    onCleanup(() => (stale = true));
+    const taken = !!value && !!(await client().checkSlug({ slug: value })).error;
+    if (!stale) slugTaken.value = taken;
 });
 function openCreate() {
     Object.assign(form, { name: '', slug: '' });

@@ -21,7 +21,8 @@ const _useDashboard = () => {
     defineShortcuts({
         'g-h': go('/'),
         'g-u': go('/users'),
-        ...(can({ session: ['list'] }) && { 'g-s': go('/sessions') }),
+        // Checked when pressed, so it follows a role change.
+        'g-s': () => can({ session: ['list'] }) && go('/sessions')(),
         ...(auditLog && { 'g-a': go('/audit') }),
         'g-c': go('/configuration')
     });

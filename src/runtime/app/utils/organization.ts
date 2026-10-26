@@ -1,5 +1,6 @@
 import { useAuthClient } from '@nuxtjs/better-auth/composables';
-import { useAuthI18n, useToast } from '#imports';
+import type { Ref } from 'vue';
+import { useAuthI18n, useToast, watch } from '#imports';
 
 type Result = Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
 type Permissions = Record<string, string[]>;
@@ -54,6 +55,25 @@ export function useOrganizationActions() {
 }
 
 /** Better Auth stores several roles as one comma-separated string. */
+/** A name as a URL slug: lowercase ASCII letters and digits, with hyphens. */
+export const slugify = (text: string) =>
+    text
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+
+/** Keeps a form's slug following its name, until the slug is edited. */
+export function slugFollowsName(form: { name: string; slug: string }, slugEdited: Ref<boolean>) {
+    watch(
+        () => form.name,
+        (name) => {
+            if (!slugEdited.value) form.slug = slugify(name);
+        }
+    );
+}
+
 export const splitRoles = (role: string | null | undefined) =>
     (role ?? '')
         .split(',')

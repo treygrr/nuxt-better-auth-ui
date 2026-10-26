@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { $fetch, navigateTo, reactive, ref, useBetterAuthAdminPath, useAuthI18n, useToast, watch } from '#imports';
+import { $fetch, navigateTo, reactive, ref, useBetterAuthAdminPath, useAuthI18n, useToast } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
+import { slugFollowsName } from '../../utils/organization';
 import { serverError } from '../../utils/server-error';
 
 /**
@@ -16,19 +17,7 @@ const open = ref(false);
 const form = reactive({ name: '', slug: '', ownerEmail: '' });
 // The slug follows the name until it's edited.
 const slugEdited = ref(false);
-const slugify = (text: string) =>
-    text
-        .toLowerCase()
-        .normalize('NFKD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-watch(
-    () => form.name,
-    (name) => {
-        if (!slugEdited.value) form.slug = slugify(name);
-    }
-);
+slugFollowsName(form, slugEdited);
 
 const saving = ref(false);
 async function create() {

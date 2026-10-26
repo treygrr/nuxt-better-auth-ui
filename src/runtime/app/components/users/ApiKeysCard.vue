@@ -10,7 +10,9 @@ import { serverError } from '../../utils/server-error';
 const props = defineProps<{ user: AdminUser }>();
 const emit = defineEmits<{ changed: [] }>();
 
-const canUpdate = useBetterAuthAdminCan()({ user: ['update'] });
+const allows = useBetterAuthAdminCan();
+// Follows the session, eg after a role change.
+const canUpdate = computed(() => allows({ user: ['update'] }));
 const toast = useToast();
 const { t, errorMessage } = useAuthI18n();
 

@@ -33,12 +33,17 @@ const known = computed(() => {
 type Parsed = { columns: string[]; ignored: string[]; rows: Array<{ row: number; values: Record<string, string> }> };
 const parsed = ref<Parsed | null>(null);
 const parseError = ref('');
-watch(file, async (value) => {
+watch(file, async (value, _, onCleanup) => {
     parsed.value = null;
     parseError.value = '';
     result.value = null;
     if (!value) return;
-    const [header, ...lines] = parseCsv(await value.text());
+    // Another file picked while this one was read: that one's result wins.
+    let stale = false;
+    onCleanup(() => (stale = true));
+    const text = await value.text();
+    if (stale) return;
+    const [header, ...lines] = parseCsv(text);
     if (!header) {
         parseError.value = t('admin.import.empty');
         return;

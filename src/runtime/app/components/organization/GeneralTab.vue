@@ -44,13 +44,16 @@ const slug = refDebounced(
     400
 );
 const slugTaken = ref(false);
-watch(slug, async (value) => {
+watch(slug, async (value, _, onCleanup) => {
     if (!value || value === props.organization.slug) {
         slugTaken.value = false;
         return;
     }
+    // A newer slug's answer wins, whichever arrives first.
+    let stale = false;
+    onCleanup(() => (stale = true));
     const { error } = await client().checkSlug({ slug: value });
-    slugTaken.value = !!error;
+    if (!stale) slugTaken.value = !!error;
 });
 
 const saving = ref(false);

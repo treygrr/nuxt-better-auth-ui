@@ -26,7 +26,9 @@ const NuxtTime = resolveComponent('NuxtTime');
 
 const adminPath = useBetterAuthAdminPath();
 const { t } = useAuthI18n();
-const canCreate = useBetterAuthAdminCan()({ user: ['update'] });
+const allows = useBetterAuthAdminCan();
+// Follows the session, eg after a role change.
+const canCreate = computed(() => allows({ user: ['update'] }));
 
 const page = ref(1);
 const search = ref('');

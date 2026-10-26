@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTimeoutFn } from '@vueuse/core';
 import { useAuthClient } from '@nuxtjs/better-auth/composables';
 import { $fetch, computed, ref, useAuthI18n, useRuntimeConfig, useToast } from '#imports';
 
@@ -76,10 +77,12 @@ async function create() {
     }
 }
 const copied = ref(false);
+// Cleared on unmount.
+const { start: showCopied } = useTimeoutFn(() => (copied.value = false), 2000, { immediate: false });
 async function copy() {
     await navigator.clipboard.writeText(created.value!.key);
     copied.value = true;
-    setTimeout(() => (copied.value = false), 2000);
+    showCopied();
 }
 
 // Revoking, through Better Auth's own delete.

@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
-import { reactive, useBetterAuthAdminCan, useBetterAuthAdminUsers, useAuthI18n, useToast, watch } from '#imports';
+import {
+    computed,
+    reactive,
+    useAuthI18n,
+    useBetterAuthAdminCan,
+    useBetterAuthAdminUsers,
+    useToast,
+    watch
+} from '#imports';
 
 import type { AdminUser } from '../../types';
 
@@ -18,7 +26,9 @@ watch(open, (isOpen) => {
 });
 
 const users = useBetterAuthAdminUsers();
-const canSetPassword = useBetterAuthAdminCan()({ user: ['set-password'] });
+const allows = useBetterAuthAdminCan();
+// Follows the session, eg after a role change.
+const canSetPassword = computed(() => allows({ user: ['set-password'] }));
 const toast = useToast();
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {

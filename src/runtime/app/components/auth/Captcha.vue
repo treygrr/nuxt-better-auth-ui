@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, useRuntimeConfig } from '#imports';
+import { onBeforeUnmount, onMounted, useRuntimeConfig, useTemplateRef } from '#imports';
 
 /**
  * The captcha widget for Better Auth's Captcha plugin (betterAuthUi.captcha): Cloudflare Turnstile, hCaptcha or
@@ -27,26 +27,38 @@ const PROVIDERS = {
     'google-recaptcha': { script: 'https://www.google.com/recaptcha/api.js?render=explicit', global: 'grecaptcha' }
 } as const;
 
-const element = ref<HTMLElement>();
+const element = useTemplateRef<HTMLElement>('element');
 let widgets: Widgets | undefined;
 let widgetId: string | number | undefined;
+let unmounted = false;
+let polling: ReturnType<typeof setTimeout> | undefined;
 
-/** The provider's script, once per page, resolving to its global once it's ready. */
+/** How long to wait for the provider's script before giving up: it failed to load, or is blocked. */
+const LOAD_TIMEOUT = 30_000;
+
+/** The provider's script, once per page, resolving to its global once it's ready. Stops checking once unmounted. */
 function load(provider: keyof typeof PROVIDERS) {
     const { script, global } = PROVIDERS[provider];
     const ready = () => (window as unknown as Record<string, Widgets | undefined>)[global];
+    const giveUpAt = Date.now() + LOAD_TIMEOUT;
     return new Promise<Widgets>((resolve, reject) => {
+        const fail = (error: Error) => {
+            clearTimeout(polling);
+            reject(error);
+        };
         const wait = () => {
+            if (unmounted) return fail(new Error('Unmounted'));
             const found = ready();
             // reCAPTCHA defines its global before it can render.
             if (found && (provider !== 'google-recaptcha' || typeof found.render === 'function')) resolve(found);
-            else setTimeout(wait, 50);
+            else if (Date.now() > giveUpAt) fail(new Error(`${script} didn't load`));
+            else polling = setTimeout(wait, 50);
         };
         if (!document.querySelector(`script[src="${script}"]`)) {
             const tag = document.createElement('script');
             tag.src = script;
             tag.async = true;
-            tag.onerror = () => reject(new Error(`Couldn't load ${script}`));
+            tag.onerror = () => fail(new Error(`Couldn't load ${script}`));
             document.head.appendChild(tag);
         }
         wait();
@@ -55,7 +67,14 @@ function load(provider: keyof typeof PROVIDERS) {
 
 onMounted(async () => {
     if (!config.captcha || !element.value) return;
-    widgets = await load(config.captcha.provider);
+    try {
+        widgets = await load(config.captcha.provider);
+    } catch (error) {
+        if (!unmounted) console.error('[better-auth-ui] The captcha could not load', error);
+        return;
+    }
+    // Unmounted while the script loaded: nothing to render into.
+    if (unmounted || !element.value) return;
     widgetId = widgets.render(element.value, {
         sitekey: config.captcha.siteKey,
         // Turnstile and hCaptcha take a language; reCAPTCHA reads the page's.
@@ -68,6 +87,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    unmounted = true;
+    clearTimeout(polling);
     if (widgetId !== undefined) widgets?.remove?.(widgetId);
 });
 

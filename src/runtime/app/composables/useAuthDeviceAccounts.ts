@@ -54,9 +54,10 @@ export function useAuthDeviceAccounts(): {
         {
             key: 'better-auth-ui-device-accounts',
             default: () => [],
-            immediate: !!(multiSession || capabilities.value?.multiSession),
-            // Another account signed in or out here.
-            watch: [() => user.value?.id]
+            // With the plugin (the module's or the app's own), signed in. Also refetched when another account signs in
+            // or out here.
+            enabled: () => !!user.value && !!(multiSession || capabilities.value?.multiSession),
+            watch: [() => user.value?.id, () => capabilities.value?.multiSession]
         }
     );
     const accounts = computed(() =>

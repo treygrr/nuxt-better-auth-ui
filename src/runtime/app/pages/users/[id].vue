@@ -36,48 +36,50 @@ const toast = useToast();
 const can = useBetterAuthAdminCan();
 const { t, errorMessage } = useAuthI18n();
 
-// Fetched during server rendering, with the admin's cookies, and handed to the browser in the payload.
-const {
-    data: user,
-    error,
-    refresh: refreshUser
-} = await useFetch<AdminUser>('/api/auth/admin/get-user', { query: { id: userId } });
-// Better Auth's list-user-sessions is a POST, which it refuses with the session cookie unless the request says where
-// it comes from: the browser sends Origin itself, the server rendering the page says its own.
-const { data: sessions, refresh: refreshSessions } = await useFetch('/api/auth/admin/list-user-sessions', {
-    method: 'POST',
-    body: { userId },
-    headers: import.meta.server ? { origin: useRequestURL().origin } : undefined,
-    immediate: can({ session: ['list'] }),
-    transform: (result: { sessions: AdminSession[] }) => result.sessions
-});
-const {
-    data: accounts,
-    error: accountsError,
-    refresh: refreshAccounts
-} = await useFetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`);
-// When they last signed in, from the audit log, when it records sign-ins.
-const { lastSignIn: knowsLastSignIn, auditLogRetentionDays } = useBetterAuthAdminConfig();
-const { data: lastSignIns } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-sign-in`, {
-    query: { userIds: userId },
-    default: () => ({}),
-    immediate: knowsLastSignIn
-});
-
-// When they were last active, with activity tracking.
-const { activityTracking } = useBetterAuthAdminConfig();
-const { data: lastActive } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-active`, {
-    query: { userIds: userId },
-    default: () => ({}),
-    immediate: activityTracking
-});
-
-// The latest audit log entries about this user, when the log is on.
+const { lastSignIn: knowsLastSignIn, activityTracking, auditLogRetentionDays } = useBetterAuthAdminConfig();
+const canListSessions = () => can({ session: ['list'] });
 const ACTIVITY_SIZE = 10;
-const { data: activity, refresh: refreshActivity } = await useFetch<{ entries: AdminAuditEntry[]; total: number }>(
-    `${ADMIN_API}/audit`,
-    { query: { limit: ACTIVITY_SIZE, offset: 0, userId }, immediate: auditLog }
-);
+
+// Fetched during server rendering, with the admin's cookies, and handed to the browser in the payload. Started
+// together, then awaited together: none needs another's result. `enabled` keeps off what this app or admin can't
+// use, including on refresh.
+const [
+    { data: user, error, refresh: refreshUser },
+    { data: sessions, refresh: refreshSessions },
+    { data: accounts, error: accountsError, refresh: refreshAccounts },
+    { data: lastSignIns },
+    { data: lastActive },
+    { data: activity, refresh: refreshActivity }
+] = await Promise.all([
+    useFetch<AdminUser>('/api/auth/admin/get-user', { query: { id: userId } }),
+    // Better Auth's list-user-sessions is a POST, which it refuses with the session cookie unless the request says
+    // where it comes from: the browser sends Origin itself, the server rendering the page says its own.
+    useFetch('/api/auth/admin/list-user-sessions', {
+        method: 'POST',
+        body: { userId },
+        headers: import.meta.server ? { origin: useRequestURL().origin } : undefined,
+        enabled: canListSessions,
+        transform: (result: { sessions: AdminSession[] }) => result.sessions
+    }),
+    useFetch<AdminAccount[]>(`${ADMIN_API}/users/${encodeURIComponent(userId)}/accounts`),
+    // When they last signed in, from the audit log, when it records sign-ins.
+    useFetch<Record<string, string | null>>(`${ADMIN_API}/last-sign-in`, {
+        query: { userIds: userId },
+        default: () => ({}),
+        enabled: knowsLastSignIn
+    }),
+    // When they were last active, with activity tracking.
+    useFetch<Record<string, string | null>>(`${ADMIN_API}/last-active`, {
+        query: { userIds: userId },
+        default: () => ({}),
+        enabled: activityTracking
+    }),
+    // The latest audit log entries about this user, when the log is on.
+    useFetch<{ entries: AdminAuditEntry[]; total: number }>(`${ADMIN_API}/audit`, {
+        query: { limit: ACTIVITY_SIZE, offset: 0, userId },
+        enabled: auditLog
+    })
+]);
 /** A failed request in words, eg Better Auth's "User not found", translated by its code. */
 const errorText = (failure: unknown) => errorMessage(serverError(failure));
 const refresh = () => Promise.all([refreshUser(), refreshSessions(), refreshAccounts(), refreshActivity()]);
@@ -276,7 +278,7 @@ const thisSession = computed(() => session.session.value?.id);
                 </template>
             </UAlert>
 
-            <!-- Loading. Not "status === 'pending'": data loads in the browser only, so the server renders 'idle'. -->
+            <!-- No user and no error (the request above is awaited, so only briefly, if ever). -->
             <div v-else-if="!user" class="space-y-4">
                 <USkeleton class="h-32 w-full" />
                 <USkeleton class="h-48 w-full" />

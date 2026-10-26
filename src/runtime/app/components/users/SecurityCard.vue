@@ -25,7 +25,9 @@ const props = defineProps<{ user: AdminUser }>();
 const emit = defineEmits<{ changed: [] }>();
 
 const { capabilities } = useAuthCapabilities();
-const canUpdate = useBetterAuthAdminCan()({ user: ['update'] });
+const allows = useBetterAuthAdminCan();
+// Follows the session, eg after a role change.
+const canUpdate = computed(() => allows({ user: ['update'] }));
 const toast = useToast();
 const { t, errorMessage } = useAuthI18n();
 const { twoFactorRequired } = useRuntimeConfig().public.betterAuthUi as { twoFactorRequired: TwoFactorRequired };

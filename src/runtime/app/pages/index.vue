@@ -2,24 +2,27 @@
 import {
     computed,
     ref,
-    shallowRef,
     useBetterAuthAdminCan,
     useBetterAuthAdminPath,
     useAuthI18n,
-    useLazyFetch
+    useLazyFetch,
+    useState
 } from '#imports';
 import { addDays, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, max, startOfDay, sub } from 'date-fns';
 import { ADMIN_API } from '../../constants';
 import type { AdminStats, Period, Range } from '../types';
 
 const adminPath = useBetterAuthAdminPath();
-const canCreate = useBetterAuthAdminCan()({ user: ['create'] });
+const allows = useBetterAuthAdminCan();
+// Follows the session, eg after a role change.
+const canCreate = computed(() => allows({ user: ['create'] }));
 const { t } = useAuthI18n();
 
-const range = shallowRef<Range>({
+// The last two weeks, decided once on the server and handed to the browser, so both render the same dates.
+const range = useState<Range>('better-auth-ui-home-range', () => ({
     start: sub(new Date(), { days: 14 }),
     end: new Date()
-});
+}));
 const period = ref<Period>('daily');
 
 // The chart's period boundaries in the admin's time zone, from the start of the range to the end of its last day.

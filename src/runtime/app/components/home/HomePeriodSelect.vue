@@ -31,12 +31,16 @@ const PERIOD_LABELS = {
 } as const;
 const items = computed(() => periods.value.map((value) => ({ label: t(PERIOD_LABELS[value]), value })));
 
-// Ensure the model value is always a valid period
-watch(periods, () => {
-    if (!periods.value.includes(model.value)) {
-        model.value = periods.value[0]!;
-    }
-});
+// Ensure the model value is always a valid period, from the start too.
+watch(
+    periods,
+    () => {
+        if (!periods.value.includes(model.value)) {
+            model.value = periods.value[0]!;
+        }
+    },
+    { immediate: true }
+);
 </script>
 
 <template>

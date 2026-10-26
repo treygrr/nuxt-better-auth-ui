@@ -111,27 +111,24 @@ const { data, status, error, refresh } = await useFetch<{ users: AdminUser[]; to
 
 const users = computed(() => data.value?.users ?? []);
 
-// When each listed user last signed in, from the audit log, when it records sign-ins.
-const { lastSignIn: knowsLastSignIn, auditLogRetentionDays } = useBetterAuthAdminConfig();
-const { data: lastSignIns } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-sign-in`, {
-    query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
-    default: () => ({}),
-    immediate: knowsLastSignIn
-});
-
-// When each listed user was last active, with activity tracking.
-const { activityTracking } = useBetterAuthAdminConfig();
-const { data: lastActive } = await useFetch<Record<string, string | null>>(`${ADMIN_API}/last-active`, {
-    query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
-    default: () => ({}),
-    immediate: activityTracking
-});
-
-// Each listed user's sign-in methods, for the whole page in one request.
-const { data: providers, status: providersStatus } = await useFetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, {
-    query: computed(() => ({ userIds: users.value.map((user) => user.id).join(',') })),
-    default: () => ({})
-});
+// For the listed users, together: when each last signed in (from the audit log, when it records sign-ins), was last
+// active (with activity tracking), and their sign-in methods. `enabled` keeps off what this app doesn't record,
+// including when the list changes.
+const { lastSignIn: knowsLastSignIn, activityTracking, auditLogRetentionDays } = useBetterAuthAdminConfig();
+const listedIds = computed(() => ({ userIds: users.value.map((user) => user.id).join(',') }));
+const [{ data: lastSignIns }, { data: lastActive }, { data: providers, status: providersStatus }] = await Promise.all([
+    useFetch<Record<string, string | null>>(`${ADMIN_API}/last-sign-in`, {
+        query: listedIds,
+        default: () => ({}),
+        enabled: knowsLastSignIn
+    }),
+    useFetch<Record<string, string | null>>(`${ADMIN_API}/last-active`, {
+        query: listedIds,
+        default: () => ({}),
+        enabled: activityTracking
+    }),
+    useFetch<Record<string, string[]>>(`${ADMIN_API}/accounts`, { query: listedIds, default: () => ({}) })
+]);
 const isSelf = (user: AdminUser) => user.id === session.user.value?.id;
 const selected = computed(() => users.value.filter((user) => rowSelection.value[user.id]));
 

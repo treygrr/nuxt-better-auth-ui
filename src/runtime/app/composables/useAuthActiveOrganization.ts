@@ -35,10 +35,12 @@ export const useAuthActiveOrganization = (): {
     const activeTeamId = computed(
         () => (session.value as { activeTeamId?: string | null } | null)?.activeTeamId ?? null
     );
+    // Only with an active organization: none for the signed-out, or without the Organization plugin.
     const { data, refresh } = useFetch<ActiveOrganization | null>('/api/auth/organization/get-full-organization', {
         key: 'better-auth-ui-active-organization',
         query: computed(() => (activeId.value ? { organizationId: activeId.value } : {})),
-        default: () => null
+        default: () => null,
+        enabled: () => !!activeId.value
     });
     return {
         organization: computed(() => (activeId.value ? data.value : null)),

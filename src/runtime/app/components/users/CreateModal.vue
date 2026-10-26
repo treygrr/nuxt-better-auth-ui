@@ -2,7 +2,6 @@
 import type { FormSubmitEvent } from '@nuxt/ui';
 import * as z from 'zod';
 import {
-    computed,
     onMounted,
     reactive,
     ref,
@@ -21,8 +20,7 @@ const route = useRoute();
 const router = useRouter();
 const { t } = useAuthI18n();
 
-const { roles: allRoles } = useBetterAuthAdminConfig();
-const roles = computed(() => allRoles);
+const { roles } = useBetterAuthAdminConfig();
 
 const schema = z.object({
     // Messages as functions, so they follow the language.

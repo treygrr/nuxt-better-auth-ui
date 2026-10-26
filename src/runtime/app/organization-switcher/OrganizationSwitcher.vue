@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{ size?: 'sm' | 'md' | 'lg'; block?: bool
 
 const { t } = useAuthI18n();
 const pages = useAuthPages();
-const { capabilities } = useAuthCapabilities();
+const { capabilities, loaded } = useAuthCapabilities();
 const { loggedIn, fetchSession } = useUserSession();
 const { organizationPage } = useRuntimeConfig().public.betterAuthUi as { organizationPage: string | false };
 const { organization, activeTeamId, refresh } = useAuthActiveOrganization();
@@ -23,14 +23,22 @@ const { run } = useOrganizationActions();
 
 type Organization = { id: string; name: string; logo?: string | null };
 type Team = { id: string; name: string; organizationId: string };
+// Only for the signed-in, with the Organization plugin (and teams): nothing is fetched otherwise, and signing in
+// fetches them. Waits for the capabilities, which the server renders, so it knows during server rendering too.
+await loaded;
+const listsOrganizations = () => loggedIn.value && !!capabilities.value?.organization;
+const listsTeams = () => listsOrganizations() && !!capabilities.value?.organization?.teams;
 const { data: organizations } = useFetch<Organization[]>('/api/auth/organization/list', {
     key: 'better-auth-ui-account-organizations',
-    default: () => []
+    default: () => [],
+    enabled: listsOrganizations,
+    watch: [listsOrganizations]
 });
 const { data: teams } = useFetch<Team[]>('/api/auth/organization/list-user-teams', {
     key: 'better-auth-ui-account-teams',
     default: () => [],
-    immediate: !!capabilities.value?.organization?.teams
+    enabled: listsTeams,
+    watch: [listsTeams]
 });
 
 async function switchTo(organizationId: string) {

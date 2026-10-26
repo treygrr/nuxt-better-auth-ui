@@ -25,7 +25,9 @@ const emit = defineEmits<{ updated: [] }>();
 const { t } = useAuthI18n();
 const toast = useToast();
 const users = useBetterAuthAdminUsers();
-const canUpdate = useBetterAuthAdminCan()({ user: ['update'] });
+const allows = useBetterAuthAdminCan();
+// Follows the session, eg after a role change.
+const canUpdate = computed(() => allows({ user: ['update'] }));
 
 const { data: fields } = useFetch<AdminUserField[]>(`${ADMIN_API}/user-fields`, {
     key: 'better-auth-ui-admin-user-fields',

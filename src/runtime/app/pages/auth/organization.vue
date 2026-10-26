@@ -61,47 +61,47 @@ type FullOrganization = {
     }>;
 } & Record<string, unknown>;
 
-// Better Auth's own GET endpoints and the module's, server-rendered.
-const {
-    data: organization,
-    error,
-    refresh: refreshOrganization
-} = await useFetch<FullOrganization>('/api/auth/organization/get-full-organization', {
-    key: `better-auth-ui-organization-${id}`,
-    query: { organizationId: id }
-});
-const { data: can, refresh: refreshCan } = await useFetch<Record<string, boolean>>(
-    `${UI_API}/organizations/${encodeURIComponent(id)}/permissions`,
-    { key: `better-auth-ui-organization-permissions-${id}`, default: () => ({}) }
-);
-const { data: teams, refresh: refreshTeams } = await useFetch<OrganizationTeam[]>(
-    `${UI_API}/organizations/${encodeURIComponent(id)}/teams`,
-    { key: `better-auth-ui-organization-teams-${id}`, default: () => [] }
-);
-// The organization's own roles (dynamic access control), for the role pickers and the roles tab: none without it, or
-// without the `ac:read` permission.
-const { data: dynamicRoles, refresh: refreshRoles } = await useFetch<
-    Array<{ id: string; role: string; permission: unknown }>
->('/api/auth/organization/list-roles', {
-    key: `better-auth-ui-organization-roles-${id}`,
-    query: { organizationId: id },
-    default: () => [],
-    immediate: !!supported?.organization?.dynamicRoles
-});
+// Better Auth's own GET endpoints and the module's, server-rendered: started together, then awaited together. The
+// organization's own roles (dynamic access control) are for the role pickers and the roles tab: none without it, or
+// without the `ac:read` permission. Single sign-on (SSO plugin): Better Auth lets an organization's owners and admins
+// manage its providers, and lists the providers of every organization they run. `enabled` keeps the plugins' calls
+// off without them, refreshes included.
+const [
+    { data: organization, error, refresh: refreshOrganization },
+    { data: can, refresh: refreshCan },
+    { data: teams, refresh: refreshTeams },
+    { data: dynamicRoles, refresh: refreshRoles },
+    { data: ssoProviders, refresh: refreshSso }
+] = await Promise.all([
+    useFetch<FullOrganization>('/api/auth/organization/get-full-organization', {
+        key: `better-auth-ui-organization-${id}`,
+        query: { organizationId: id }
+    }),
+    useFetch<Record<string, boolean>>(`${UI_API}/organizations/${encodeURIComponent(id)}/permissions`, {
+        key: `better-auth-ui-organization-permissions-${id}`,
+        default: () => ({})
+    }),
+    useFetch<OrganizationTeam[]>(`${UI_API}/organizations/${encodeURIComponent(id)}/teams`, {
+        key: `better-auth-ui-organization-teams-${id}`,
+        default: () => []
+    }),
+    useFetch<Array<{ id: string; role: string; permission: unknown }>>('/api/auth/organization/list-roles', {
+        key: `better-auth-ui-organization-roles-${id}`,
+        query: { organizationId: id },
+        default: () => [],
+        enabled: !!supported?.organization?.dynamicRoles
+    }),
+    useFetch<{ providers: SsoProvider[] }>('/api/auth/sso/providers', {
+        key: `better-auth-ui-organization-sso-${id}`,
+        default: () => ({ providers: [] }),
+        enabled: !!supported?.sso
+    })
+]);
 useSeoMeta({ title: () => organization.value?.name ?? t('organization.title') });
 
 const me = computed(() => organization.value?.members.find((member) => member.userId === user.value?.id));
-// Single sign-on (SSO plugin): Better Auth lets an organization's owners and admins (those roles by name) manage its
-// providers, and lists the providers of every organization they run.
+// Owners and admins (those roles by name) manage the organization's SSO providers.
 const ssoManager = computed(() => splitRoles(me.value?.role).some((role) => role === 'owner' || role === 'admin'));
-const { data: ssoProviders, refresh: refreshSso } = await useFetch<{ providers: SsoProvider[] }>(
-    '/api/auth/sso/providers',
-    {
-        key: `better-auth-ui-organization-sso-${id}`,
-        default: () => ({ providers: [] }),
-        immediate: !!supported?.sso
-    }
-);
 const organizationSso = computed(() =>
     (ssoProviders.value?.providers ?? []).filter((provider) => provider.organizationId === id)
 );
@@ -145,14 +145,7 @@ const tab = computed({
     }
 });
 
-const changed = () =>
-    Promise.all([
-        refreshOrganization(),
-        refreshCan(),
-        refreshTeams(),
-        refreshRoles(),
-        ...(supported?.sso ? [refreshSso()] : [])
-    ]);
+const changed = () => Promise.all([refreshOrganization(), refreshCan(), refreshTeams(), refreshRoles(), refreshSso()]);
 async function makeActive() {
     if (await run((client) => client.setActive({ organizationId: id }), t('organization.switched'))) {
         await fetchSession({ force: true });
