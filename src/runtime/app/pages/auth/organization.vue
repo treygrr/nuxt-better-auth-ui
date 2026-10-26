@@ -3,6 +3,7 @@ import type { TabsItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 import {
     computed,
+    defineAsyncComponent,
     useAuthCapabilities,
     useAuthI18n,
     useAuthPages,
@@ -16,19 +17,22 @@ import { upperFirst } from 'scule';
 import { UI_API } from '../../../constants';
 import type { OrganizationTeam } from '../../../server/api/organization/teams.get';
 import GeneralTab from '../../components/organization/GeneralTab.vue';
-import InvitationsTab from '../../components/organization/InvitationsTab.vue';
-import MembersTab from '../../components/organization/MembersTab.vue';
-import RolesTab from '../../components/organization/RolesTab.vue';
-import SsoTab from '../../components/organization/SsoTab.vue';
-import TeamsTab from '../../components/organization/TeamsTab.vue';
 import { splitRoles, useOrganizationActions } from '../../utils/organization';
 import { serverError } from '../../utils/server-error';
 import type { SsoProvider } from '../../utils/sso';
+
+// The other tabs, each loaded when it first opens (and server-rendered when it's the open one).
+const InvitationsTab = defineAsyncComponent(() => import('../../components/organization/InvitationsTab.vue'));
+const MembersTab = defineAsyncComponent(() => import('../../components/organization/MembersTab.vue'));
+const RolesTab = defineAsyncComponent(() => import('../../components/organization/RolesTab.vue'));
+const SsoTab = defineAsyncComponent(() => import('../../components/organization/SsoTab.vue'));
+const TeamsTab = defineAsyncComponent(() => import('../../components/organization/TeamsTab.vue'));
 
 /**
  * An organization's own page (Better Auth's Organization plugin), for its members: its details, members, invitations,
  * teams and roles, each part shown to those whose role allows it, from Better Auth's own permission check.
  */
+
 const { t, errorMessage } = useAuthI18n();
 const route = useRoute();
 const router = useRouter();

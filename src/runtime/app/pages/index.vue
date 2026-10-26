@@ -6,7 +6,8 @@ import {
     useBetterAuthAdminPath,
     useAuthI18n,
     useLazyFetch,
-    useState
+    useState,
+    useSeoMeta
 } from '#imports';
 import { addDays, eachDayOfInterval, eachMonthOfInterval, eachWeekOfInterval, max, startOfDay, sub } from 'date-fns';
 import { ADMIN_API } from '../../constants';
@@ -51,6 +52,8 @@ const { data: stats } = useLazyFetch<AdminStats>(`${ADMIN_API}/stats`, {
     })),
     server: false
 });
+
+useSeoMeta({ title: () => t('admin.home.title') });
 </script>
 
 <template>

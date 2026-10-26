@@ -3,6 +3,7 @@ import type { TabsItem } from '@nuxt/ui';
 import { useUserSession } from '@nuxtjs/better-auth/composables';
 import {
     computed,
+    defineAsyncComponent,
     useAuthCapabilities,
     useAuthI18n,
     useRoute,
@@ -13,28 +14,30 @@ import {
 
 import { needsTwoFactorSetUp, requiresTwoFactor, type TwoFactorRequired } from '../../../two-factor-required';
 
-import AccountsCard from '../../components/account/AccountsCard.vue';
-import ApiKeysCard from '../../components/account/ApiKeysCard.vue';
-import BillingCard from '../../components/account/BillingCard.vue';
-import ConnectionsCard from '../../components/account/ConnectionsCard.vue';
-import DataCard from '../../components/account/DataCard.vue';
-import DeleteCard from '../../components/account/DeleteCard.vue';
-import DevicesCard from '../../components/account/DevicesCard.vue';
-import EmailCard from '../../components/account/EmailCard.vue';
 import GuestCard from '../../components/account/GuestCard.vue';
-import OrganizationsCard from '../../components/account/OrganizationsCard.vue';
 import OverviewCard from '../../components/account/OverviewCard.vue';
-import PasskeysCard from '../../components/account/PasskeysCard.vue';
-import PasswordCard from '../../components/account/PasswordCard.vue';
-import PhoneCard from '../../components/account/PhoneCard.vue';
-import ProfileCard from '../../components/account/ProfileCard.vue';
-import TwoFactorCard from '../../components/account/TwoFactorCard.vue';
 import {
     useAccountMethods,
     useAccountPasskeys,
     useAccountSessions,
     useAccountTwoFactor
 } from '../../utils/account-data';
+
+// The tabs' cards, each loaded when its tab first opens (and server-rendered for the open one).
+const AccountsCard = defineAsyncComponent(() => import('../../components/account/AccountsCard.vue'));
+const ApiKeysCard = defineAsyncComponent(() => import('../../components/account/ApiKeysCard.vue'));
+const BillingCard = defineAsyncComponent(() => import('../../components/account/BillingCard.vue'));
+const ConnectionsCard = defineAsyncComponent(() => import('../../components/account/ConnectionsCard.vue'));
+const DataCard = defineAsyncComponent(() => import('../../components/account/DataCard.vue'));
+const DeleteCard = defineAsyncComponent(() => import('../../components/account/DeleteCard.vue'));
+const DevicesCard = defineAsyncComponent(() => import('../../components/account/DevicesCard.vue'));
+const EmailCard = defineAsyncComponent(() => import('../../components/account/EmailCard.vue'));
+const OrganizationsCard = defineAsyncComponent(() => import('../../components/account/OrganizationsCard.vue'));
+const PasskeysCard = defineAsyncComponent(() => import('../../components/account/PasskeysCard.vue'));
+const PasswordCard = defineAsyncComponent(() => import('../../components/account/PasswordCard.vue'));
+const PhoneCard = defineAsyncComponent(() => import('../../components/account/PhoneCard.vue'));
+const ProfileCard = defineAsyncComponent(() => import('../../components/account/ProfileCard.vue'));
+const TwoFactorCard = defineAsyncComponent(() => import('../../components/account/TwoFactorCard.vue'));
 
 const { t } = useAuthI18n();
 useSeoMeta({ title: () => t('account.title') });

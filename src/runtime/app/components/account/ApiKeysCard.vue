@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useTimeoutFn } from '@vueuse/core';
 import { useAuthClient } from '@nuxtjs/better-auth/composables';
+import * as z from 'zod';
 import { $fetch, computed, ref, useAuthI18n, useRuntimeConfig, useToast } from '#imports';
 
 import { UI_API } from '../../../constants';
@@ -44,6 +45,15 @@ const name = ref('');
 const expiresInDays = ref(90);
 const scopes = ref<string[]>([]);
 const created = ref<{ key: string; name: string | null } | null>(null);
+// The server's own rule for names, checked before sending.
+const schema = z.object({
+    name: z
+        .string()
+        .trim()
+        .min(1, { error: () => t('errors.API_KEY_NAME_INVALID') })
+        .max(64, { error: () => t('errors.API_KEY_NAME_INVALID') })
+});
+const formState = computed(() => ({ name: name.value }));
 const submitting = ref(false);
 const expiryItems = computed(() => [
     { label: t('account.apiKeys.days', { count: 30 }), value: 30 },
@@ -190,7 +200,7 @@ async function revoke() {
                         @click="copy"
                     />
                 </div>
-                <UForm v-else id="api-key-form" :state="{ name }" class="space-y-4" @submit="create">
+                <UForm v-else id="api-key-form" :schema="schema" :state="formState" class="space-y-4" @submit="create">
                     <UFormField :label="t('account.apiKeys.name')" name="name" required>
                         <UInput
                             v-model="name"

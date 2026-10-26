@@ -21,7 +21,8 @@ import {
     useRoute,
     useTemplateRef,
     useToast,
-    watch
+    watch,
+    useSeoMeta
 } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
@@ -475,6 +476,8 @@ const filterItems = computed(() => [
 ]);
 
 const bulkTargets = computed(() => selected.value.filter((user) => !isSelf(user)));
+
+useSeoMeta({ title: () => t('admin.users.title') });
 </script>
 
 <template>

@@ -7,7 +7,8 @@ import {
     useBetterAuthAdminConfig,
     useFetch,
     useRoute,
-    watch
+    watch,
+    useSeoMeta
 } from '#imports';
 
 import { ADMIN_API } from '../../constants';
@@ -45,6 +46,8 @@ const { data, status, error } = await useFetch<{ entries: AdminAuditEntry[]; tot
     }))
 });
 const total = computed(() => data.value?.total ?? 0);
+
+useSeoMeta({ title: () => t('admin.audit.title') });
 </script>
 
 <template>

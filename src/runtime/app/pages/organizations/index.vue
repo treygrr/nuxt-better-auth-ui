@@ -10,7 +10,8 @@ import {
     useBetterAuthAdminPath,
     useAuthI18n,
     useFetch,
-    watch
+    watch,
+    useSeoMeta
 } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
@@ -73,6 +74,8 @@ const columns = computed<TableColumn<AdminOrganization>[]>(() => [
         cell: ({ row }) => h(NuxtTime, { datetime: row.original.createdAt, dateStyle: 'medium' })
     }
 ]);
+
+useSeoMeta({ title: () => t('admin.organizations.title') });
 </script>
 
 <template>

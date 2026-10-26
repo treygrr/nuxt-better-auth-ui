@@ -45,7 +45,10 @@ export const adminEs = {
         required: 'Obligatorio',
         invalidEmail: 'Correo no válido',
         passwordLength: 'Al menos 8 caracteres',
-        url: 'Debe ser una URL'
+        url: 'Debe ser una URL',
+        number: 'Debe ser un número',
+        numbers: 'Deben ser números, separados por comas',
+        date: 'Debe ser una fecha'
     },
     nav: {
         home: 'Inicio',

@@ -15,7 +15,8 @@ import {
     useRequestURL,
     useRoute,
     useRuntimeConfig,
-    useToast
+    useToast,
+    useSeoMeta
 } from '#imports';
 
 import { ADMIN_API } from '../../../constants';
@@ -231,6 +232,8 @@ const revokeAll = (current: AdminUser) =>
     run(() => admin.revokeSessions(current.id), t('admin.common.signedOutEverywhere', { name: current.name }));
 // The client session omits the token, so match on the session id.
 const thisSession = computed(() => session.session.value?.id);
+
+useSeoMeta({ title: () => user.value?.name ?? t('admin.user.title') });
 </script>
 
 <template>

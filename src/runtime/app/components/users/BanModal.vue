@@ -63,18 +63,23 @@ async function onSubmit() {
 <template>
     <UModal v-model:open="open" :title="title" :description="t('admin.modals.ban.description')">
         <template #body>
-            <div class="space-y-4">
-                <UFormField :label="t('admin.modals.ban.reason')" :help="t('admin.modals.ban.reasonHelp')">
+            <!-- A form, so Enter in the reason bans too. -->
+            <UForm :state="{ reason, duration }" class="space-y-4" @submit="onSubmit">
+                <UFormField
+                    name="reason"
+                    :label="t('admin.modals.ban.reason')"
+                    :help="t('admin.modals.ban.reasonHelp')"
+                >
                     <UInput v-model="reason" class="w-full" />
                 </UFormField>
-                <UFormField :label="t('admin.modals.ban.duration')">
+                <UFormField name="duration" :label="t('admin.modals.ban.duration')">
                     <USelect v-model="duration" :items="durations" class="w-full" />
                 </UFormField>
                 <div class="flex justify-end gap-2">
                     <UButton :label="t('admin.common.cancel')" color="neutral" variant="subtle" @click="open = false" />
-                    <UButton :label="t('admin.common.ban')" color="error" loading-auto @click="onSubmit" />
+                    <UButton type="submit" :label="t('admin.common.ban')" color="error" loading-auto />
                 </div>
-            </div>
+            </UForm>
         </template>
     </UModal>
 </template>

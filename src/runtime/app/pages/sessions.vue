@@ -11,7 +11,8 @@ import {
     useBetterAuthAdminUsers,
     useAuthI18n,
     useFetch,
-    useToast
+    useToast,
+    useSeoMeta
 } from '#imports';
 
 import { ADMIN_API } from '../../constants';
@@ -140,6 +141,8 @@ const columns = computed<TableColumn<Row>[]>(() => [
                 : null
     }
 ]);
+
+useSeoMeta({ title: () => t('admin.sessions.title') });
 </script>
 
 <template>

@@ -15,7 +15,8 @@ import {
     useFetch,
     useRoute,
     useRuntimeConfig,
-    useToast
+    useToast,
+    useSeoMeta
 } from '#imports';
 import { upperFirst } from 'scule';
 
@@ -160,6 +161,8 @@ const roles = (role: string) =>
         .split(',')
         .map((item) => upperFirst(item.trim()))
         .join(', ');
+
+useSeoMeta({ title: () => organization.value?.name ?? t('admin.organizations.title') });
 </script>
 
 <template>

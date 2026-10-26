@@ -10,6 +10,7 @@ import {
     useToast
 } from '#imports';
 import { upperFirst } from 'scule';
+import * as z from 'zod';
 
 import { ADMIN_API } from '../../../constants';
 import type { AdminUserField } from '../../../server/api/user-fields.get';
@@ -61,6 +62,36 @@ function startEditing() {
     }
     editing.value = true;
 }
+// Checked before saving, field by field, with the error shown under the field: a number that isn't one would
+// otherwise be saved as NaN.
+const isNumber = (text: string) => text.trim() !== '' && Number.isFinite(Number(text));
+const items = (text: string) =>
+    text
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+function fieldSchema(field: AdminUserField) {
+    if (field.type === 'boolean') return z.boolean();
+    let text = z
+        .string()
+        .refine((value) => !field.required || value.trim() !== '', { error: () => t('admin.validation.required') });
+    if (field.type === 'number') {
+        text = text.refine((value) => !value.trim() || isNumber(value), { error: () => t('admin.validation.number') });
+    }
+    if (field.type === 'number[]') {
+        text = text.refine((value) => items(value).every(isNumber), { error: () => t('admin.validation.numbers') });
+    }
+    if (field.type === 'date') {
+        text = text.refine((value) => !value.trim() || !Number.isNaN(new Date(value).getTime()), {
+            error: () => t('admin.validation.date')
+        });
+    }
+    return text;
+}
+const schema = computed(() =>
+    z.object(Object.fromEntries(editable.value.map((field) => [field.name, fieldSchema(field)])))
+);
+
 /** The form's text back into the field's type; empty is null. */
 function parse(field: AdminUserField, input: string | boolean) {
     if (field.type === 'boolean') return input === true;
@@ -69,11 +100,7 @@ function parse(field: AdminUserField, input: string | boolean) {
     if (field.type === 'number') return Number(text);
     if (field.type === 'date') return new Date(text).toISOString();
     if (field.type === 'string[]' || field.type === 'number[]') {
-        const items = text
-            .split(',')
-            .map((item) => item.trim())
-            .filter(Boolean);
-        return field.type === 'number[]' ? items.map(Number) : items;
+        return field.type === 'number[]' ? items(text).map(Number) : items(text);
     }
     return text;
 }
@@ -132,10 +159,11 @@ async function save() {
 
         <UModal v-model:open="editing" :title="t('admin.fields.editTitle', { name: user.name })">
             <template #body>
-                <form id="user-fields-form" class="space-y-4" @submit.prevent="save">
+                <UForm id="user-fields-form" :schema="schema" :state="form" class="space-y-4" @submit="save">
                     <UFormField
                         v-for="field in editable"
                         :key="field.name"
+                        :name="field.name"
                         :label="label(field.name)"
                         :required="field.required"
                         :help="
@@ -159,7 +187,7 @@ async function save() {
                             class="w-full"
                         />
                     </UFormField>
-                </form>
+                </UForm>
             </template>
             <template #footer>
                 <div class="flex justify-end gap-2 w-full">

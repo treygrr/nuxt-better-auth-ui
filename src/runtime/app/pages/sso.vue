@@ -8,7 +8,8 @@ import {
     useBetterAuthAdminPath,
     useAuthCapabilities,
     useAuthI18n,
-    useFetch
+    useFetch,
+    useSeoMeta
 } from '#imports';
 
 import { ADMIN_API } from '../../constants';
@@ -107,6 +108,8 @@ const columns = computed<TableColumn<AdminSsoProvider>[]>(() => [
                 : h('span', { class: 'text-muted' }, '—')
     }
 ]);
+
+useSeoMeta({ title: () => t('admin.sso.title') });
 </script>
 
 <template>
