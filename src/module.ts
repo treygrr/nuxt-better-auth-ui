@@ -1095,6 +1095,13 @@ export default defineNuxtModule<ModuleOptions>({
             });
         }
 
+        // The plugin files below import the module's virtual modules (#better-auth-ui/…), which only Nitro's bundler
+        // resolves. In development Nitro leaves the build directory to Node unbundled, so inline these files.
+        nuxt.hook('nitro:config', (config) => {
+            config.externals ??= {};
+            (config.externals.inline ??= []).push(`${nuxt.options.buildDir}/better-auth-ui/`);
+        });
+
         // More of Better Auth's own plugins, each added to the app's auth config (and client, where it has one).
         const addAuthPlugin = (name: string, server: string[], client?: string[]) => {
             const serverFile = addTemplate({
